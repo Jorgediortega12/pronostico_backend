@@ -1,0 +1,54 @@
+import express from 'express';
+import cors from 'cors';
+import morgan from 'morgan';
+import colors from 'colors';
+import Logger from '../helpers/logger.js';
+import authRoutes from '../api/routes/v1/auth/index.js';
+
+export default async (app) => {
+    // Middlewares
+    app.use(cors());
+    app.use(morgan('dev'));
+    app.use(express.json());
+    app.use(express.urlencoded({ extended: true }));
+
+    // Health check
+    app.get('/', (req, res) => {
+        res.json({
+            message: 'Pronostico Backend API',
+            status: 'running',
+            version: '1.0.0'
+        });
+    });
+
+    app.get('/health', (req, res) => {
+        res.status(200).json({
+            status: 'OK',
+            uptime: process.uptime(),
+            timestamp: new Date().toISOString()
+        });
+    });
+
+    // API Routes v1
+    app.use('/api/v1/auth', authRoutes);
+
+    // Error handling middleware
+    app.use((err, req, res, next) => {
+        Logger.error(colors.red('Error en la aplicación:'), err.stack);
+        res.status(err.status || 500).json({
+            success: false,
+            message: err.message || 'Error interno del servidor',
+            error: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        });
+    });
+
+    // 404 handler
+    app.use((req, res) => {
+        res.status(404).json({
+            success: false,
+            message: 'Ruta no encontrada'
+        });
+    });
+
+    Logger.info(colors.green('✓ Express loaded'));
+};
