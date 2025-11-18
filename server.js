@@ -1,44 +1,21 @@
-const express = require('express');
-const cors = require('cors');
-const morgan = require('morgan');
-const dotenv = require('dotenv');
+import express from 'express';
+import colors from 'colors';
+import Logger from './src/helpers/logger.js';
+import { name, port } from './src/config/index.js';
+import loaders from './src/loaders/index.js';
 
-// Load environment variables
-dotenv.config();
+async function startServer() {
+    const app = express();
+    await loaders(app);
+    app
+        .listen(port, () => {
+            Logger.info(`${colors.yellow('########################################################')}
+    🛡️  ${colors.green(`Server ${colors.blue(name)} listening on port:`)} ${colors.blue(port)}  🛡️
+        ${colors.yellow('########################################################')}`);
+        })
+        .on('error', (e) => Logger.error('Error in server.listen', e));
+}
 
-const app = express();
-
-// Middlewares
-app.use(cors());
-app.use(morgan('dev'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Routes
-app.get('/', (req, res) => {
-  res.json({
-    message: 'Pronostico Backend API',
-    status: 'running'
-  });
-});
-
-// API Routes
-const userRoutes = require('./src/routes/user.routes');
-app.use('/api/users', userRoutes);
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({
-    error: 'Something went wrong!',
-    message: err.message
-  });
-});
-
-// Start server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
-
-module.exports = app;
+startServer()
+    .then(() => Logger.info(colors.green('Done ✌️')))
+    .catch((error) => Logger.error(colors.red('Error when starting the API'), error));

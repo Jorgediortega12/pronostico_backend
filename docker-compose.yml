@@ -1,0 +1,40 @@
+version: "3.8"
+
+services:
+  #Servicio de base de datos PostgreSQL
+  db:
+    image: postgres:13-alpine
+    container_name: jano_postgres
+    restart: unless-stopped
+    env_file:
+      - .env 
+    ports:
+      - "5433:5432" 
+    volumes:
+      - pgdata:/var/lib/postgresql/data  # Volumen persistente
+      - ./init:/docker-entrypoint-initdb.d:ro  # Scripts SQL opcionales para inicializar
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  #Interfaz gráfica de administración (pgAdmin)
+  pgadmin:
+    image: dpage/pgadmin4:6
+    container_name: jano_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "8080:80" 
+    depends_on:
+      db:
+        condition: service_healthy 
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+volumes:
+  pgdata:
+  pgadmin_data:
