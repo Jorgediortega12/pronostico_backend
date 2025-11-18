@@ -23,7 +23,8 @@ app.get('/', (req, res) => {
 });
 
 // API Routes
-// TODO: Import and use routes from src/api
+const userRoutes = require('./src/routes/user.routes');
+app.use('/api/users', userRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
