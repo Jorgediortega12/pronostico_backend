@@ -31,3 +31,5 @@ coverage/
 # Build
 dist/
 build/
+
+/reportes
