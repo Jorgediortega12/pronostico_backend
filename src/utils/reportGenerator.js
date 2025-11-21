@@ -117,23 +117,17 @@ export async function generateAndSaveReports(
 
 /**
  * Inserta un registro en la tabla 'archivos'
- * Tabla columnas: codigo (serial PK), codcarpeta, nombrearchivo, path, contenttype
+ * Tabla columnas: codigo (serial PK), nombrearchivo, path, contenttype
  *
  * @param {import('pg').Client|import('pg').PoolClient} client - cliente pg ya conectado
  * @param {Object} params
  * @param {string} params.nombreArchivo - nombre del archivo (ej. MCATLANTICOAGT1907.txt)
  * @param {string} params.rutaArchivo - ruta absoluta en disco o url (ej. /var/www/reportes/...)
- * @param {number|null} params.codcarpeta - id de la carpeta en tu sistema (si lo tienes), o null
  * @param {string|null} params.contentType - mime type opcional; si no se pasa se intenta inferir
  * @returns {Object} fila insertada { codigo: <id> }
  */
 export async function insertFileRecord(client, params = {}) {
-  const {
-    nombreArchivo,
-    rutaArchivo,
-    codcarpeta = null,
-    contentType = null,
-  } = params;
+  const { nombreArchivo, rutaArchivo, contentType = null } = params;
 
   if (!client) throw new Error("insertFileRecord: client de BD requerido");
   if (!nombreArchivo || !rutaArchivo)

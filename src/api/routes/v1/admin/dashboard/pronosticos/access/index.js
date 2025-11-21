@@ -31,21 +31,9 @@ export const crearPronostico = async (req, res) => {
 // Bulk: recibir pronosticoList: [{fecha, p1..p24, codigo?, observacion?}, ...]
 // o recibir pronosticoList en pronostico y opcional historico en historico
 export const crearPronosticosBulk = async (req, res) => {
-  const {
-    ucp,
-    pronostico = [],
-    borrarPrevio = false,
-    generarArchivos = true,
-    codcarpeta,
-  } = req.body;
+  const { ucp, pronostico = [] } = req.body;
   try {
-    const result = await service.crearPronosticosBulk(
-      ucp,
-      pronostico,
-      borrarPrevio,
-      generarArchivos,
-      codcarpeta
-    );
+    const result = await service.crearPronosticosBulk(ucp, pronostico);
     if (!result.success) return responseError(200, result.message, 404, res);
     return SuccessResponse(res, true, result.message);
   } catch (err) {

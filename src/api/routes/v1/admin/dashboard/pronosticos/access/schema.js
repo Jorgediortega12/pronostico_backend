@@ -51,9 +51,5 @@ export default {
         })
       )
       .required(),
-    usuario: Joi.string().allow("", null),
-    borrarPrevio: Joi.boolean().optional(),
-    generarArchivos: Joi.boolean().optional(),
-    codcarpeta: Joi.number().optional(),
   }),
 };

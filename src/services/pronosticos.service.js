@@ -54,22 +54,13 @@ export default class PronosticosService {
    * Inserta en BD y genera archivos .txt/.xlsx (opcionalmente registra archivo en BD)
    * @param {string} ucp - identificador (se usa como carpeta MC{ucp})
    * @param {Array} pronosticoList - array [{fecha, p1..p24, codigo?, observacion?}, ...]
-   * @param {boolean} borrarPrevio
-   * @param {boolean} generarArchivos - si false, no generará txt/xlsx
    */
-  crearPronosticosBulk = async (
-    ucp,
-    pronosticoList,
-    borrarPrevio = false,
-    generarArchivos = true,
-    codcarpeta = null // <-- si quieres asignar carpeta desde el controller
-  ) => {
+  crearPronosticosBulk = async (ucp, pronosticoList) => {
     try {
       // 1) Insertar en BD (modelo)
       const insertResult = await model.crearPronosticosBulk(
         ucp,
-        pronosticoList,
-        borrarPrevio
+        pronosticoList
       );
 
       if (!insertResult || !insertResult.success) {
@@ -80,79 +71,68 @@ export default class PronosticosService {
       }
 
       // 2) Generar archivos (si se solicita)
-      if (generarArchivos) {
+      try {
+        // Normalizar/ordenar pronosticoList por fecha ascendente
+        const normalizeDate = (f) => {
+          if (!f) return new Date(0);
+          return new Date(f);
+        };
+
+        const ordered = Array.isArray(pronosticoList)
+          ? [...pronosticoList].sort(
+              (a, b) => normalizeDate(a.fecha) - normalizeDate(b.fecha)
+            )
+          : [];
+
+        // baseDir para reportes (usa REPORT_DIR si está en .env)
+        const baseDir =
+          process.env.REPORT_DIR || path.join(process.cwd(), "reportes");
+
+        // Usamos ucp como nombre de carpeta MC{ucp}
+        const mcForFolder = ucp;
+
+        // generar archivos TXT y XLSX
+        const { txtPath, xlsxPath, txtName, xlsxName } =
+          await generateAndSaveReports(ordered, mcForFolder, baseDir, {
+            truncate: true,
+            keepDecimals: false,
+          });
+
+        // 3) Registrar archivo XLSX en tabla 'archivos'
         try {
-          // Normalizar/ordenar pronosticoList por fecha ascendente
-          const normalizeDate = (f) => {
-            if (!f) return new Date(0);
-            return new Date(f);
-          };
+          const client = await pool.connect();
 
-          const ordered = Array.isArray(pronosticoList)
-            ? [...pronosticoList].sort(
-                (a, b) => normalizeDate(a.fecha) - normalizeDate(b.fecha)
-              )
-            : [];
+          await insertFileRecord(client, {
+            nombreArchivo: xlsxName, // ejemplo: MC001_PRONOSTICO_20251119.xlsx
+            rutaArchivo: xlsxPath, // ruta absoluta del archivo generado
+            contentType: null, // deja que se infiera automáticamente
+          });
 
-          // baseDir para reportes (usa REPORT_DIR si está en .env)
-          const baseDir =
-            process.env.REPORT_DIR || path.join(process.cwd(), "reportes");
-
-          // Usamos ucp como nombre de carpeta MC{ucp}
-          const mcForFolder = ucp;
-
-          // generar archivos TXT y XLSX
-          const { txtPath, xlsxPath, txtName, xlsxName } =
-            await generateAndSaveReports(ordered, mcForFolder, baseDir, {
-              truncate: true,
-              keepDecimals: false,
-            });
-
-          // 3) Registrar archivo XLSX en tabla 'archivos'
-          try {
-            const client = await pool.connect();
-
-            await insertFileRecord(client, {
-              nombreArchivo: xlsxName, // ejemplo: MC001_PRONOSTICO_20251119.xlsx
-              rutaArchivo: xlsxPath, // ruta absoluta del archivo generado
-              codcarpeta: codcarpeta, // si no tienes una carpeta, pasas null
-              contentType: null, // deja que se infiera automáticamente
-            });
-
-            client.release();
-          } catch (regErr) {
-            Logger.error(
-              colors.red("Warning: no se pudo registrar archivo en BD: "),
-              regErr.message || regErr
-            );
-          }
-
-          return {
-            success: true,
-            message: `Se insertaron ${
-              insertResult.rowCount || pronosticoList.length
-            } pronósticos. Archivos generados: ${txtName}, ${xlsxName}`,
-          };
-        } catch (fileErr) {
+          client.release();
+        } catch (regErr) {
           Logger.error(
-            colors.red("Error generando archivos pronosticos: "),
-            fileErr
+            colors.red("Warning: no se pudo registrar archivo en BD: "),
+            regErr.message || regErr
           );
-
-          return {
-            success: true,
-            message: `Se insertaron pronósticos (error al generar archivos: ${fileErr.message})`,
-          };
         }
-      }
 
-      // Si no generamos archivos
-      return {
-        success: true,
-        message: `Se insertaron ${
-          insertResult.rowCount || pronosticoList.length
-        } pronósticos.`,
-      };
+        return {
+          success: true,
+          message: `Se insertaron ${
+            insertResult.rowCount || pronosticoList.length
+          } pronósticos. Archivos generados: ${txtName}, ${xlsxName}`,
+        };
+      } catch (fileErr) {
+        Logger.error(
+          colors.red("Error generando archivos pronosticos: "),
+          fileErr
+        );
+
+        return {
+          success: true,
+          message: `Se insertaron pronósticos (error al generar archivos: ${fileErr.message})`,
+        };
+      }
     } catch (err) {
       Logger.error(
         colors.red("Error PronosticosService crearPronosticosBulk "),
