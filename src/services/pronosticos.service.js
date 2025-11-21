@@ -3,7 +3,6 @@ import PronosticosModel from "../models/pronosticos.model.js";
 import Logger from "../helpers/logger.js";
 import colors from "colors";
 import {
-  // generateAndSaveReports,
   generateReportsToFolder,
   insertFileRecord,
 } from "../utils/reportGenerator.js";
@@ -147,7 +146,7 @@ export default class PronosticosService {
           ordered,
           folderPathPhysical,
           fileBaseName,
-          { truncate: true, keepDecimals: false }
+          { truncate: true, keepDecimals: true }
         );
 
       // ruta lógica que guardaremos en BD (con ~)

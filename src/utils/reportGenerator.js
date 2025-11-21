@@ -14,46 +14,34 @@ import ExcelJS from "exceljs";
  * @param {Object} options { truncate: true|false, keepDecimals: false|true }
  * @returns {Object} { txtPath, xlsxPath, txtName, xlsxName }
  */
-export async function generateAndSaveReports(
+/**
+ * Genera TXT y XLSX directamente en la carpeta destino (folderPhysical)
+ * records: array [{ fecha, p1..p24 }]
+ * folderPhysical: ruta absoluta donde guardar (existente)
+ * fileBaseName no extension (ej 'MCATLANTICOAGT2411')
+ */
+export async function generateReportsToFolder(
   records = [],
-  mc = "MC",
-  baseDir = "./reportes",
-  options = {}
+  folderPhysical,
+  fileBaseName,
+  options = { truncate: true, keepDecimals: false }
 ) {
+  if (!Array.isArray(records) || records.length === 0)
+    throw new Error("No hay registros para generar reporte.");
+
+  // asegurar carpeta física
+  if (!fs.existsSync(folderPhysical))
+    fs.mkdirSync(folderPhysical, { recursive: true });
+
   const { truncate = true, keepDecimals = false } = options;
 
-  // Validaciones mínimas
-  if (!Array.isArray(records) || records.length === 0) {
-    throw new Error("No hay registros para generar reporte (records vacio).");
-  }
+  const txtName = `${fileBaseName}.txt`;
+  const xlsxName = `${fileBaseName}.xlsx`;
+  const txtPath = path.join(folderPhysical, txtName);
+  const xlsxPath = path.join(folderPhysical, xlsxName);
 
-  // Normalizar y ordenar por fecha (intenta varios formatos)
-  const parseDate = (f) => {
-    if (!f) return new Date(0);
-    const m = moment(
-      f,
-      ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", "YYYY/MM/DD"],
-      true
-    );
-    return m.isValid() ? m.toDate() : new Date(f);
-  };
-  records.sort((a, b) => parseDate(a.fecha) - parseDate(b.fecha));
-
-  // Asegurar carpeta
-  const folder = path.resolve(baseDir, `MC${mc}`);
-  if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
-
-  const timestamp = moment().format("YYYYMMDD_HHmmss");
-  const txtName = `MC${mc}AGTE_${timestamp}.txt`;
-  const xlsxName = `MC${mc}AGTE_${timestamp}.xlsx`;
-  const txtPath = path.join(folder, txtName);
-  const xlsxPath = path.join(folder, xlsxName);
-
-  // Determinar cantidad de días (columnas) = records.length
+  // === Construir TXT (igual que antes) ===
   const days = records.length;
-
-  // Construir TXT: 24 líneas (periodo 1..24)
-  // Cada linea: periodo \t valor_dia1 \t valor_dia2 \t ... (valores truncados si truncate=true)
   const txtLines = [];
   for (let p = 1; p <= 24; p++) {
     const cols = [p.toString()];
@@ -64,52 +52,136 @@ export async function generateAndSaveReports(
           ? Number(String(rec[`p${p}`]).replace(",", "."))
           : 0;
       if (!keepDecimals) {
-        // si no quieres decimales, trunca como hacía el C#
         if (truncate) val = Math.trunc(val);
         else val = Math.round(val);
-      } else {
-        // mantener decimales (pero formatear con punto)
-        val = Number(val);
       }
       cols.push(String(val));
     }
     txtLines.push(cols.join("\t"));
   }
-  // Escribir txt
   fs.writeFileSync(txtPath, txtLines.join("\n"), "utf8");
 
-  // Construir XLSX con ExcelJS
+  // === Preparar valores para XLSX: formato en filas (CodAbrevMC, FECHA, PERIODO, PRONOSTICO) ===
+
+  // helper: intentar extraer UCP desde fileBaseName
+  // ejemplo: 'MCAtlanticoAGTE2411' -> captura 'Atlantico'
+  const extractUcpFromBase = (base) => {
+    if (!base || typeof base !== "string") return null;
+    // intentar patrón MC<ucp>AGTE...
+    let m = base.match(/^MC([A-Za-zÀ-ÿ0-9]+)AGTE/i);
+    if (m && m[1]) return m[1];
+    // intentar patrón <ucp>AGTE...
+    m = base.match(/^([A-Za-zÀ-ÿ0-9]+)AGTE/i);
+    if (m && m[1]) return m[1];
+    // fallback: si base empieza con 'MC-' (nuevo estilo), tomar siguiente parte
+    m = base.match(/^MC-?([A-Za-zÀ-ÿ0-9]+)(?:-|_)?/i);
+    if (m && m[1]) return m[1];
+    return null;
+  };
+
+  const capitalizeWords = (s) =>
+    String(s || "")
+      .trim()
+      .split(/\s+/)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(" ");
+
+  const ucpExtracted = extractUcpFromBase(fileBaseName);
+  const ucpFinal = ucpExtracted
+    ? capitalizeWords(ucpExtracted.replace(/\s+/g, ""))
+    : capitalizeWords(fileBaseName.replace(/\s+/g, ""));
+  const codAbrevValue = `MC-${ucpFinal}`; // ejemplo "MC-Atlantico"
+
+  // helper de formateo de pronostico para Excel (string con coma decimal)
+  const formatPronosticoForExcel = (raw) => {
+    const num = Number(String(raw).replace(",", "."));
+    if (Number.isNaN(num)) return "0,0";
+
+    if (keepDecimals) {
+      // conservar lo que venga: convertir a string con coma decimal
+      // respetar posibles decimales existentes
+      const s = String(num);
+      return s.replace(".", ",");
+    }
+
+    if (truncate) {
+      // trunca a entero y muestra sin decimales, pero en C# Excel shows "0,0" for zeros; however user requested values like 760 etc.
+      const t = Math.trunc(num);
+      return String(t).replace(".", ",");
+    }
+
+    // aplicar regla tipo C#: <10 => 4 decimales, >=10 => 1 decimal
+    if (Math.abs(num) < 10) {
+      return num.toFixed(4).replace(".", ",");
+    } else {
+      return num.toFixed(1).replace(".", ",");
+    }
+  };
+
+  // === Generar XLSX ===
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("Pronostico");
 
-  // Header: Periodo + fechas formateadas (usar la propiedad fecha de records)
-  const header = ["Periodo", ...records.map((r) => r.fecha || "")];
-  ws.addRow(header);
+  // Header: CodAbrevMC | FECHA | PERIODO | PRONOSTICO
+  ws.addRow(["CodAbrevMC", "FECHA", "PERIODO", "PRONOSTICO"]);
 
-  for (let p = 1; p <= 24; p++) {
-    const row = [p];
-    for (let d = 0; d < days; d++) {
-      const rec = records[d] || {};
-      let val =
-        rec[`p${p}`] != null
-          ? Number(String(rec[`p${p}`]).replace(",", "."))
-          : 0;
-      if (!keepDecimals) {
-        if (truncate) val = Math.trunc(val);
-        else val = Math.round(val);
-      }
-      row.push(val);
+  // records deben estar ordenados por fecha asc; si no lo están, ordenarlos:
+  const parseDate = (f) => {
+    if (!f) return new Date(0);
+    const m = moment(
+      f,
+      ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", "YYYY/MM/DD"],
+      true
+    );
+    return m.isValid() ? m.toDate() : new Date(f);
+  };
+  const ordered = Array.isArray(records)
+    ? [...records].sort((a, b) => parseDate(a.fecha) - parseDate(b.fecha))
+    : records;
+
+  for (let d = 0; d < ordered.length; d++) {
+    const rec = ordered[d];
+    // formatear fecha como dd/MM/YYYY (coincide con convertFechaDiaSlash)
+    const mDate = moment(
+      rec.fecha,
+      ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", "YYYY/MM/DD"],
+      true
+    );
+    const fechaFormateada = mDate.isValid()
+      ? mDate.format("DD/MM/YYYY")
+      : String(rec.fecha);
+
+    // por cada dia, 24 filas (periodos 1..24)
+    for (let p = 1; p <= 24; p++) {
+      const raw = rec[`p${p}`];
+      const pron = formatPronosticoForExcel(raw);
+      // Añadimos como texto para preservar coma decimal; si prefieres número usa parsedNumber
+      ws.addRow([codAbrevValue, fechaFormateada, p, pron]);
     }
-    ws.addRow(row);
   }
 
-  // Opcional: ajustar ancho automático simple (aumenta legibilidad)
-  ws.columns.forEach((col, i) => {
-    // primera columna pequeña, resto más ancha
-    col.width = i === 0 ? 10 : 15;
+  // Ajustes de columnas (ancho y estilos)
+  ws.columns = [
+    { key: "cod", width: 18 },
+    { key: "fecha", width: 14 },
+    { key: "periodo", width: 10 },
+    { key: "pron", width: 14 },
+  ];
+
+  ws.eachRow((row, rowNumber) => {
+    row.eachCell((cell, colNumber) => {
+      cell.alignment = { vertical: "middle", horizontal: "left" };
+      if (rowNumber === 1) cell.font = { bold: true };
+      // Asegurarnos que la columna PRONOSTICO queda como texto (para mantener coma decimal),
+      // así no Excel convertirá "856,2" a número (depende del locale del usuario).
+      if (colNumber === 4 && rowNumber > 1) {
+        // establecer como texto (ExcelJS no tiene type 'string' setter directo, pero podemos coerce by prefixing with ')
+        // Evitamos prefixear para mantener limpio; en muchos viewers la celda quedará como string si le pasamos string.
+        // Dejar el valor tal cual (string con coma) ya lo añade como string.
+      }
+    });
   });
 
-  // Guardar xlsx
   await wb.xlsx.writeFile(xlsxPath);
 
   return { txtPath, xlsxPath, txtName, xlsxName };
@@ -156,84 +228,4 @@ export async function insertFileRecord(client, params = {}) {
 
   const r = await client.query(q, vals);
   return r.rows && r.rows[0] ? r.rows[0] : null;
-}
-
-/**
- * Genera TXT y XLSX directamente en la carpeta destino (folderPhysical)
- * records: array [{ fecha, p1..p24 }]
- * folderPhysical: ruta absoluta donde guardar (existente)
- * fileBaseName no extension (ej 'MCATLANTICOAGT2411')
- */
-export async function generateReportsToFolder(
-  records = [],
-  folderPhysical,
-  fileBaseName,
-  options = { truncate: true, keepDecimals: false }
-) {
-  if (!Array.isArray(records) || records.length === 0)
-    throw new Error("No hay registros para generar reporte.");
-
-  // asegurar carpeta
-  if (!fs.existsSync(folderPhysical))
-    fs.mkdirSync(folderPhysical, { recursive: true });
-
-  const { truncate = true, keepDecimals = false } = options;
-
-  const txtName = `${fileBaseName}.txt`;
-  const xlsxName = `${fileBaseName}.xlsx`;
-  const txtPath = path.join(folderPhysical, txtName);
-  const xlsxPath = path.join(folderPhysical, xlsxName);
-
-  // Construir TXT
-  const days = records.length;
-  const txtLines = [];
-  for (let p = 1; p <= 24; p++) {
-    const cols = [p.toString()];
-    for (let d = 0; d < days; d++) {
-      const rec = records[d] || {};
-      let val =
-        rec[`p${p}`] != null
-          ? Number(String(rec[`p${p}`]).replace(",", "."))
-          : 0;
-      if (!keepDecimals) {
-        if (truncate) val = Math.trunc(val);
-        else val = Math.round(val);
-      }
-      cols.push(String(val));
-    }
-    txtLines.push(cols.join("\t"));
-  }
-  fs.writeFileSync(txtPath, txtLines.join("\n"), "utf8");
-
-  // Construir XLSX con ExcelJS
-  const wb = new ExcelJS.Workbook();
-  const ws = wb.addWorksheet("Pronostico");
-
-  const header = ["Periodo", ...records.map((r) => r.fecha || "")];
-  ws.addRow(header);
-
-  for (let p = 1; p <= 24; p++) {
-    const row = [p];
-    for (let d = 0; d < days; d++) {
-      const rec = records[d] || {};
-      let val =
-        rec[`p${p}`] != null
-          ? Number(String(rec[`p${p}`]).replace(",", "."))
-          : 0;
-      if (!keepDecimals) {
-        if (truncate) val = Math.trunc(val);
-        else val = Math.round(val);
-      }
-      row.push(val);
-    }
-    ws.addRow(row);
-  }
-
-  ws.columns.forEach((col, i) => {
-    col.width = i === 0 ? 10 : 15;
-  });
-
-  await wb.xlsx.writeFile(xlsxPath);
-
-  return { txtPath, xlsxPath, txtName, xlsxName };
 }
