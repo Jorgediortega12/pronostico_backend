@@ -44,8 +44,8 @@ export async function generateAndSaveReports(
   if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
 
   const timestamp = moment().format("YYYYMMDD_HHmmss");
-  const txtName = `MC${mc}_PRONOSTICO_${timestamp}.txt`;
-  const xlsxName = `MC${mc}_PRONOSTICO_${timestamp}.xlsx`;
+  const txtName = `MC${mc}AGTE_${timestamp}.txt`;
+  const xlsxName = `MC${mc}AGTE_${timestamp}.xlsx`;
   const txtPath = path.join(folder, txtName);
   const xlsxPath = path.join(folder, xlsxName);
 
@@ -123,11 +123,12 @@ export async function generateAndSaveReports(
  * @param {Object} params
  * @param {string} params.nombreArchivo - nombre del archivo (ej. MCATLANTICOAGT1907.txt)
  * @param {string} params.rutaArchivo - ruta absoluta en disco o url (ej. /var/www/reportes/...)
+ * @param {number} params.codcarpeta - id de la carpeta en tu sistema
  * @param {string|null} params.contentType - mime type opcional; si no se pasa se intenta inferir
  * @returns {Object} fila insertada { codigo: <id> }
  */
 export async function insertFileRecord(client, params = {}) {
-  const { nombreArchivo, rutaArchivo, contentType = null } = params;
+  const { nombreArchivo, rutaArchivo, codcarpeta, contentType = null } = params;
 
   if (!client) throw new Error("insertFileRecord: client de BD requerido");
   if (!nombreArchivo || !rutaArchivo)
@@ -147,12 +148,92 @@ export async function insertFileRecord(client, params = {}) {
   }
 
   const q = `
-    INSERT INTO archivos (codcarpeta, nombrearchivo, path, contenttype)
-    VALUES ($1, $2, $3, $4)
+    INSERT INTO archivos (codcarpeta, nombrearchivo, path)
+    VALUES ($1, $2, $3)
     RETURNING codigo;
   `;
-  const vals = [codcarpeta, nombreArchivo, rutaArchivo, inferred];
+  const vals = [codcarpeta, nombreArchivo, rutaArchivo];
 
   const r = await client.query(q, vals);
   return r.rows && r.rows[0] ? r.rows[0] : null;
+}
+
+/**
+ * Genera TXT y XLSX directamente en la carpeta destino (folderPhysical)
+ * records: array [{ fecha, p1..p24 }]
+ * folderPhysical: ruta absoluta donde guardar (existente)
+ * fileBaseName no extension (ej 'MCATLANTICOAGT2411')
+ */
+export async function generateReportsToFolder(
+  records = [],
+  folderPhysical,
+  fileBaseName,
+  options = { truncate: true, keepDecimals: false }
+) {
+  if (!Array.isArray(records) || records.length === 0)
+    throw new Error("No hay registros para generar reporte.");
+
+  // asegurar carpeta
+  if (!fs.existsSync(folderPhysical))
+    fs.mkdirSync(folderPhysical, { recursive: true });
+
+  const { truncate = true, keepDecimals = false } = options;
+
+  const txtName = `${fileBaseName}.txt`;
+  const xlsxName = `${fileBaseName}.xlsx`;
+  const txtPath = path.join(folderPhysical, txtName);
+  const xlsxPath = path.join(folderPhysical, xlsxName);
+
+  // Construir TXT
+  const days = records.length;
+  const txtLines = [];
+  for (let p = 1; p <= 24; p++) {
+    const cols = [p.toString()];
+    for (let d = 0; d < days; d++) {
+      const rec = records[d] || {};
+      let val =
+        rec[`p${p}`] != null
+          ? Number(String(rec[`p${p}`]).replace(",", "."))
+          : 0;
+      if (!keepDecimals) {
+        if (truncate) val = Math.trunc(val);
+        else val = Math.round(val);
+      }
+      cols.push(String(val));
+    }
+    txtLines.push(cols.join("\t"));
+  }
+  fs.writeFileSync(txtPath, txtLines.join("\n"), "utf8");
+
+  // Construir XLSX con ExcelJS
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("Pronostico");
+
+  const header = ["Periodo", ...records.map((r) => r.fecha || "")];
+  ws.addRow(header);
+
+  for (let p = 1; p <= 24; p++) {
+    const row = [p];
+    for (let d = 0; d < days; d++) {
+      const rec = records[d] || {};
+      let val =
+        rec[`p${p}`] != null
+          ? Number(String(rec[`p${p}`]).replace(",", "."))
+          : 0;
+      if (!keepDecimals) {
+        if (truncate) val = Math.trunc(val);
+        else val = Math.round(val);
+      }
+      row.push(val);
+    }
+    ws.addRow(row);
+  }
+
+  ws.columns.forEach((col, i) => {
+    col.width = i === 0 ? 10 : 15;
+  });
+
+  await wb.xlsx.writeFile(xlsxPath);
+
+  return { txtPath, xlsxPath, txtName, xlsxName };
 }
