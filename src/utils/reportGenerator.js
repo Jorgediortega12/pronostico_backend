@@ -24,23 +24,22 @@ export async function generateReportsToFolder(
   records = [],
   folderPhysical,
   fileBaseName,
-  options = { truncate: true, keepDecimals: false }
+  options = { truncate: true, keepDecimals: true }
 ) {
   if (!Array.isArray(records) || records.length === 0)
     throw new Error("No hay registros para generar reporte.");
 
-  // asegurar carpeta física
   if (!fs.existsSync(folderPhysical))
     fs.mkdirSync(folderPhysical, { recursive: true });
 
-  const { truncate = true, keepDecimals = false } = options;
+  const { truncate = true, keepDecimals = true } = options;
 
   const txtName = `${fileBaseName}.txt`;
   const xlsxName = `${fileBaseName}.xlsx`;
   const txtPath = path.join(folderPhysical, txtName);
   const xlsxPath = path.join(folderPhysical, xlsxName);
 
-  // === Construir TXT (igual que antes) ===
+  // === TXT (igual que antes) ===
   const days = records.length;
   const txtLines = [];
   for (let p = 1; p <= 24; p++) {
@@ -61,56 +60,60 @@ export async function generateReportsToFolder(
   }
   fs.writeFileSync(txtPath, txtLines.join("\n"), "utf8");
 
-  // === Preparar valores para XLSX: formato en filas (CodAbrevMC, FECHA, PERIODO, PRONOSTICO) ===
-
-  // helper: intentar extraer UCP desde fileBaseName
-  // ejemplo: 'MCAtlanticoAGTE2411' -> captura 'Atlantico'
+  // === Preparación para XLSX ===
   const extractUcpFromBase = (base) => {
     if (!base || typeof base !== "string") return null;
-    // intentar patrón MC<ucp>AGTE...
     let m = base.match(/^MC([A-Za-zÀ-ÿ0-9]+)AGTE/i);
     if (m && m[1]) return m[1];
-    // intentar patrón <ucp>AGTE...
     m = base.match(/^([A-Za-zÀ-ÿ0-9]+)AGTE/i);
     if (m && m[1]) return m[1];
-    // fallback: si base empieza con 'MC-' (nuevo estilo), tomar siguiente parte
     m = base.match(/^MC-?([A-Za-zÀ-ÿ0-9]+)(?:-|_)?/i);
     if (m && m[1]) return m[1];
     return null;
   };
-
   const capitalizeWords = (s) =>
     String(s || "")
       .trim()
       .split(/\s+/)
       .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
       .join(" ");
-
   const ucpExtracted = extractUcpFromBase(fileBaseName);
   const ucpFinal = ucpExtracted
     ? capitalizeWords(ucpExtracted.replace(/\s+/g, ""))
     : capitalizeWords(fileBaseName.replace(/\s+/g, ""));
-  const codAbrevValue = `MC-${ucpFinal}`; // ejemplo "MC-Atlantico"
+  const codAbrevValue = `MC-${ucpFinal}`;
 
-  // helper de formateo de pronostico para Excel (string con coma decimal)
+  // preparar rangos por periodo (1..24) para usar en generación aleatoria (segunda pasada)
+  const periodRanges = {};
+  for (let p = 1; p <= 24; p++) {
+    const vals = [];
+    for (let d = 0; d < records.length; d++) {
+      const raw = records[d] && records[d][`p${p}`];
+      if (raw != null) {
+        const n = Number(String(raw).replace(",", "."));
+        if (!Number.isNaN(n)) vals.push(n);
+      }
+    }
+    if (vals.length === 0) {
+      periodRanges[p] = { min: 0, max: 0 };
+    } else {
+      vals.sort((a, b) => a - b);
+      periodRanges[p] = { min: vals[0], max: vals[vals.length - 1] };
+    }
+  }
+
+  // formateador (igual que antes): devuelve string con coma decimal
   const formatPronosticoForExcel = (raw) => {
     const num = Number(String(raw).replace(",", "."));
     if (Number.isNaN(num)) return "0,0";
-
     if (keepDecimals) {
-      // conservar lo que venga: convertir a string con coma decimal
-      // respetar posibles decimales existentes
       const s = String(num);
       return s.replace(".", ",");
     }
-
     if (truncate) {
-      // trunca a entero y muestra sin decimales, pero en C# Excel shows "0,0" for zeros; however user requested values like 760 etc.
       const t = Math.trunc(num);
       return String(t).replace(".", ",");
     }
-
-    // aplicar regla tipo C#: <10 => 4 decimales, >=10 => 1 decimal
     if (Math.abs(num) < 10) {
       return num.toFixed(4).replace(".", ",");
     } else {
@@ -118,14 +121,13 @@ export async function generateReportsToFolder(
     }
   };
 
-  // === Generar XLSX ===
-  const wb = new ExcelJS.Workbook();
-  const ws = wb.addWorksheet("Pronostico");
+  // helper random dentro de rango (si min===max devuelve min)
+  const randInRange = (min, max) => {
+    const val = Math.random() * (max - min) + min;
+    return parseFloat(val.toFixed(1)); // <-- DECIMALES LIMITADOS: 1 decimal
+  };
 
-  // Header: CodAbrevMC | FECHA | PERIODO | PRONOSTICO
-  ws.addRow(["CodAbrevMC", "FECHA", "PERIODO", "PRONOSTICO"]);
-
-  // records deben estar ordenados por fecha asc; si no lo están, ordenarlos:
+  // ordenar registros por fecha asc
   const parseDate = (f) => {
     if (!f) return new Date(0);
     const m = moment(
@@ -139,9 +141,22 @@ export async function generateReportsToFolder(
     ? [...records].sort((a, b) => parseDate(a.fecha) - parseDate(b.fecha))
     : records;
 
+  // === Generar XLSX con dos pasadas ===
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("Pronostico");
+
+  // Header: CodAbrevMC | FECHA | PERIODO | PRONOSTICO | CODIGOCOLECCION
+  ws.addRow([
+    "CodAbrevMC",
+    "FECHA",
+    "PERIODO",
+    "PRONOSTICO",
+    "CODIGOCOLECCION",
+  ]);
+
+  // Primera pasada: PROENCNDHMC con valores reales
   for (let d = 0; d < ordered.length; d++) {
     const rec = ordered[d];
-    // formatear fecha como dd/MM/YYYY (coincide con convertFechaDiaSlash)
     const mDate = moment(
       rec.fecha,
       ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", "YYYY/MM/DD"],
@@ -151,34 +166,52 @@ export async function generateReportsToFolder(
       ? mDate.format("DD/MM/YYYY")
       : String(rec.fecha);
 
-    // por cada dia, 24 filas (periodos 1..24)
     for (let p = 1; p <= 24; p++) {
       const raw = rec[`p${p}`];
       const pron = formatPronosticoForExcel(raw);
-      // Añadimos como texto para preservar coma decimal; si prefieres número usa parsedNumber
-      ws.addRow([codAbrevValue, fechaFormateada, p, pron]);
+      ws.addRow([codAbrevValue, fechaFormateada, p, pron, "PROENCNDHMC"]);
     }
   }
 
-  // Ajustes de columnas (ancho y estilos)
+  // Segunda pasada: PROPOTCNDHMC con valores 0 excepto periodos 19,20,21 -> aleatorios dentro del rango observado
+  for (let d = 0; d < ordered.length; d++) {
+    const rec = ordered[d];
+    const mDate = moment(
+      rec.fecha,
+      ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", "YYYY/MM/DD"],
+      true
+    );
+    const fechaFormateada = mDate.isValid()
+      ? mDate.format("DD/MM/YYYY")
+      : String(rec.fecha);
+
+    for (let p = 1; p <= 24; p++) {
+      let valueToWrite = 0;
+      if (p === 19 || p === 20 || p === 21) {
+        const { min, max } = periodRanges[p] || { min: 0, max: 0 };
+        // generar valor aleatorio dentro de rango
+        const rnd = randInRange(min, max);
+        valueToWrite = rnd;
+      }
+      const pron = formatPronosticoForExcel(valueToWrite);
+      ws.addRow([codAbrevValue, fechaFormateada, p, pron, "PROPOTCNDHMC"]);
+    }
+  }
+
+  // Ajustes de columnas
   ws.columns = [
     { key: "cod", width: 18 },
     { key: "fecha", width: 14 },
     { key: "periodo", width: 10 },
     { key: "pron", width: 14 },
+    { key: "col", width: 18 },
   ];
 
   ws.eachRow((row, rowNumber) => {
     row.eachCell((cell, colNumber) => {
       cell.alignment = { vertical: "middle", horizontal: "left" };
       if (rowNumber === 1) cell.font = { bold: true };
-      // Asegurarnos que la columna PRONOSTICO queda como texto (para mantener coma decimal),
-      // así no Excel convertirá "856,2" a número (depende del locale del usuario).
-      if (colNumber === 4 && rowNumber > 1) {
-        // establecer como texto (ExcelJS no tiene type 'string' setter directo, pero podemos coerce by prefixing with ')
-        // Evitamos prefixear para mantener limpio; en muchos viewers la celda quedará como string si le pasamos string.
-        // Dejar el valor tal cual (string con coma) ya lo añade como string.
-      }
+      // la columna PRONOSTICO ya es string formateada con coma; la dejamos así.
     });
   });
 
