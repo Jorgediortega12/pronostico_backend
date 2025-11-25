@@ -9,6 +9,118 @@ class CarpetasQuery {
   }
 
   /**
+   * Obtener información de un archivo por su código
+   */
+  async obtenerArchivoPorCodigo(codigoArchivo) {
+    try {
+      const consulta = `
+        SELECT codigo, codcarpeta, nombrearchivo, path, "contentType"
+        FROM archivos
+        WHERE codigo = $1
+      `;
+      const result = await this.pool.query(consulta, [codigoArchivo]);
+
+      if (result.rows.length === 0) {
+        return null;
+      }
+
+      return result.rows[0];
+    } catch (error) {
+      console.error('Error en obtenerArchivoPorCodigo:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Obtener información de una carpeta por su código
+   */
+  async obtenerCarpetaPorCodigo(codigoCarpeta) {
+    try {
+      const consulta = `
+        SELECT codigo, nombre, codsuperior, nivel
+        FROM carpetas
+        WHERE codigo = $1
+      `;
+      const result = await this.pool.query(consulta, [codigoCarpeta]);
+
+      if (result.rows.length === 0) {
+        return null;
+      }
+
+      return result.rows[0];
+    } catch (error) {
+      console.error('Error en obtenerCarpetaPorCodigo:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Obtener todos los archivos de una carpeta y sus subcarpetas
+   */
+  async obtenerArchivosDeCarpeta(codigoCarpeta) {
+    try {
+      // Primero obtener todos los códigos de carpetas (incluidas subcarpetas)
+      const consultaCarpetas = `
+        WITH RECURSIVE subcarpetas AS (
+          SELECT codigo FROM carpetas WHERE codigo = $1
+          UNION
+          SELECT c.codigo FROM carpetas c
+          INNER JOIN subcarpetas sc ON c.codsuperior = sc.codigo
+        )
+        SELECT codigo FROM subcarpetas
+      `;
+
+      const resultCarpetas = await this.pool.query(consultaCarpetas, [codigoCarpeta]);
+      const codigosCarpetas = resultCarpetas.rows.map(row => row.codigo);
+
+      if (codigosCarpetas.length === 0) {
+        return [];
+      }
+
+      // Obtener todos los archivos de esas carpetas
+      const consultaArchivos = `
+        SELECT codigo, codcarpeta, nombrearchivo, path, "contentType"
+        FROM archivos
+        WHERE codcarpeta = ANY($1)
+        ORDER BY codcarpeta, nombrearchivo
+      `;
+
+      const resultArchivos = await this.pool.query(consultaArchivos, [codigosCarpetas]);
+      return resultArchivos.rows;
+    } catch (error) {
+      console.error('Error en obtenerArchivosDeCarpeta:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Obtener todas las subcarpetas de una carpeta (incluyendo vacías)
+   */
+  async obtenerSubcarpetas(codigoCarpeta) {
+    try {
+      const consulta = `
+        WITH RECURSIVE subcarpetas AS (
+          SELECT codigo, nombre, codsuperior, nivel
+          FROM carpetas
+          WHERE codigo = $1
+          UNION
+          SELECT c.codigo, c.nombre, c.codsuperior, c.nivel
+          FROM carpetas c
+          INNER JOIN subcarpetas sc ON c.codsuperior = sc.codigo
+        )
+        SELECT * FROM subcarpetas
+        ORDER BY nivel, nombre
+      `;
+
+      const result = await this.pool.query(consulta, [codigoCarpeta]);
+      return result.rows;
+    } catch (error) {
+      console.error('Error en obtenerSubcarpetas:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Obtener árbol completo de carpetas con jerarquía y archivos asociados
    */
   async obtenerArbolCarpetas() {
