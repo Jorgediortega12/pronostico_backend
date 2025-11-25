@@ -61,11 +61,11 @@ export async function findOrCreateFolder(
 }
 
 /**
- * Busca/crea jerarquía para Pronósticos:
- * Reportes -> Pronósticos -> {UCP} -> {YEAR} -> {MONTH}
+ * Busca/crea jerarquía para Pronosticos:
+ * Reportes -> Pronosticos -> {UCP} -> {YEAR} -> {MONTH}
  * Retorna { codcarpeta, folderPathLogical, folderPathPhysical }
  *
- * folderPathLogical example: '~/Reportes/Pronósticos/Atlantico/2025/Noviembre'
+ * folderPathLogical example: '~/Reportes/Pronosticos/Atlantico/2025/Noviembre'
  * folderPathPhysical example: '/srv/app/reportes/pronosticos/MCATLANTICO/2025/Noviembre'
  */
 export async function getOrCreatePronosticosMonthFolder(
@@ -78,10 +78,10 @@ export async function getOrCreatePronosticosMonthFolder(
   // 1) Reportes
   const root = await findOrCreateFolder(client, "Reportes", 0, 1);
 
-  // 2) Pronósticos under Reportes
-  const pron = await findOrCreateFolder(client, "Pronósticos", root.codigo, 2);
+  // 2) Pronosticos under Reportes
+  const pron = await findOrCreateFolder(client, "Pronosticos", root.codigo, 2);
 
-  // 3) UCP folder under Pronósticos (nombre exacto)
+  // 3) UCP folder under Pronosticos (nombre exacto)
   const ucpFolder = await findOrCreateFolder(client, ucpName, pron.codigo, 3);
 
   // 4) year under UCP
@@ -100,7 +100,7 @@ export async function getOrCreatePronosticosMonthFolder(
     5
   );
 
-  const folderPathLogical = `~/Reportes/Pronósticos/${ucpFolder.nombre}/${yearFolder.nombre}/${monthFolder.nombre}`;
+  const folderPathLogical = `~/Reportes/Pronosticos/${ucpFolder.nombre}/${yearFolder.nombre}/${monthFolder.nombre}`;
 
   // physical folder: REPORT_DIR/pronosticos/{UCP_CLEAN}/{YEAR}/{MONTH}
   const ucpClean = String(ucpName).replace(/\s+/g, "");

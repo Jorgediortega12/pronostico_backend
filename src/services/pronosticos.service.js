@@ -150,7 +150,7 @@ export default class PronosticosService {
         );
 
       // ruta lógica que guardaremos en BD (con ~)
-      const rutaBD_xlsx = `${folderPathLogical}/${xlsxName}`; // e.g. '~/Reportes/Pronósticos/Atlantico/2025/Mayo/MCAtlanticoAGTE1905.xlsx'
+      const rutaBD_xlsx = `${folderPathLogical}/${xlsxName}`; // e.g. '~/Reportes/Pronosticos/Atlantico/2025/Mayo/MCAtlanticoAGTE1905.xlsx'
       const rutaBD_txt = `${folderPathLogical}/${txtName}`;
 
       // Insertar ambos archivos en una transacción y devolver los ids
