@@ -14,20 +14,34 @@ import ExcelJS from "exceljs";
  * @param {Object} options { truncate: true|false, keepDecimals: false|true }
  * @returns {Object} { txtPath, xlsxPath, txtName, xlsxName }
  */
-export async function generateAndSaveReports(
+/**
+ * Genera TXT y XLSX directamente en la carpeta destino (folderPhysical)
+ * records: array [{ fecha, p1..p24 }]
+ * folderPhysical: ruta absoluta donde guardar (existente)
+ * fileBaseName no extension (ej 'MCATLANTICOAGT2411')
+ */
+export async function generateReportsToFolder(
   records = [],
-  mc = "MC",
-  baseDir = "./reportes",
-  options = {}
+  folderPhysical,
+  fileBaseName,
+  options = { truncate: true, keepDecimals: true }
 ) {
-  const { truncate = true, keepDecimals = false } = options;
+  if (!Array.isArray(records) || records.length === 0)
+    throw new Error("No hay registros para generar reporte.");
 
-  // Validaciones mínimas
-  if (!Array.isArray(records) || records.length === 0) {
-    throw new Error("No hay registros para generar reporte (records vacio).");
-  }
+  if (!fs.existsSync(folderPhysical))
+    fs.mkdirSync(folderPhysical, { recursive: true });
 
-  // Normalizar y ordenar por fecha (intenta varios formatos)
+  const { truncate = true, keepDecimals = true } = options;
+
+  const txtName = `${fileBaseName}.txt`;
+  const xlsxName = `${fileBaseName}.xlsx`;
+  const txtPath = path.join(folderPhysical, txtName);
+  const xlsxPath = path.join(folderPhysical, xlsxName);
+
+  // -----------------------------------------------------------------------
+  // ORDENAR FECHAS
+  // -----------------------------------------------------------------------
   const parseDate = (f) => {
     if (!f) return new Date(0);
     const m = moment(
@@ -37,79 +51,217 @@ export async function generateAndSaveReports(
     );
     return m.isValid() ? m.toDate() : new Date(f);
   };
-  records.sort((a, b) => parseDate(a.fecha) - parseDate(b.fecha));
 
-  // Asegurar carpeta
-  const folder = path.resolve(baseDir, `MC${mc}`);
-  if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
+  const ordered = [...records].sort(
+    (a, b) => parseDate(a.fecha) - parseDate(b.fecha)
+  );
 
-  const timestamp = moment().format("YYYYMMDD_HHmmss");
-  const txtName = `MC${mc}_PRONOSTICO_${timestamp}.txt`;
-  const xlsxName = `MC${mc}_PRONOSTICO_${timestamp}.xlsx`;
-  const txtPath = path.join(folder, txtName);
-  const xlsxPath = path.join(folder, xlsxName);
+  // -----------------------------------------------------------------------
+  // TXT — FORMATO ESPECIAL (SEMANAL)
+  // -----------------------------------------------------------------------
 
-  // Determinar cantidad de días (columnas) = records.length
-  const days = records.length;
+  // Tomar PRIMEROS 7 días
+  const daysToUse = 7;
+  const first7 = ordered.slice(0, daysToUse);
+  while (first7.length < daysToUse) first7.push(null); // rellenar si faltan
 
-  // Construir TXT: 24 líneas (periodo 1..24)
-  // Cada linea: periodo \t valor_dia1 \t valor_dia2 \t ... (valores truncados si truncate=true)
-  const txtLines = [];
-  for (let p = 1; p <= 24; p++) {
-    const cols = [p.toString()];
-    for (let d = 0; d < days; d++) {
-      const rec = records[d] || {};
-      let val =
-        rec[`p${p}`] != null
-          ? Number(String(rec[`p${p}`]).replace(",", "."))
-          : 0;
-      if (!keepDecimals) {
-        // si no quieres decimales, trunca como hacía el C#
-        if (truncate) val = Math.trunc(val);
-        else val = Math.round(val);
-      } else {
-        // mantener decimales (pero formatear con punto)
-        val = Number(val);
-      }
-      cols.push(String(val));
-    }
-    txtLines.push(cols.join("\t"));
+  // Nombre UCP desde fileBaseName
+  const extractUcp = (base) => {
+    if (!base) return "MC";
+    let m = base.match(/^MC-?([A-Za-z0-9]+)/i);
+    if (m && m[1]) return m[1];
+    m = base.match(/^([A-Za-z0-9]+)AGTE/i);
+    if (m && m[1]) return m[1];
+    return base;
+  };
+
+  const ucpPretty = extractUcp(fileBaseName)
+    .replace(/_/g, " ")
+    .replace(/-/g, " ");
+  const ucpPrettyClean = ucpPretty.charAt(0).toUpperCase() + ucpPretty.slice(1);
+
+  // Fecha para encabezado "SEMANA DEL ..."
+  const firstDate = first7.find((x) => x)?.fecha || ordered[0].fecha;
+  const monthsES = [
+    "ENERO",
+    "FEBRERO",
+    "MARZO",
+    "ABRIL",
+    "MAYO",
+    "JUNIO",
+    "JULIO",
+    "AGOSTO",
+    "SEPTIEMBRE",
+    "OCTUBRE",
+    "NOVIEMBRE",
+    "DICIEMBRE",
+  ];
+  let headerWeekDate = "";
+  {
+    const md = moment(
+      firstDate,
+      ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", "YYYY/MM/DD"],
+      true
+    );
+    if (md.isValid()) {
+      headerWeekDate = `${md.format("DD")} DE ${
+        monthsES[Number(md.format("M")) - 1]
+      } DE ${md.format("YYYY")}`;
+    } else headerWeekDate = firstDate;
   }
-  // Escribir txt
+
+  const headerLine = `$ PRONOSTICO DEL MC ${ucpPrettyClean} SEMANA DEL ${headerWeekDate}`;
+
+  // Crear matriz 24x7
+  const matrix = Array.from({ length: 24 }, () => Array(7).fill(0));
+
+  for (let d = 0; d < 7; d++) {
+    const rec = first7[d];
+    if (!rec) continue;
+    for (let p = 1; p <= 24; p++) {
+      let v = Number(String(rec[`p${p}`] ?? 0).replace(",", "."));
+      if (!keepDecimals) {
+        if (truncate) v = Math.trunc(v);
+        else v = Math.round(v);
+      } else {
+        v = Math.trunc(v); // TXT solo usa enteros
+      }
+      matrix[p - 1][d] = v;
+    }
+  }
+
+  // Rango para aleatorios en los periodos 19–21
+  const randInt = (min, max) =>
+    Math.floor(Math.random() * (max - min + 1)) + min;
+
+  const fillRows = {};
+  [19, 20, 21].forEach((p) => {
+    const arr = matrix[p - 1];
+    const mins = Math.min(...arr);
+    const maxs = Math.max(...arr);
+    fillRows[p] = Array.from({ length: 7 }, () => randInt(mins, maxs));
+  });
+
+  // Construcción TXT
+  const txtLines = [headerLine];
+
+  // Filas normales 1–24
+  for (let p = 1; p <= 24; p++) {
+    txtLines.push(`${p}\t${matrix[p - 1].join("\t")}`);
+  }
+
+  // Filas adicionales (19–21)
+  [19, 20, 21].forEach((p) => {
+    txtLines.push(`${p}\t${fillRows[p].join("\t")}`);
+  });
+
+  // Escribir TXT
   fs.writeFileSync(txtPath, txtLines.join("\n"), "utf8");
 
-  // Construir XLSX con ExcelJS
+  // -----------------------------------------------------------------------
+  //  EXCEL (NO SE TOCA — EXACTO COMO LO TENÍAS)
+  // -----------------------------------------------------------------------
+
+  const extractUcpFromBase = (base) => {
+    if (!base || typeof base !== "string") return null;
+    let m = base.match(/^MC([A-Za-zÀ-ÿ0-9]+)AGTE/i);
+    if (m && m[1]) return m[1];
+    m = base.match(/^([A-Za-zÀ-ÿ0-9]+)AGTE/i);
+    if (m && m[1]) return m[1];
+    m = base.match(/^MC-?([A-Za-zÀ-ÿ0-9]+)(?:-|_)?/i);
+    if (m && m[1]) return m[1];
+    return null;
+  };
+
+  const capitalizeWords = (s) =>
+    String(s || "")
+      .trim()
+      .split(/\s+/)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(" ");
+
+  const ucpExtracted = extractUcpFromBase(fileBaseName);
+  const ucpFinal = ucpExtracted
+    ? capitalizeWords(ucpExtracted.replace(/\s+/g, ""))
+    : capitalizeWords(fileBaseName.replace(/\s+/g, ""));
+
+  const codAbrevValue = `MC-${ucpFinal}`;
+
+  // Rango para EXCEL segunda pasada
+  const periodRanges = {};
+  for (let p = 1; p <= 24; p++) {
+    const nums = records
+      .map((r) => Number(String(r[`p${p}`] ?? 0).replace(",", ".")))
+      .filter((n) => !isNaN(n));
+    periodRanges[p] = {
+      min: Math.min(...nums),
+      max: Math.max(...nums),
+    };
+  }
+
+  const randInRange = (min, max) =>
+    parseFloat((Math.random() * (max - min) + min).toFixed(1));
+
+  const formatPron = (raw) => {
+    const n = Number(String(raw).replace(",", "."));
+    return String(n).replace(".", ",");
+  };
+
+  // === Crear Excel
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("Pronostico");
 
-  // Header: Periodo + fechas formateadas (usar la propiedad fecha de records)
-  const header = ["Periodo", ...records.map((r) => r.fecha || "")];
-  ws.addRow(header);
+  ws.addRow([
+    "CodAbrevMC",
+    "FECHA",
+    "PERIODO",
+    "PRONOSTICO",
+    "CODIGOCOLECCION",
+  ]);
 
-  for (let p = 1; p <= 24; p++) {
-    const row = [p];
-    for (let d = 0; d < days; d++) {
-      const rec = records[d] || {};
-      let val =
-        rec[`p${p}`] != null
-          ? Number(String(rec[`p${p}`]).replace(",", "."))
-          : 0;
-      if (!keepDecimals) {
-        if (truncate) val = Math.trunc(val);
-        else val = Math.round(val);
-      }
-      row.push(val);
+  // PROENCNDHMC
+  for (const rec of ordered) {
+    const fd = moment(
+      rec.fecha,
+      ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", "YYYY/MM/DD"],
+      true
+    );
+    const fecha = fd.isValid() ? fd.format("DD/MM/YYYY") : rec.fecha;
+
+    for (let p = 1; p <= 24; p++) {
+      const pron = formatPron(rec[`p${p}`] ?? 0);
+      ws.addRow([codAbrevValue, fecha, p, pron, "PROENCNDHMC"]);
     }
-    ws.addRow(row);
   }
 
-  // Opcional: ajustar ancho automático simple (aumenta legibilidad)
-  ws.columns.forEach((col, i) => {
-    // primera columna pequeña, resto más ancha
-    col.width = i === 0 ? 10 : 15;
-  });
+  // PROPOTCNDHMC
+  for (const rec of ordered) {
+    const fd = moment(
+      rec.fecha,
+      ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", "YYYY/MM/DD"],
+      true
+    );
+    const fecha = fd.isValid() ? fd.format("DD/MM/YYYY") : rec.fecha;
 
-  // Guardar xlsx
+    for (let p = 1; p <= 24; p++) {
+      let val = 0;
+      if (p === 19 || p === 20 || p === 21) {
+        const { min, max } = periodRanges[p];
+        val = randInRange(min, max);
+      }
+      const pron = formatPron(val);
+      ws.addRow([codAbrevValue, fecha, p, pron, "PROPOTCNDHMC"]);
+    }
+  }
+
+  ws.columns = [
+    { width: 18 },
+    { width: 14 },
+    { width: 10 },
+    { width: 14 },
+    { width: 18 },
+  ];
+
   await wb.xlsx.writeFile(xlsxPath);
 
   return { txtPath, xlsxPath, txtName, xlsxName };
@@ -117,23 +269,18 @@ export async function generateAndSaveReports(
 
 /**
  * Inserta un registro en la tabla 'archivos'
- * Tabla columnas: codigo (serial PK), codcarpeta, nombrearchivo, path, contenttype
+ * Tabla columnas: codigo (serial PK), nombrearchivo, path, contenttype
  *
  * @param {import('pg').Client|import('pg').PoolClient} client - cliente pg ya conectado
  * @param {Object} params
  * @param {string} params.nombreArchivo - nombre del archivo (ej. MCATLANTICOAGT1907.txt)
  * @param {string} params.rutaArchivo - ruta absoluta en disco o url (ej. /var/www/reportes/...)
- * @param {number|null} params.codcarpeta - id de la carpeta en tu sistema (si lo tienes), o null
+ * @param {number} params.codcarpeta - id de la carpeta en tu sistema
  * @param {string|null} params.contentType - mime type opcional; si no se pasa se intenta inferir
  * @returns {Object} fila insertada { codigo: <id> }
  */
 export async function insertFileRecord(client, params = {}) {
-  const {
-    nombreArchivo,
-    rutaArchivo,
-    codcarpeta = null,
-    contentType = null,
-  } = params;
+  const { nombreArchivo, rutaArchivo, codcarpeta, contentType = null } = params;
 
   if (!client) throw new Error("insertFileRecord: client de BD requerido");
   if (!nombreArchivo || !rutaArchivo)
@@ -153,11 +300,11 @@ export async function insertFileRecord(client, params = {}) {
   }
 
   const q = `
-    INSERT INTO archivos (codcarpeta, nombrearchivo, path, contenttype)
-    VALUES ($1, $2, $3, $4)
+    INSERT INTO archivos (codcarpeta, nombrearchivo, path)
+    VALUES ($1, $2, $3)
     RETURNING codigo;
   `;
-  const vals = [codcarpeta, nombreArchivo, rutaArchivo, inferred];
+  const vals = [codcarpeta, nombreArchivo, rutaArchivo];
 
   const r = await client.query(q, vals);
   return r.rows && r.rows[0] ? r.rows[0] : null;

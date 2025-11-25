@@ -66,24 +66,11 @@ export default class PronosticosModel {
   };
 
   // Bulk insert: recibe array de objetos con las columnas necesarias
-  crearPronosticosBulk = async (
-    ucpGlobal,
-    pronosticoList = [],
-    borrarPrevio = false
-  ) => {
+  crearPronosticosBulk = async (ucpGlobal, pronosticoList = []) => {
     const client = this.createClient();
-    console.log("CLIENT:", client);
     try {
       await client.connect();
       await client.query("BEGIN");
-
-      if (borrarPrevio) {
-        // borra pronosticos del ucpGlobal dentro del rango de fechas que se envíe
-        // Para ser conservador sólo borramos por ucp si borrarPrevio=true
-        await client.query("DELETE FROM pronosticos WHERE ucp = $1", [
-          ucpGlobal,
-        ]);
-      }
 
       // Preparar insert parametrizado por cada registro
       for (let rec of pronosticoList) {
