@@ -179,7 +179,6 @@ export async function generateTxtToFolder({
     // Para compatibilidad, dejamos que la función siga y devuelva TXT sin potencias.
   } else {
     const potenciaRows = await configuracionModel.cargarDiasPotencias(ucp);
-    console.log("potenciaRows:", potenciaRows);
     // potenciaRows esperado: array de objetos [{ dia: '1', potencia1: 100, potencia2: 80, ... }, ...]
     if (Array.isArray(potenciaRows) && potenciaRows.length > 0) {
       for (let k = 0; k < potenciaRows.length; k++) {
@@ -215,7 +214,6 @@ export async function generateTxtToFolder({
               mdate.format("YYYY-MM-DD"),
               ucp
             );
-            console.log("ff:", ff);
             if (ff) isFestivo = true;
           }
           // determinar columna potenciaX a usar según día de la semana (igual a .NET: Monday->1 ... Sunday->7)

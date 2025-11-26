@@ -17,16 +17,17 @@ export const exportarBulk = async (req, res) => {
     ucp,
     pronostico = [],
     historico = [],
+    datos = {},
   } = req.body;
   try {
-    console.log("params:", req.body);
     const result = await service.exportarBulk(
       fecha_inicio,
       fecha_fin,
       usuario,
       ucp,
       pronostico,
-      historico
+      historico,
+      datos
     );
     if (!result.success) return responseError(200, result.message, 404, res);
     return SuccessResponse(res, true, result.message);

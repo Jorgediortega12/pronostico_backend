@@ -73,5 +73,6 @@ export default {
         })
       )
       .required(),
+    datos: Joi.object().required(),
   }),
 };
