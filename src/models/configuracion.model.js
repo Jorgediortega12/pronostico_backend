@@ -1,6 +1,6 @@
-import * as querys from "../querys/configuracion.query.js"
-import Logger from '../helpers/logger.js';
-import colors from 'colors';
+import * as querys from "../querys/configuracion.query.js";
+import Logger from "../helpers/logger.js";
+import colors from "colors";
 import pkg from "pg";
 const { Client } = pkg;
 import dotenv from "dotenv";
@@ -26,7 +26,6 @@ export default class ConfiguracionModel {
     });
   }
 
-
   buscarSaveDocumento = async (aux3) => {
     const client = this.createClient();
     try {
@@ -34,13 +33,15 @@ export default class ConfiguracionModel {
       const result = await client.query(querys.buscarSaveDocumento, [aux3]);
       return result.rows.length > 0 ? result.rows[0] : null;
     } catch (error) {
-      Logger.error(colors.red('Error ConfiguracionModel buscarSaveDocumento'), error);
+      Logger.error(
+        colors.red("Error ConfiguracionModel buscarSaveDocumento"),
+        error
+      );
       throw error;
     } finally {
       await client.end();
     }
   };
-
 
   cargarDiasPotencias = async (ucp) => {
     const client = this.createClient();
@@ -49,13 +50,15 @@ export default class ConfiguracionModel {
       const result = await client.query(querys.cargarDiasPotencia, [ucp]);
       return result.rows;
     } catch (error) {
-      Logger.error(colors.red("Error configuracionModel cargarDiasPotencias"), error);
+      Logger.error(
+        colors.red("Error configuracionModel cargarDiasPotencias"),
+        error
+      );
       throw error;
     } finally {
       await client.end();
     }
-  }
-
+  };
 
   buscarVersionSesion = async (nombre) => {
     const client = this.createClient();
@@ -69,8 +72,7 @@ export default class ConfiguracionModel {
     } finally {
       await client.end();
     }
-  }
-
+  };
 
   agregarVersionSesion = async (datos) => {
     const client = this.createClient();
@@ -117,17 +119,20 @@ export default class ConfiguracionModel {
         datos.p23_diario,
         datos.p24_diario,
         datos.nombrearchivo,
-        datos.cargaindustrial
+        datos.cargaindustrial,
       ];
       const result = await client.query(querys.agregarVersionSesion, valores);
       return result.rows.length > 0 ? result.rows[0] : null;
     } catch (error) {
-      Logger.error(colors.red('Error configuracionModel agregarVersionSesion'), error);
+      Logger.error(
+        colors.red("Error configuracionModel agregarVersionSesion"),
+        error
+      );
       throw error;
     } finally {
       await client.end();
     }
-  }
+  };
 
   agregarDatosPronosticoxSesion = async (datos) => {
     const client = this.createClient();
@@ -162,15 +167,37 @@ export default class ConfiguracionModel {
         datos.p23,
         datos.p24,
         datos.observacion,
-        datos.tipo
+        datos.tipo,
       ];
-      const result = await client.query(querys.agregarDatosPronosticoxSesion, valores);
+      const result = await client.query(
+        querys.agregarDatosPronosticoxSesion,
+        valores
+      );
       return result.rows.length > 0 ? result.rows[0] : null;
     } catch (error) {
-      Logger.error(colors.red('Error configuracionModel agregarDatosPronosticoxSesion'), error);
+      Logger.error(
+        colors.red("Error configuracionModel agregarDatosPronosticoxSesion"),
+        error
+      );
       throw error;
     } finally {
       await client.end();
     }
-  }
+  };
+  buscarDiaFestivo = async (fecha, ucp) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const result = await client.query(querys.buscarDiaFestivo, [fecha, ucp]);
+      return result.rows.length > 0 ? result.rows[0] : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ConfiguracionModel buscarDiaFestivo"),
+        error
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
 }

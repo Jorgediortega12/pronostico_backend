@@ -5,83 +5,108 @@ import moment from "moment";
 import ExcelJS from "exceljs";
 
 /**
- * Genera TXT y XLSX de pronóstico y guarda en disco.
- *
- * @param {Object[]} records Array de objetos [{ fecha: 'YYYY-MM-DD' , p1..p24: number }, ...]
- *                              - records debe estar ordenado por fecha asc. Si no lo está, se ordena.
- * @param {String|Number} mc Identificador del mercado/comercializador (usado en nombre de archivo)
- * @param {String} baseDir Carpeta donde guardar archivos (se creará si no existe)
- * @param {Object} options { truncate: true|false, keepDecimals: false|true }
- * @returns {Object} { txtPath, xlsxPath, txtName, xlsxName }
+ * @param {Object} params
+ * @param {Array} params.pronosticoList  // [{ fecha, p1..p24 }, ...]
+ * @param {string} params.ucp
+ * @param {string} params.fecha_inicio
+ * @param {string} params.fecha_fin
+ * @param {string} params.folderPhysical  // ruta absoluta (se crea si no existe)
+ * @param {string} params.fileBaseName    // sin extension
+ * @param {Object} params.configuracionModel // model con cargarDiasPotencias / buscarPotenciaDia / buscarDiaFestivo opcionales
+ * @param {Object} [params.options]       // { truncate: true, keepDecimals: true } (no usado intensamente aquí)
+ * @returns {Object} { xlsxPath, xlsxName }
  */
-/**
- * Genera TXT y XLSX directamente en la carpeta destino (folderPhysical)
- * records: array [{ fecha, p1..p24 }]
- * folderPhysical: ruta absoluta donde guardar (existente)
- * fileBaseName no extension (ej 'MCATLANTICOAGT2411')
- */
-export async function generateReportsToFolder(
-  records = [],
-  folderPhysical,
-  fileBaseName,
-  options = { truncate: true, keepDecimals: true }
-) {
-  if (!Array.isArray(records) || records.length === 0)
-    throw new Error("No hay registros para generar reporte.");
 
+export async function generateTxtToFolder({
+  pronosticoList = [], // array [{ fecha, p1..p24 }, ...] (puede venir desordenado)
+  ucp,
+  fecha_inicio, // string (ej "2025-11-01")
+  fecha_fin, // string (ej "2025-11-07")
+  folderPhysical, // carpeta absoluta existente o se crea
+  fileBaseName, // sin extension
+  configuracionModel, // obj con métodos cargarDiasPotencias, buscarDiaFestivo
+}) {
+  if (!Array.isArray(pronosticoList)) pronosticoList = [];
   if (!fs.existsSync(folderPhysical))
     fs.mkdirSync(folderPhysical, { recursive: true });
 
-  const { truncate = true, keepDecimals = true } = options;
+  // ---------- calcular numdias (igual que .NET)
+  const startDT = moment(
+    fecha_inicio,
+    ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY"],
+    true
+  );
+  const endDT = moment(
+    fecha_fin,
+    ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY"],
+    true
+  );
+  const totalDays =
+    startDT.isValid() && endDT.isValid() ? endDT.diff(startDT, "days") : null;
 
-  const txtName = `${fileBaseName}.txt`;
-  const xlsxName = `${fileBaseName}.xlsx`;
-  const txtPath = path.join(folderPhysical, txtName);
-  const xlsxPath = path.join(folderPhysical, xlsxName);
+  let numdias = 7;
+  if (totalDays !== null && totalDays < 7) numdias = totalDays + 1;
 
-  // -----------------------------------------------------------------------
-  // ORDENAR FECHAS
-  // -----------------------------------------------------------------------
+  // ---------- determinar stopDate (último lunes entre start..end) como en .NET
+  let stopDate = null;
+  if (startDT.isValid() && endDT.isValid()) {
+    for (let dt = startDT.clone(); dt.isBefore(endDT); dt.add(1, "day")) {
+      if (dt.isoWeekday() === 1) {
+        // Monday -> 1 (isoWeekday)
+        stopDate = dt.clone();
+      }
+    }
+  }
+  // fallback: si no hallamos Monday, usar startDT
+  if (!stopDate)
+    stopDate = startDT.isValid() ? startDT.clone() : moment().startOf("day");
+
+  // ---------- ordenar pronostico por fecha asc (normalizamos parseos)
   const parseDate = (f) => {
-    if (!f) return new Date(0);
+    if (!f) return null;
     const m = moment(
       f,
       ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", "YYYY/MM/DD"],
       true
     );
-    return m.isValid() ? m.toDate() : new Date(f);
+    return m.isValid() ? m : moment(f); // fallback
   };
+  const ordered = [...pronosticoList].sort((a, b) => {
+    const ma = parseDate(a.fecha);
+    const mb = parseDate(b.fecha);
+    if (!ma || !mb) return 0;
+    return ma.valueOf() - mb.valueOf();
+  });
 
-  const ordered = [...records].sort(
-    (a, b) => parseDate(a.fecha) - parseDate(b.fecha)
-  );
+  // ---------- construir arrUltimaFecha (últimos numdias del pronóstico, en formato dd-MM-YYYY)
+  // En .NET llenaban desde el final. Hacemos lo mismo.
+  const arrUltimaFecha = [];
+  for (
+    let k = ordered.length - 1;
+    k >= 0 && arrUltimaFecha.length < numdias;
+    k--
+  ) {
+    const rec = ordered[k];
+    const m = parseDate(rec.fecha);
+    if (m && m.isValid()) arrUltimaFecha.push(m.format("DD-MM-YYYY"));
+    else arrUltimaFecha.push(String(rec.fecha));
+  }
+  // si faltan, se quedan con menos; en .NET rellenaban nulos pero luego usan lo que hay
+  // Convertir arrUltimaFecha a listDate (Date objects) y ordenarlas asc
+  const listDate = arrUltimaFecha
+    .map((s) => {
+      const parts = String(s).split("-");
+      if (parts.length === 3) {
+        // dd-MM-yyyy
+        return moment(`${parts[2]}-${parts[1]}-${parts[0]}`, "YYYY-MM-DD");
+      }
+      const m = parseDate(s);
+      return m && m.isValid() ? m.clone() : null;
+    })
+    .filter((x) => x !== null)
+    .sort((a, b) => a.valueOf() - b.valueOf());
 
-  // -----------------------------------------------------------------------
-  // TXT — FORMATO ESPECIAL (SEMANAL)
-  // -----------------------------------------------------------------------
-
-  // Tomar PRIMEROS 7 días
-  const daysToUse = 7;
-  const first7 = ordered.slice(0, daysToUse);
-  while (first7.length < daysToUse) first7.push(null); // rellenar si faltan
-
-  // Nombre UCP desde fileBaseName
-  const extractUcp = (base) => {
-    if (!base) return "MC";
-    let m = base.match(/^MC-?([A-Za-z0-9]+)/i);
-    if (m && m[1]) return m[1];
-    m = base.match(/^([A-Za-z0-9]+)AGTE/i);
-    if (m && m[1]) return m[1];
-    return base;
-  };
-
-  const ucpPretty = extractUcp(fileBaseName)
-    .replace(/_/g, " ")
-    .replace(/-/g, " ");
-  const ucpPrettyClean = ucpPretty.charAt(0).toUpperCase() + ucpPretty.slice(1);
-
-  // Fecha para encabezado "SEMANA DEL ..."
-  const firstDate = first7.find((x) => x)?.fecha || ordered[0].fecha;
+  // ---------- Cabecera: "$ PRONOSTICO DEL MC {ucp} SEMANA DEL {dd} DE {MES EN MAYUS} DE {YYYY}"
   const monthsES = [
     "ENERO",
     "FEBRERO",
@@ -96,72 +121,210 @@ export async function generateReportsToFolder(
     "NOVIEMBRE",
     "DICIEMBRE",
   ];
-  let headerWeekDate = "";
-  {
-    const md = moment(
-      firstDate,
-      ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", "YYYY/MM/DD"],
-      true
-    );
-    if (md.isValid()) {
-      headerWeekDate = `${md.format("DD")} DE ${
-        monthsES[Number(md.format("M")) - 1]
-      } DE ${md.format("YYYY")}`;
-    } else headerWeekDate = firstDate;
-  }
+  const headerWeekDate =
+    listDate.length > 0
+      ? `${listDate[0].format("DD")} DE ${
+          monthsES[Number(listDate[0].format("M")) - 1]
+        } DE ${listDate[0].format("YYYY")}`
+      : `${moment().format("DD")} DE ${
+          monthsES[moment().month()]
+        } DE ${moment().year()}`;
+  const headerLine = `$ PRONOSTICO DEL MC ${ucp} SEMANA DEL ${stopDate.format(
+    "DD"
+  )} DE ${monthsES[Number(stopDate.format("M")) - 1]} DE ${stopDate.format(
+    "YYYY"
+  )}`;
 
-  const headerLine = `$ PRONOSTICO DEL MC ${ucpPrettyClean} SEMANA DEL ${headerWeekDate}`;
-
-  // Crear matriz 24x7
-  const matrix = Array.from({ length: 24 }, () => Array(7).fill(0));
-
-  for (let d = 0; d < 7; d++) {
-    const rec = first7[d];
+  // ---------- construir matrix 24 x numdias con valores truncados (igual a C# Math.Truncate)
+  const matrix = Array.from({ length: 24 }, () => Array(numdias).fill(0));
+  for (let d = 0; d < listDate.length && d < numdias; d++) {
+    const mdate = listDate[d];
+    const rec = ordered.find((r) => {
+      const rdate = parseDate(r.fecha);
+      return (
+        rdate &&
+        rdate.isValid() &&
+        rdate.format("DD-MM-YYYY") === mdate.format("DD-MM-YYYY")
+      );
+    });
     if (!rec) continue;
     for (let p = 1; p <= 24; p++) {
       let v = Number(String(rec[`p${p}`] ?? 0).replace(",", "."));
-      if (!keepDecimals) {
-        if (truncate) v = Math.trunc(v);
-        else v = Math.round(v);
-      } else {
-        v = Math.trunc(v); // TXT solo usa enteros
-      }
-      matrix[p - 1][d] = v;
+      if (isNaN(v)) v = 0;
+      matrix[p - 1][d] = Math.trunc(v); // TXT usa enteros truncados
     }
   }
 
-  // Rango para aleatorios en los periodos 19–21
-  const randInt = (min, max) =>
-    Math.floor(Math.random() * (max - min + 1)) + min;
+  // ---------- crear contenido TXT
+  const txtLines = [];
+  txtLines.push(headerLine);
 
-  const fillRows = {};
-  [19, 20, 21].forEach((p) => {
-    const arr = matrix[p - 1];
-    const mins = Math.min(...arr);
-    const maxs = Math.max(...arr);
-    fillRows[p] = Array.from({ length: 7 }, () => randInt(mins, maxs));
-  });
-
-  // Construcción TXT
-  const txtLines = [headerLine];
-
-  // Filas normales 1–24
+  // filas 1..24
   for (let p = 1; p <= 24; p++) {
-    txtLines.push(`${p}\t${matrix[p - 1].join("\t")}`);
+    const row = [String(p)];
+    for (let d = 0; d < numdias; d++) {
+      // si no existe valor (listDate más corto) -> 0
+      const v = matrix[p - 1][d] ?? 0;
+      row.push(String(v));
+    }
+    txtLines.push(row.join("\t"));
   }
 
-  // Filas adicionales (19–21)
-  [19, 20, 21].forEach((p) => {
-    txtLines.push(`${p}\t${fillRows[p].join("\t")}`);
-  });
+  // ---------- POTENCIAS: usar configuracionModel.cargarDiasPotencias(ucp)
+  if (
+    !configuracionModel ||
+    typeof configuracionModel.cargarDiasPotencias !== "function"
+  ) {
+    // Si no existe el model, simplemente no agregamos potencias (o podrías lanzar)
+    // Para compatibilidad, dejamos que la función siga y devuelva TXT sin potencias.
+  } else {
+    const potenciaRows = await configuracionModel.cargarDiasPotencias(ucp);
+    console.log("potenciaRows:", potenciaRows);
+    // potenciaRows esperado: array de objetos [{ dia: '1', potencia1: 100, potencia2: 80, ... }, ...]
+    if (Array.isArray(potenciaRows) && potenciaRows.length > 0) {
+      for (let k = 0; k < potenciaRows.length; k++) {
+        const prow = potenciaRows[k];
+        const diaPeriodo = Number(prow.dia); // periodo al que se refiere la potencia (1..24)
+        const linea = [String(diaPeriodo)];
+        // para cada fecha en listDate (hasta numdias)
+        for (let d = 0; d < listDate.length && d < numdias; d++) {
+          const mdate = listDate[d];
+          // Buscar registro pronosticado de esa fecha
+          const rec = ordered.find((r) => {
+            const rdate = parseDate(r.fecha);
+            return (
+              rdate &&
+              rdate.isValid() &&
+              rdate.format("DD-MM-YYYY") === mdate.format("DD-MM-YYYY")
+            );
+          });
+          if (!rec) {
+            linea.push("0");
+            continue;
+          }
+          // valor del periodo en el pronóstico
+          let vPeriodo = Number(
+            String(rec[`p${diaPeriodo}`] ?? 0).replace(",", ".")
+          );
+          if (isNaN(vPeriodo)) vPeriodo = 0;
 
-  // Escribir TXT
+          // buscar si es festivo: configuracionModel.buscarDiaFestivo(fecha, ucp)
+          let isFestivo = false;
+          if (typeof configuracionModel.buscarDiaFestivo === "function") {
+            const ff = await configuracionModel.buscarDiaFestivo(
+              mdate.format("YYYY-MM-DD"),
+              ucp
+            );
+            console.log("ff:", ff);
+            if (ff) isFestivo = true;
+          }
+          // determinar columna potenciaX a usar según día de la semana (igual a .NET: Monday->1 ... Sunday->7)
+          const diaSemanaIndex = mdate.isoWeekday(); // 1..7 (Mon..Sun)
+          const potenciaColName = isFestivo
+            ? `potencia1`
+            : `potencia${diaSemanaIndex}`;
+          // obtener valor vPotencia
+          let vPotencia = 0;
+          if (prow && prow[potenciaColName] != null) {
+            vPotencia = Number(String(prow[potenciaColName]).replace(",", "."));
+            if (isNaN(vPotencia) || vPotencia === 0) {
+              // si potencia inválida, dejamos 0 y resultará en 0
+              vPotencia = 0;
+            }
+          }
+          // calcular tPotencia = vPeriodo / vPotencia  (si vPotencia==0 => 0)
+          let tPotencia = 0;
+          if (vPotencia !== 0) tPotencia = vPeriodo / vPotencia;
+          linea.push(String(Math.trunc(tPotencia)));
+        }
+        txtLines.push(linea.join("\t"));
+      }
+    }
+  }
+
+  // ---------- escribir archivo
+  const txtName = `${fileBaseName}.txt`;
+  const txtPath = path.join(folderPhysical, txtName);
   fs.writeFileSync(txtPath, txtLines.join("\n"), "utf8");
 
-  // -----------------------------------------------------------------------
-  //  EXCEL (NO SE TOCA — EXACTO COMO LO TENÍAS)
-  // -----------------------------------------------------------------------
+  return { txtPath, txtName };
+}
 
+/**
+ * generateXlsxToFolder
+ * Genera el XLSX (PROENCNDHMC + PROPOTCNDHMC) en folderPhysical usando los mismos días que el TXT.
+ *
+ * @param {Object} params
+ * @param {Array} params.pronosticoList  // [{ fecha, p1..p24 }, ...]
+ * @param {string} params.ucp
+ * @param {string} params.fecha_inicio
+ * @param {string} params.fecha_fin
+ * @param {string} params.folderPhysical  // ruta absoluta (se crea si no existe)
+ * @param {string} params.fileBaseName    // sin extension
+ * @param {Object} params.configuracionModel // model con cargarDiasPotencias / buscarPotenciaDia / buscarDiaFestivo opcionales
+ * @param {Object} [params.options]       // { truncate: true, keepDecimals: true } (no usado intensamente aquí)
+ * @returns {Object} { xlsxPath, xlsxName }
+ */
+
+export async function generateXlsxToFolder({
+  pronosticoList = [],
+  ucp,
+  fecha_inicio,
+  fecha_fin,
+  folderPhysical,
+  fileBaseName,
+  configuracionModel,
+  options = { truncate: true, keepDecimals: true },
+}) {
+  if (!Array.isArray(pronosticoList)) pronosticoList = [];
+  if (!fs.existsSync(folderPhysical))
+    fs.mkdirSync(folderPhysical, { recursive: true });
+
+  const xlsxName = `${fileBaseName}.xlsx`;
+  const xlsxPath = path.join(folderPhysical, xlsxName);
+
+  // helpers
+  const parseMoment = (f) => {
+    if (!f) return null;
+    const m = moment(
+      f,
+      ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", "YYYY/MM/DD"],
+      true
+    );
+    return m.isValid() ? m : moment(f);
+  };
+
+  const roundDotNet = (v) => {
+    if (v === null || v === undefined || isNaN(v)) return 0;
+    const n = Number(v);
+    if (Math.abs(n) < 10) return Number(n.toFixed(4));
+    return Number(n.toFixed(1));
+  };
+
+  const toExcelDate = (m) => {
+    if (!m) return null;
+    if (moment.isMoment(m)) return m.toDate();
+    const mm = parseMoment(m);
+    return mm && mm.isValid() ? mm.toDate() : null;
+  };
+
+  // ordenar pronostico por fecha asc
+  const ordered = [...pronosticoList].sort((a, b) => {
+    const ma = parseMoment(a.fecha);
+    const mb = parseMoment(b.fecha);
+    if (!ma || !mb) return 0;
+    return ma.valueOf() - mb.valueOf();
+  });
+
+  // primeros 7 (igual que TXT)
+  const daysToUse = 7;
+  const first7 = ordered.slice(0, daysToUse);
+  // Si quieres mantener tamaño constante, podrías rellenar con nulls; para Excel usamos solo los válidos
+  const listDateMoment = first7
+    .map((r) => (r ? parseMoment(r.fecha) : null))
+    .filter((m) => m && m.isValid());
+
+  // Extraer codAbrev (misma lógica que en tu generator)
   const extractUcpFromBase = (base) => {
     if (!base || typeof base !== "string") return null;
     let m = base.match(/^MC([A-Za-zÀ-ÿ0-9]+)AGTE/i);
@@ -172,45 +335,58 @@ export async function generateReportsToFolder(
     if (m && m[1]) return m[1];
     return null;
   };
-
   const capitalizeWords = (s) =>
     String(s || "")
       .trim()
       .split(/\s+/)
       .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
       .join(" ");
-
   const ucpExtracted = extractUcpFromBase(fileBaseName);
   const ucpFinal = ucpExtracted
     ? capitalizeWords(ucpExtracted.replace(/\s+/g, ""))
-    : capitalizeWords(fileBaseName.replace(/\s+/g, ""));
-
+    : capitalizeWords(String(fileBaseName).replace(/\s+/g, ""));
   const codAbrevValue = `MC-${ucpFinal}`;
 
-  // Rango para EXCEL segunda pasada
-  const periodRanges = {};
-  for (let p = 1; p <= 24; p++) {
-    const nums = records
-      .map((r) => Number(String(r[`p${p}`] ?? 0).replace(",", ".")))
-      .filter((n) => !isNaN(n));
-    periodRanges[p] = {
-      min: Math.min(...nums),
-      max: Math.max(...nums),
-    };
+  // PRELOAD potencias: intentar cargar con cargarDiasPotencias o buscarPotenciaDia
+  const potenciasMapByPeriod = {}; // { "1": { potencia1, potencia2, ... }, ... }
+  try {
+    if (configuracionModel) {
+      if (typeof configuracionModel.buscarPotenciaDia === "function") {
+        // fetch per period 1..24
+        for (let p = 1; p <= 24; p++) {
+          try {
+            const res = await configuracionModel.buscarPotenciaDia(
+              ucp,
+              String(p)
+            );
+            const rec = res && res.rows ? res.rows[0] : res;
+            if (rec) potenciasMapByPeriod[String(p)] = rec;
+            else potenciasMapByPeriod[String(p)] = null;
+          } catch (err) {
+            potenciasMapByPeriod[String(p)] = null;
+          }
+        }
+      } else if (typeof configuracionModel.cargarDiasPotencias === "function") {
+        const carg = await configuracionModel.cargarDiasPotencias(ucp);
+        const arr = carg && carg.rows ? carg.rows : carg || [];
+        for (const r of arr) {
+          if (!r) continue;
+          const dia = String(
+            r.dia || r.DIA || r.periodo || r.period || r.periodo_id || r.PERIODO
+          );
+          potenciasMapByPeriod[dia] = r;
+        }
+      }
+    }
+  } catch (err) {
+    // no bloquear; si falla dejamos potenciasMapByPeriod vacío
   }
 
-  const randInRange = (min, max) =>
-    parseFloat((Math.random() * (max - min) + min).toFixed(1));
-
-  const formatPron = (raw) => {
-    const n = Number(String(raw).replace(",", "."));
-    return String(n).replace(".", ",");
-  };
-
-  // === Crear Excel
+  // crear workbook
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("Pronostico");
 
+  // header row
   ws.addRow([
     "CodAbrevMC",
     "FECHA",
@@ -218,53 +394,126 @@ export async function generateReportsToFolder(
     "PRONOSTICO",
     "CODIGOCOLECCION",
   ]);
+  const headerRow = ws.getRow(1);
+  headerRow.eachCell((cell) => {
+    cell.font = { bold: true };
+    cell.alignment = { vertical: "middle", horizontal: "center" };
+  });
 
-  // PROENCNDHMC
-  for (const rec of ordered) {
-    const fd = moment(
-      rec.fecha,
-      ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", "YYYY/MM/DD"],
-      true
-    );
-    const fecha = fd.isValid() ? fd.format("DD/MM/YYYY") : rec.fecha;
-
-    for (let p = 1; p <= 24; p++) {
-      const pron = formatPron(rec[`p${p}`] ?? 0);
-      ws.addRow([codAbrevValue, fecha, p, pron, "PROENCNDHMC"]);
-    }
-  }
-
-  // PROPOTCNDHMC
-  for (const rec of ordered) {
-    const fd = moment(
-      rec.fecha,
-      ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", "YYYY/MM/DD"],
-      true
-    );
-    const fecha = fd.isValid() ? fd.format("DD/MM/YYYY") : rec.fecha;
+  // === PROENCNDHMC (para cada fecha válida en listDateMoment)
+  for (const mDate of listDateMoment) {
+    const fechaStrSlash = mDate.format("DD/MM/YYYY");
+    // buscar registro pronostico para esa fecha
+    const rec = ordered.find((r) => {
+      const rm = parseMoment(r.fecha);
+      return rm && rm.isValid() && rm.format("DD/MM/YYYY") === fechaStrSlash;
+    });
 
     for (let p = 1; p <= 24; p++) {
-      let val = 0;
-      if (p === 19 || p === 20 || p === 21) {
-        const { min, max } = periodRanges[p];
-        val = randInRange(min, max);
+      if (rec) {
+        let raw = Number(String(rec[`p${p}`] ?? 0).replace(",", "."));
+        if (isNaN(raw)) raw = 0;
+        const rounded = roundDotNet(raw);
+        ws.addRow([
+          codAbrevValue,
+          toExcelDate(mDate),
+          p,
+          rounded,
+          "PROENCNDHMC",
+        ]);
+      } else {
+        ws.addRow([codAbrevValue, toExcelDate(mDate), p, 0.0, "PROENCNDHMC"]);
       }
-      const pron = formatPron(val);
-      ws.addRow([codAbrevValue, fecha, p, pron, "PROPOTCNDHMC"]);
     }
   }
 
-  ws.columns = [
-    { width: 18 },
-    { width: 14 },
-    { width: 10 },
-    { width: 14 },
-    { width: 18 },
-  ];
+  // === PROPOTCNDHMC (potencias / tPotencia)
+  for (const mDate of listDateMoment) {
+    const fechaStrSlash = mDate.format("DD/MM/YYYY");
+    const rec = ordered.find((r) => {
+      const rm = parseMoment(r.fecha);
+      return rm && rm.isValid() && rm.format("DD/MM/YYYY") === fechaStrSlash;
+    });
 
+    for (let p = 1; p <= 24; p++) {
+      const potenciaRow = potenciasMapByPeriod[String(p)] || null;
+
+      if (!potenciaRow) {
+        // no configurada -> escribir 0
+        ws.addRow([codAbrevValue, toExcelDate(mDate), p, 0.0, "PROPOTCNDHMC"]);
+        continue;
+      }
+
+      // valor del periodo en pronóstico
+      let vPeriodo = 0;
+      if (rec) {
+        vPeriodo = Number(String(rec[`p${p}`] ?? 0).replace(",", "."));
+        if (isNaN(vPeriodo)) vPeriodo = 0;
+      }
+
+      // festivo?
+      let isFestivo = false;
+      if (
+        configuracionModel &&
+        typeof configuracionModel.buscarDiaFestivo === "function"
+      ) {
+        try {
+          const ff = await configuracionModel.buscarDiaFestivo(
+            mDate.format("YYYY-MM-DD"),
+            ucp
+          );
+          if (ff) isFestivo = true;
+        } catch (err) {
+          isFestivo = false;
+        }
+      }
+
+      // dia de la semana ISO (1=Mon..7=Sun)
+      const diaNumero = mDate.isoWeekday();
+      const potenciaColName = isFestivo ? "potencia1" : `potencia${diaNumero}`;
+
+      // buscar potencia en potenciaRow (case-insensitive)
+      let vPotencia = 0;
+      if (potenciaRow[potenciaColName] != null) {
+        vPotencia = Number(
+          String(potenciaRow[potenciaColName]).replace(",", ".")
+        );
+      } else {
+        const altKey = Object.keys(potenciaRow).find(
+          (k) => k.toLowerCase() === potenciaColName.toLowerCase()
+        );
+        if (altKey)
+          vPotencia = Number(String(potenciaRow[altKey]).replace(",", "."));
+      }
+      if (isNaN(vPotencia)) vPotencia = 0;
+
+      let tPotencia = 0;
+      if (vPotencia !== 0) tPotencia = vPeriodo / vPotencia;
+      const roundedTP = roundDotNet(tPotencia);
+      ws.addRow([
+        codAbrevValue,
+        toExcelDate(mDate),
+        p,
+        roundedTP,
+        "PROPOTCNDHMC",
+      ]);
+    }
+  }
+
+  // Ajustes de columnas y formatos
+  ws.columns = [
+    { width: 18 }, // CodAbrevMC
+    { width: 14, style: { numFmt: "dd/mm/yyyy" } }, // FECHA
+    { width: 10 }, // PERIODO
+    { width: 14 }, // PRONOSTICO
+    { width: 18 }, // CODIGOCOLECCION
+  ];
+  ws.views = [{ state: "frozen", ySplit: 1 }];
+
+  // Guardar archivo
   await wb.xlsx.writeFile(xlsxPath);
 
-  return { txtPath, xlsxPath, txtName, xlsxName };
+  return { xlsxPath, xlsxName };
 }
 
 /**

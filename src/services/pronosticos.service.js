@@ -1,9 +1,11 @@
 // services/pronosticos.service.js
 import PronosticosModel from "../models/pronosticos.model.js";
+import ConfiguracionModel from "../models/configuracion.model.js";
 import Logger from "../helpers/logger.js";
 import colors from "colors";
 import {
-  generateReportsToFolder,
+  generateTxtToFolder,
+  generateXlsxToFolder,
   insertFileRecord,
 } from "../utils/reportGenerator.js";
 import {
@@ -15,6 +17,7 @@ import path from "path";
 import moment from "moment";
 
 const model = PronosticosModel.getInstance();
+const configuracionModel = ConfiguracionModel.getInstance();
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 export default class PronosticosService {
@@ -54,7 +57,7 @@ export default class PronosticosService {
         };
       }
 
-      // 2) Generar archivos (si se solicita)
+      // 2) Generar archivos
       // Normalizar/ordenar pronosticoList por fecha ascendente
       const normalizeDate = (f) => {
         if (!f) return new Date(0);
@@ -82,21 +85,10 @@ export default class PronosticosService {
       const mm = reportMoment.format("MM");
       const yyyy = reportMoment.format("YYYY");
 
-      // 4) Nombre base de archivos: MC{ucpFinal}AGTE{DD}{MM}
-      const capitalizeWords = (s) =>
-        String(s || "")
-          .trim()
-          .split(/\s+/)
-          .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-          .join("");
-
-      // ucpFinal quedará como "Atlantico" o "NuevaCordoba" (si hay varios palabras, "Nueva Cordoba")
-      const ucpFinal = capitalizeWords(ucp);
-
       // si quieres mantener el prefijo "MC" pero con la UCP capitalizada:
-      const fileBaseName = `MC${ucpFinal}AGTE${dd}${mm}`;
+      const fileBaseName = `MC${ucp}AGTE${dd}${mm}`;
 
-      // 5) Obtener/crear carpeta en BD y carpeta física
+      // 4) Obtener/crear carpeta en BD y carpeta física
       const reportDirPhysicalRoot =
         process.env.REPORT_DIR || path.join(process.cwd(), "reportes");
       const monthName = monthNameSpanish(Number(mm)); // 'Noviembre'
@@ -119,18 +111,33 @@ export default class PronosticosService {
         client.release();
       }
 
-      // 6) Generar archivos directamente en folderPathPhysical
-      const { txtPath, xlsxPath, txtName, xlsxName } =
-        await generateReportsToFolder(
-          ordered,
-          folderPathPhysical,
-          fileBaseName,
-          { truncate: true, keepDecimals: true }
-        );
+      // 5) Generar archivos directamente en folderPathPhysical
+
+      // generar TXT
+      const txtResult = await generateTxtToFolder({
+        pronosticoList: ordered,
+        ucp,
+        fecha_inicio,
+        fecha_fin,
+        folderPhysical: folderPathPhysical,
+        fileBaseName,
+        configuracionModel,
+      });
+
+      // generar XLSX
+      const xlsxResult = await generateXlsxToFolder({
+        pronosticoList: ordered,
+        ucp,
+        fecha_inicio,
+        fecha_fin,
+        folderPhysical: folderPathPhysical,
+        fileBaseName,
+        configuracionModel,
+      });
 
       // ruta lógica que guardaremos en BD (con ~)
-      const rutaBD_xlsx = `${folderPathLogical}/${xlsxName}`; // e.g. '~/Reportes/Pronosticos/Atlantico/2025/Mayo/MCAtlanticoAGTE1905.xlsx'
-      const rutaBD_txt = `${folderPathLogical}/${txtName}`;
+      const rutaBD_xlsx = `${folderPathLogical}/${xlsxResult.xlsxName}`; // e.g. '~/Reportes/Pronosticos/Atlantico/2025/Mayo/MCAtlanticoAGTE1905.xlsx'
+      const rutaBD_txt = `${folderPathLogical}/${txtResult.txtName}`;
 
       // Insertar ambos archivos en una transacción y devolver los ids
       let insertIds = { xlsxId: null, txtId: null };
@@ -140,7 +147,7 @@ export default class PronosticosService {
 
         // insertar XLSX
         const resXlsx = await insertFileRecord(clientFiles, {
-          nombreArchivo: xlsxName,
+          nombreArchivo: xlsxResult.xlsxName,
           rutaArchivo: rutaBD_xlsx,
           codcarpeta: codcarpeta,
           contentType: null, // se infiere en insertFileRecord si es null
@@ -150,7 +157,7 @@ export default class PronosticosService {
 
         // insertar TXT
         const resTxt = await insertFileRecord(clientFiles, {
-          nombreArchivo: txtName,
+          nombreArchivo: txtResult.txtName,
           rutaArchivo: rutaBD_txt,
           codcarpeta: codcarpeta,
           contentType: null,
@@ -173,7 +180,9 @@ export default class PronosticosService {
         success: true,
         message: `Se insertaron ${
           insertResult.rowCount || pronosticoList.length
-        } pronósticos. Archivos generados: ${txtName}, ${xlsxName}`,
+        } pronósticos. Archivos generados: ${txtResult.txtName}, ${
+          xlsxResult.xlsxName
+        }`,
       };
     } catch (err) {
       Logger.error(colors.red("Error PronosticosService exportarBulk "), err);
