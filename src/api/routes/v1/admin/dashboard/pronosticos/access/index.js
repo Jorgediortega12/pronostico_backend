@@ -9,31 +9,26 @@ import {
 
 const service = PronosticosService.getInstance();
 
-export const crearPronostico = async (req, res) => {
-  const { ucp, fecha, codigo, observacion, usuario, ps } = req.body;
+export const exportarBulk = async (req, res) => {
+  const {
+    fecha_inicio,
+    fecha_fin,
+    usuario,
+    ucp,
+    pronostico = [],
+    historico = [],
+    datos = {},
+  } = req.body;
   try {
-    const result = await service.crearPronostico(
-      ucp,
-      fecha,
-      codigo,
-      observacion,
+    const result = await service.exportarBulk(
+      fecha_inicio,
+      fecha_fin,
       usuario,
-      ps
+      ucp,
+      pronostico,
+      historico,
+      datos
     );
-    if (!result.success) return responseError(200, result.message, 404, res);
-    return SuccessResponse(res, true, result.message);
-  } catch (err) {
-    Logger.error(err);
-    return InternalError(res);
-  }
-};
-
-// Bulk: recibir pronosticoList: [{fecha, p1..p24, codigo?, observacion?}, ...]
-// o recibir pronosticoList en pronostico y opcional historico en historico
-export const crearPronosticosBulk = async (req, res) => {
-  const { ucp, pronostico = [] } = req.body;
-  try {
-    const result = await service.crearPronosticosBulk(ucp, pronostico);
     if (!result.success) return responseError(200, result.message, 404, res);
     return SuccessResponse(res, true, result.message);
   } catch (err) {
