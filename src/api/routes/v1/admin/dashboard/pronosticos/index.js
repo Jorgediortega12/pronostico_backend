@@ -8,14 +8,9 @@ const router = Router();
 
 export default function () {
   router.post(
-    "/crearPronostico",
-    validator(schema.crearPronostico),
-    controllers.crearPronostico
-  );
-  router.post(
-    "/crearPronosticosBulk",
-    validator(schema.crearPronosticosBulk),
-    controllers.crearPronosticosBulk
+    "/exportarBulk",
+    validator(schema.exportarBulk),
+    controllers.exportarBulk
   );
   router.post("/borrarPronosticos", controllers.borrarPronosticos); // puedes añadir schema si quieres
   return router;

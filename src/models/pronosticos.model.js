@@ -26,47 +26,8 @@ export default class PronosticosModel {
     });
   }
 
-  // Insert único (tu ejemplo adaptado)
-  crearPronostico = async (
-    ucp,
-    fecha,
-    codigo = null,
-    observacion = null,
-    usuario = null,
-    pArray = []
-  ) => {
-    const client = this.createClient();
-    try {
-      await client.connect();
-      // Construir arreglo de p1..p24 desde pArray (si viene) o rellenar con ceros
-      const ps = new Array(24).fill(0);
-      if (Array.isArray(pArray) && pArray.length >= 1) {
-        // si pArray tiene 24 números -> usarlos; si tiene arrays -> sumar cada periodo
-        if (pArray.length === 24 && typeof pArray[0] === "number") {
-          for (let i = 0; i < 24; i++) ps[i] = Number(pArray[i] || 0);
-        } else if (pArray.length === 24 && Array.isArray(pArray[0])) {
-          for (let i = 0; i < 24; i++)
-            ps[i] = pArray[i].reduce((s, v) => s + Number(v || 0), 0);
-        }
-      }
-      const values = [ucp, fecha, codigo, observacion, usuario, ...ps];
-      const result = await client.query(querys.crearPronostico, values);
-      await client.end();
-      return result;
-    } catch (error) {
-      Logger.error(
-        colors.red("Error PronosticosModel crearPronostico "),
-        error
-      );
-      try {
-        await client.end();
-      } catch (e) {}
-      throw error;
-    }
-  };
-
   // Bulk insert: recibe array de objetos con las columnas necesarias
-  crearPronosticosBulk = async (ucpGlobal, pronosticoList = []) => {
+  exportarBulk = async (ucpGlobal, pronosticoList = []) => {
     const client = this.createClient();
     try {
       await client.connect();
@@ -102,10 +63,7 @@ export default class PronosticosModel {
       try {
         await client.end();
       } catch (e) {}
-      Logger.error(
-        colors.red("Error PronosticosModel crearPronosticosBulk "),
-        error
-      );
+      Logger.error(colors.red("Error PronosticosModel exportarBulk "), error);
       throw error;
     }
   };

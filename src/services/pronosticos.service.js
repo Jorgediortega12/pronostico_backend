@@ -26,47 +26,26 @@ export default class PronosticosService {
     return PronosticosService.instance;
   }
 
-  crearPronostico = async (
-    ucp,
-    fecha,
-    codigo,
-    observacion,
-    usuario = null,
-    pArray = []
-  ) => {
-    try {
-      const result = await model.crearPronostico(
-        ucp,
-        fecha,
-        codigo,
-        observacion,
-        usuario,
-        pArray
-      );
-      if (!result || result.rowCount === 0)
-        return { success: false, message: "No se pudo crear el pronóstico." };
-      return { success: true, message: "Pronóstico creado correctamente." };
-    } catch (err) {
-      Logger.error(
-        colors.red("Error PronosticosService crearPronostico "),
-        err
-      );
-      throw new Error("ERROR TECNICO");
-    }
-  };
-
   /**
    * Inserta en BD y genera archivos .txt/.xlsx (opcionalmente registra archivo en BD)
-   * @param {string} ucp - identificador (se usa como carpeta MC{ucp})
-   * @param {Array} pronosticoList - array [{fecha, p1..p24, codigo?, observacion?}, ...]
+   * @param {string} fecha_inicio - fecha inicio del pronostico
+   * @param {string} fecha_fin - fecha fin del pronostico
+   * @param {string} usuario - usuario que exporto
+   * @param {string} ucp - ucp/mc (mercado comercializacion, se usa como carpeta MC{ucp})
+   * @param {Array} pronosticoList - array [{fecha, p1..p24, observacion?}, ...]
+   * @param {Array} historicoList - array [{fecha, p1..p24, observacion?}, ...]
    */
-  crearPronosticosBulk = async (ucp, pronosticoList) => {
+  exportarBulk = async (
+    fecha_inicio,
+    fecha_fin,
+    usuario,
+    ucp,
+    pronosticoList,
+    historicoList
+  ) => {
     try {
       // 1) Insertar en BD (modelo)
-      const insertResult = await model.crearPronosticosBulk(
-        ucp,
-        pronosticoList
-      );
+      const insertResult = await model.exportarBulk(ucp, pronosticoList);
 
       if (!insertResult || !insertResult.success) {
         return {
@@ -197,10 +176,7 @@ export default class PronosticosService {
         } pronósticos. Archivos generados: ${txtName}, ${xlsxName}`,
       };
     } catch (err) {
-      Logger.error(
-        colors.red("Error PronosticosService crearPronosticosBulk "),
-        err
-      );
+      Logger.error(colors.red("Error PronosticosService exportarBulk "), err);
       throw new Error("ERROR TECNICO");
     }
   };
