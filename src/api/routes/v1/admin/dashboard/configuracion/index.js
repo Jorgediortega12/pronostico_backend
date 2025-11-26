@@ -33,5 +33,8 @@ export default function () {
     validator(schema.buscarDiaFestivo),
     controllers.buscarDiaFestivo
   );
+
+  //cargar dias potencias
+  router.get("/cargarDiasPotencias/:ucp/:dia", controllers.cargarDiasPotencias);
   return router;
 }

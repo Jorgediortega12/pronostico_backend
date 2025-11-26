@@ -34,3 +34,6 @@ export const agregarDatosPronosticoxSesion = `
 `;
 //verificar si un dia es festivo
 export const buscarDiaFestivo = `SELECT * FROM festivos WHERE fecha=$1 AND ucp=$2;`;
+
+//cargar dias potencia
+export const cargarDiasPotencias = `SELECT * FROM datos_potencias WHERE ucp = $1 AND dia=$2`
