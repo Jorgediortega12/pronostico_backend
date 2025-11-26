@@ -88,4 +88,8 @@ export default {
     fecha: Joi.string().required(),
     ucp: Joi.string().required(),
   }),
+  cargarDiasPotencias: Joi.object().keys({
+    ucp: Joi.string().required(),
+    dia: Joi.number().required()
+  })
 };
