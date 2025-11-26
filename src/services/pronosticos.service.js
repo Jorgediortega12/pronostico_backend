@@ -74,8 +74,7 @@ export default class PronosticosService {
       return m && m.isValid() ? m.format("YYYYMMDD") : null;
     };
 
-    // Determinar stopDate y startDate similares a tu flujo previo:
-    // stopDate: reportMoment (última fecha - 6 días) si existe, sino hoy
+    // Determinar stopDate y startDate
     const ordered = Array.isArray(pronosticoList)
       ? [...pronosticoList].sort((a, b) => {
           const ma = parseMoment(a.fecha);
@@ -100,7 +99,7 @@ export default class PronosticosService {
         ? parseMoment(fecha_inicio)
         : moment();
 
-    // nombresesion y nombrearchivo como en C#
+    // nombresesion y nombrearchivo
     const dd = stopDate.format("DD");
     const mmStart = startDate.format("MM");
     const nombresesion = `MC${ucp}AGTE${dd}${mmStart}`;
@@ -119,246 +118,178 @@ export default class PronosticosService {
           : "0";
     }
 
-    // Other metadata fields expected by agregarVersionSesion in C#:
-    // datos.tipodatos, datos.tipoedicion, datos.ediciontipodia, datos.edicionmanual,
-    // datos.edicionultimo, datos.ediciondiareferencia, datos.cuadropdias, datos.cargaindustrial
-    // we will pass them as available or default to empty / null
+    // Meta campos (mapeo a lo que espera agregarVersionSesion)
     const meta = {
-      tipodatos: datos.tipodatos ?? null,
-      tipoedicion: datos.tipoedicion ?? null,
-      ediciontipodia: datos.ediciontipodia ?? null,
-      edicionmanual: datos.edicionmanual ?? null,
-      edicionultimo: datos.edicionultimo ?? null,
-      ediciondiareferencia: datos.ediciondiareferencia ?? null,
-      cuadropdias: datos.cuadropdias ?? null,
-      cargaindustrial: datos.cargaindustrial ?? null,
+      tipodatos: datos.tipodatos ?? "",
+      tendencia: datos.tipoedicion ?? "", // en tu model es 'tendencia'
+      dias: datos.ediciontipodia ?? "", // 'dias'
+      edicionfiltro: datos.edicionmanual ?? "", // 'edicionfiltro'
+      edicionperiodo: datos.edicionultimo ?? "", // 'edicionperiodo'
+      ediciontexto: "", // vacío como en tu C#
+      edicionfecha: datos.ediciondiareferencia ?? "",
+      edicionsuma: datos.cuadropdias ?? "",
+      cargaindustrial: datos.cargaindustrial ?? "",
     };
 
-    try {
-      // 1) buscar versión existente
-      // Ajusta la firma si tu model.buscarVersionSesion no necesita client como primer arg.
-      const versionRow = await model.buscarVersionSesion(nombresesion);
-
-      // calcular nroversion
-      let nroversion = 1;
-      if (
-        versionRow &&
-        (versionRow.version || versionRow.rows || Array.isArray(versionRow))
-      ) {
-        // soporte varias formas de retorno
-        const v =
-          versionRow.version ??
-          (versionRow.rows &&
-            versionRow.rows[0] &&
-            versionRow.rows[0].version) ??
-          (Array.isArray(versionRow) && versionRow[0] && versionRow[0].version);
-        if (v) nroversion = 1 + parseInt(v, 10);
-      }
-
-      // 2) agregarVersionSesion -> debe devolver el registro nuevo (o al menos el codigo)
-      // Firma esperada: model.agregarVersionSesion({ ...params... }) -> { codigo: <id> }
-      const agregarParams = {
-        fechaRegistro: moment().format("YYYYMMDDHHmmss"), // fun.getFechaAñoHoraActual() equivalente
-        ucp,
-        fechaInicio: convertFechaAño(fecha_inicio),
-        fechaFin: convertFechaAño(fecha_fin),
-        tipodatos: meta.tipodatos,
-        tipoedicion: meta.tipoedicion,
-        ediciontipodia: meta.ediciontipodia,
-        edicionmanual: meta.edicionmanual,
-        edicionultimo: meta.edicionultimo,
-        unknownField: "", // correspondía a "" en C#
-        ediciondiareferencia: meta.ediciondiareferencia,
-        cuadropdias: meta.cuadropdias,
-        nombresesion,
-        nroversion: String(nroversion),
-        usuario,
-        // luego los 24 cuadros en orden
-        cuadroperiodos: [
-          cuadro.cuadroperiodo1,
-          cuadro.cuadroperiodo2,
-          cuadro.cuadroperiodo3,
-          cuadro.cuadroperiodo4,
-          cuadro.cuadroperiodo5,
-          cuadro.cuadroperiodo6,
-          cuadro.cuadroperiodo7,
-          cuadro.cuadroperiodo8,
-          cuadro.cuadroperiodo9,
-          cuadro.cuadroperiodo10,
-          cuadro.cuadroperiodo11,
-          cuadro.cuadroperiodo12,
-          cuadro.cuadroperiodo13,
-          cuadro.cuadroperiodo14,
-          cuadro.cuadroperiodo15,
-          cuadro.cuadroperiodo16,
-          cuadro.cuadroperiodo17,
-          cuadro.cuadroperiodo18,
-          cuadro.cuadroperiodo19,
-          cuadro.cuadroperiodo20,
-          cuadro.cuadroperiodo21,
-          cuadro.cuadroperiodo22,
-          cuadro.cuadroperiodo23,
-          cuadro.cuadroperiodo24,
-        ],
-        nombrearchivo,
-        cargaindustrial: meta.cargaindustrial ?? null,
-      };
-
-      // Llamada al model: adáptala si tu firma espera parámetros posicionales.
-      let resAgregar = null;
-      if (typeof model.agregarVersionSesion === "function") {
-        // try object style
-        try {
-          resAgregar = await model.agregarVersionSesion(agregarParams);
-        } catch (err) {
-          // fallback: intentar firma posicional (24 cuadros explícitos)
-          const vals = [
-            agregarParams.fechaRegistro,
-            agregarParams.ucp,
-            agregarParams.fechaInicio,
-            agregarParams.fechaFin,
-            agregarParams.tipodatos,
-            agregarParams.tipoedicion,
-            agregarParams.ediciontipodia,
-            agregarParams.edicionmanual,
-            agregarParams.edicionultimo,
-            agregarParams.unknownField,
-            agregarParams.ediciondiareferencia,
-            agregarParams.cuadropdias,
-            agregarParams.nombresesion,
-            agregarParams.nroversion,
-            agregarParams.usuario,
-            ...agregarParams.cuadroperiodos,
-            agregarParams.nombrearchivo,
-            agregarParams.cargaindustrial,
-          ];
-          resAgregar = await model.agregarVersionSesion(vals);
-        }
-      } else {
-        throw new Error("model.agregarVersionSesion no definido");
-      }
-
-      // Obtener codigo de sesión
-      let codsesionId = null;
-      if (resAgregar) {
-        codsesionId =
-          (resAgregar.codigo ??
-            (resAgregar.rows &&
-              resAgregar.rows[0] &&
-              resAgregar.rows[0].codigo) ??
-            (resAgregar[0] && resAgregar[0].codigo)) ||
-          null;
-      }
-      if (!codsesionId) {
-        // Si la función devolvió la fila entera (ej: { rows: [...] })
-        if (resAgregar && resAgregar.rows && resAgregar.rows[0])
-          codsesionId =
-            resAgregar.rows[0].codigo || resAgregar.rows[0].id || null;
-      }
-
-      if (!codsesionId) {
-        // no pudimos obtener id -> rollback y error
-        await client.query("ROLLBACK");
-        throw new Error(
-          "No se pudo obtener id de sesión al insertar agregarVersionSesion"
-        );
-      }
-
-      // 3) Insertar Pronóstico: por cada registro llamar agregarDatosPronosticoxSesion
-      // Firma esperada: model.agregarDatosPronosticoxSesion(codsesion, someId, fechaYYYYMMDD, p1..p24, observacion, tipo)
-      for (const rec of pronosticoList) {
-        const fechaConv = convertFechaAño(rec.fecha);
-        // asegurarse de que p1..p24 existan y con '.' decimal
-        const pVals = [];
-        for (let i = 1; i <= 24; i++) {
-          const key = `p${i}`;
-          const vRaw =
-            rec[key] != null && String(rec[key]).trim() !== ""
-              ? String(rec[key]).replace(",", ".")
-              : "0";
-          pVals.push(vRaw);
-        }
-        const observacion = rec.observacion ?? "";
-        const tipo = "P";
-        // Intentar llamada object-style, fallback positional
-        if (typeof model.agregarDatosPronosticoxSesion === "function") {
-          try {
-            await model.agregarDatosPronosticoxSesion({
-              codsesion: String(codsesionId),
-              someId: "0",
-              fecha: fechaConv,
-              p: pVals, // si tu model espera p1..p24, lo adaptamos abajo
-              observacion,
-              tipo,
-            });
-          } catch (err) {
-            // fallback a positional: codsesion, someId, fecha, p1..p24, observacion, tipo
-            const vals = [
-              String(codsesionId),
-              "0",
-              fechaConv,
-              ...pVals,
-              observacion,
-              tipo,
-            ];
-            await model.agregarDatosPronosticoxSesion(vals);
-          }
-        } else {
-          throw new Error("model.agregarDatosPronosticoxSesion no definido");
-        }
-      }
-
-      // 4) Insertar Histórico (tipo "D")
-      for (const rec of historicoList) {
-        const fechaConv = convertFechaAño(rec.fecha);
-        const pVals = [];
-        for (let i = 1; i <= 24; i++) {
-          const key = `p${i}`;
-          const vRaw =
-            rec[key] != null && String(rec[key]).trim() !== ""
-              ? String(rec[key]).replace(",", ".")
-              : "0";
-          pVals.push(vRaw);
-        }
-        const observacion = rec.observacion ?? "";
-        const tipo = "D";
-        try {
-          await model.agregarDatosPronosticoxSesion({
-            codsesion: String(codsesionId),
-            someId: "0",
-            fecha: fechaConv,
-            p: pVals,
-            observacion,
-            tipo,
-          });
-        } catch (err) {
-          const vals = [
-            String(codsesionId),
-            "0",
-            fechaConv,
-            ...pVals,
-            observacion,
-            tipo,
-          ];
-          await model.agregarDatosPronosticoxSesion(vals);
-        }
-      }
-
-      // Commit
-      await client.query("COMMIT");
-      return {
-        success: true,
-        codsesion: codsesionId,
-        nombresesion,
-        nombrearchivo,
-      };
-    } catch (err) {
-      await client.query("ROLLBACK").catch(() => {});
-      // rethrow para que el caller lo loguee
-      throw err;
-    } finally {
-      client.release();
+    // 1) buscar versión existente
+    const versionRow = await model.buscarVersionSesion(nombresesion);
+    // versionRow puede venir como objeto { version: x } o { rows: [...] } o array
+    let nroversion = 1;
+    if (versionRow) {
+      const v =
+        versionRow.version ??
+        (versionRow.rows && versionRow.rows[0] && versionRow.rows[0].version) ??
+        (Array.isArray(versionRow) && versionRow[0] && versionRow[0].version);
+      if (v) nroversion = 1 + parseInt(v, 10);
     }
+
+    // 2) preparar objeto para agregarVersionSesion (firma que mostró tu model)
+    const versionData = {
+      fecha: moment().format("YYYY-MM-DD HH:mm:ss"), // tu model espera datos.fecha
+      ucp,
+      fechainicio: convertFechaAño(fecha_inicio),
+      fechafin: convertFechaAño(fecha_fin),
+      tipodatos: meta.tipodatos,
+      tendencia: meta.tendencia,
+      dias: meta.dias,
+      edicionfiltro: meta.edicionfiltro,
+      edicionperiodo: meta.edicionperiodo,
+      ediciontexto: meta.ediciontexto,
+      edicionfecha: meta.edicionfecha,
+      edicionsuma: meta.edicionsuma,
+      nombre: nombresesion,
+      version: String(nroversion),
+      usuario,
+      p1_diario: cuadro.cuadroperiodo1,
+      p2_diario: cuadro.cuadroperiodo2,
+      p3_diario: cuadro.cuadroperiodo3,
+      p4_diario: cuadro.cuadroperiodo4,
+      p5_diario: cuadro.cuadroperiodo5,
+      p6_diario: cuadro.cuadroperiodo6,
+      p7_diario: cuadro.cuadroperiodo7,
+      p8_diario: cuadro.cuadroperiodo8,
+      p9_diario: cuadro.cuadroperiodo9,
+      p10_diario: cuadro.cuadroperiodo10,
+      p11_diario: cuadro.cuadroperiodo11,
+      p12_diario: cuadro.cuadroperiodo12,
+      p13_diario: cuadro.cuadroperiodo13,
+      p14_diario: cuadro.cuadroperiodo14,
+      p15_diario: cuadro.cuadroperiodo15,
+      p16_diario: cuadro.cuadroperiodo16,
+      p17_diario: cuadro.cuadroperiodo17,
+      p18_diario: cuadro.cuadroperiodo18,
+      p19_diario: cuadro.cuadroperiodo19,
+      p20_diario: cuadro.cuadroperiodo20,
+      p21_diario: cuadro.cuadroperiodo21,
+      p22_diario: cuadro.cuadroperiodo22,
+      p23_diario: cuadro.cuadroperiodo23,
+      p24_diario: cuadro.cuadroperiodo24,
+      nombrearchivo,
+      cargaindustrial: meta.cargaindustrial,
+    };
+
+    // Llamar a tu model.agregarVersionSesion pasando el objeto (tu model lo transforma a valores)
+    const versionInserted = await model.agregarVersionSesion(versionData);
+    if (!versionInserted) throw new Error("No se pudo crear versión de sesión");
+
+    // extraer codigo de la respuesta (tu model retorna result.rows[0])
+    const codsesion =
+      versionInserted.codigo ??
+      (versionInserted.rows &&
+        versionInserted.rows[0] &&
+        versionInserted.rows[0].codigo) ??
+      (Array.isArray(versionInserted) &&
+        versionInserted[0] &&
+        versionInserted[0].codigo);
+    if (!codsesion) {
+      throw new Error(
+        "No se obtuvo codigo de sesión desde agregarVersionSesion"
+      );
+    }
+
+    // 3) Insertar Pronóstico usando model.agregarDatosPronosticoxSesion(datos)
+    for (const rec of pronosticoList) {
+      const fechaConv = convertFechaAño(rec.fecha);
+      // construir objeto con p1..p24 y demás campos que espera tu model
+      const datosDia = {
+        codsesion: String(codsesion),
+        check_f: "0",
+        fecha: fechaConv,
+        p1: String(rec.p1 ?? "0").replace(",", "."),
+        p2: String(rec.p2 ?? "0").replace(",", "."),
+        p3: String(rec.p3 ?? "0").replace(",", "."),
+        p4: String(rec.p4 ?? "0").replace(",", "."),
+        p5: String(rec.p5 ?? "0").replace(",", "."),
+        p6: String(rec.p6 ?? "0").replace(",", "."),
+        p7: String(rec.p7 ?? "0").replace(",", "."),
+        p8: String(rec.p8 ?? "0").replace(",", "."),
+        p9: String(rec.p9 ?? "0").replace(",", "."),
+        p10: String(rec.p10 ?? "0").replace(",", "."),
+        p11: String(rec.p11 ?? "0").replace(",", "."),
+        p12: String(rec.p12 ?? "0").replace(",", "."),
+        p13: String(rec.p13 ?? "0").replace(",", "."),
+        p14: String(rec.p14 ?? "0").replace(",", "."),
+        p15: String(rec.p15 ?? "0").replace(",", "."),
+        p16: String(rec.p16 ?? "0").replace(",", "."),
+        p17: String(rec.p17 ?? "0").replace(",", "."),
+        p18: String(rec.p18 ?? "0").replace(",", "."),
+        p19: String(rec.p19 ?? "0").replace(",", "."),
+        p20: String(rec.p20 ?? "0").replace(",", "."),
+        p21: String(rec.p21 ?? "0").replace(",", "."),
+        p22: String(rec.p22 ?? "0").replace(",", "."),
+        p23: String(rec.p23 ?? "0").replace(",", "."),
+        p24: String(rec.p24 ?? "0").replace(",", "."),
+        observacion: rec.observacion ?? "",
+        tipo: "P",
+      };
+
+      await model.agregarDatosPronosticoxSesion(datosDia);
+    }
+
+    // 4) Insertar Histórico (tipo "D")
+    for (const rec of historicoList) {
+      const fechaConv = convertFechaAño(rec.fecha);
+      const datosDia = {
+        codsesion: String(codsesion),
+        check_f: "0",
+        fecha: fechaConv,
+        p1: String(rec.p1 ?? "0").replace(",", "."),
+        p2: String(rec.p2 ?? "0").replace(",", "."),
+        p3: String(rec.p3 ?? "0").replace(",", "."),
+        p4: String(rec.p4 ?? "0").replace(",", "."),
+        p5: String(rec.p5 ?? "0").replace(",", "."),
+        p6: String(rec.p6 ?? "0").replace(",", "."),
+        p7: String(rec.p7 ?? "0").replace(",", "."),
+        p8: String(rec.p8 ?? "0").replace(",", "."),
+        p9: String(rec.p9 ?? "0").replace(",", "."),
+        p10: String(rec.p10 ?? "0").replace(",", "."),
+        p11: String(rec.p11 ?? "0").replace(",", "."),
+        p12: String(rec.p12 ?? "0").replace(",", "."),
+        p13: String(rec.p13 ?? "0").replace(",", "."),
+        p14: String(rec.p14 ?? "0").replace(",", "."),
+        p15: String(rec.p15 ?? "0").replace(",", "."),
+        p16: String(rec.p16 ?? "0").replace(",", "."),
+        p17: String(rec.p17 ?? "0").replace(",", "."),
+        p18: String(rec.p18 ?? "0").replace(",", "."),
+        p19: String(rec.p19 ?? "0").replace(",", "."),
+        p20: String(rec.p20 ?? "0").replace(",", "."),
+        p21: String(rec.p21 ?? "0").replace(",", "."),
+        p22: String(rec.p22 ?? "0").replace(",", "."),
+        p23: String(rec.p23 ?? "0").replace(",", "."),
+        p24: String(rec.p24 ?? "0").replace(",", "."),
+        observacion: rec.observacion ?? "",
+        tipo: "D",
+      };
+
+      await model.agregarDatosPronosticoxSesion(datosDia);
+    }
+
+    return {
+      success: true,
+      codsesion,
+      nombresesion,
+      nombrearchivo,
+    };
   };
 
   /**
@@ -504,14 +435,14 @@ export default class PronosticosService {
       }
 
       // 6) Guardar sesión y datos (pronóstico + histórico)
-      if (typeof saveSessionAndData !== "function") {
+      if (typeof this.saveSessionAndData !== "function") {
         Logger.warn(
           "saveSessionAndData no definido - se omite guardado de sesión"
         );
       } else {
         try {
           // sessionModel debe ser el model que implementa buscarVersionSesion/agregarVersionSesion/agregarDatosPronosticoxSesion
-          const sessionResult = await saveSessionAndData({
+          const sessionResult = await this.saveSessionAndData({
             model: configuracionModel,
             ucp,
             fecha_inicio,

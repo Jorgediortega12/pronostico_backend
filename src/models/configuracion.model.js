@@ -65,6 +65,7 @@ export default class ConfiguracionModel {
     try {
       await client.connect();
       const result = await client.query(querys.buscarVersionSesion, [nombre]);
+      console.log("result buscarVersionSesion:", result);
       return result.rows;
     } catch (error) {
       Logger.error(colors.red("Error configuracionModel bsucarVersionSesion"));
@@ -76,6 +77,7 @@ export default class ConfiguracionModel {
 
   agregarVersionSesion = async (datos) => {
     const client = this.createClient();
+    console.log("datos en model agregarVersionSesion:", datos);
     try {
       await client.connect();
       const valores = [
@@ -136,6 +138,7 @@ export default class ConfiguracionModel {
 
   agregarDatosPronosticoxSesion = async (datos) => {
     const client = this.createClient();
+    console.log("datos en model agregarDatosPronosticoxSesion:", datos);
     try {
       await client.connect();
       const valores = [
@@ -202,12 +205,9 @@ export default class ConfiguracionModel {
   };
   buscarPotenciaDia = async (ucp, dia) => {
     const client = this.createClient();
-    console.log("ucp:", ucp);
-    console.log("dia:", dia);
     try {
       await client.connect();
       const result = await client.query(querys.buscarPotenciaDia, [ucp, dia]);
-      console.log(result);
       return result.rows.length > 0 ? result.rows[0] : null;
     } catch (error) {
       Logger.error(colors.red("Error configuracionModel buscarPotenciaDia"));
