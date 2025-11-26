@@ -189,30 +189,30 @@ export default class ConfiguracionService {
     }
   };
 
-  cargarDiasPotencias = async (ucp, dia) => {
+  buscarPotenciaDia = async (ucp, dia) => {
     try {
-      const diasPotencias = await model.cargarDiasPotencias(ucp, dia);
+      const diasPotencias = await model.buscarPotenciaDia(ucp, dia);
 
       if (!diasPotencias) {
         return {
           success: false,
           data: null,
-          message: 'no se pudo cargar los dias de potencia'
-        }
+          message: "no se pudo encontrar los dias de potencia",
+        };
       }
 
       return {
         success: true,
         data: diasPotencias,
-        message: 'Dias potencias cargados correctamente'
-      }
+        message: "Dias potencias  entontrados",
+      };
     } catch (error) {
-      Logger.error(colors.red("Error configuracionServices cargarDiasPotencias"));
+      Logger.error(colors.red("Error configuracionServices buscarPotenciaDia"));
       return {
         success: false,
         data: null,
-        message: 'Error al obtener cargar dias potencia'
-      }
+        message: "Error al obtener cargar dias potencia",
+      };
     }
-  }
+  };
 }

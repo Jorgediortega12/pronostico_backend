@@ -200,20 +200,20 @@ export default class ConfiguracionModel {
       await client.end();
     }
   };
-  cargarDiasPotencias = async (ucp, dia) => {
+  buscarPotenciaDia = async (ucp, dia) => {
     const client = this.createClient();
     console.log("ucp:", ucp);
     console.log("dia:", dia);
     try {
       await client.connect();
-      const result = await client.query(querys.cargarDiasPotencias, [ucp, dia]);
-      console.log(result)
+      const result = await client.query(querys.buscarPotenciaDia, [ucp, dia]);
+      console.log(result);
       return result.rows.length > 0 ? result.rows[0] : null;
     } catch (error) {
-      Logger.error(colors.red("Error configuracionModel cargarDiasPotencias"));
+      Logger.error(colors.red("Error configuracionModel buscarPotenciaDia"));
       throw error;
     } finally {
       await client.end();
     }
-  }
+  };
 }

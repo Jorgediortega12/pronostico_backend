@@ -128,15 +128,20 @@ export const buscarDiaFestivo = async (req, res) => {
   }
 };
 
-export const cargarDiasPotencias = async (req, res) => {
+export const buscarPotenciaDia = async (req, res) => {
   try {
     const { ucp, dia } = req.params;
 
     if (!ucp || !dia) {
-      return responseError(200, 'Parametros de ucp y dia no proporcionados', 400, res)
+      return responseError(
+        200,
+        "Parametros de ucp y dia no proporcionados",
+        400,
+        res
+      );
     }
 
-    const result = await service.cargarDiasPotencias(ucp, dia);
+    const result = await service.buscarPotenciaDia(ucp, dia);
 
     if (!result.success) {
       return responseError(200, result.message, 404, res);
@@ -147,4 +152,4 @@ export const cargarDiasPotencias = async (req, res) => {
     Logger.error(err);
     return InternalError(err);
   }
-}
+};

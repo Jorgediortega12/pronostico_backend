@@ -35,6 +35,10 @@ export default function () {
   );
 
   //cargar dias potencias
-  router.get("/cargarDiasPotencias/:ucp/:dia", controllers.cargarDiasPotencias);
+  router.get(
+    "/buscarPotenciaDia/:ucp/:dia",
+    validator(schema.buscarPotenciaDia),
+    controllers.buscarPotenciaDia
+  );
   return router;
 }
