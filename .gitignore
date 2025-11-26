@@ -14,6 +14,7 @@ lerna-debug.log*
 docker-compose.yml
 scripts
 Reportes
+pnpm-lock.yaml
 
 # OS
 .DS_Store
