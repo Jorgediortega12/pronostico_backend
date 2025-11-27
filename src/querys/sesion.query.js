@@ -1,6 +1,6 @@
 //cargar datos de las sesiones
-export const cargarDatosSesiones = `SELECT * FROM carpetas WHERE codsuperior = $1 ORDER BY nombre ASC`
-//cargar archivos versiones sesiones 
+export const cargarDatosSesiones = `SELECT * FROM carpetas WHERE codsuperior = $1 ORDER BY nombre ASC`;
+//cargar archivos versiones sesiones
 export const cargarArchivoVrSesiones = `
   SELECT 
     s.codigo, 
@@ -18,10 +18,10 @@ export const cargarArchivoVrSesiones = `
     s.version ASC
 `;
 // buscar versiones por codigo
-export const buscarVersionSesionCod = `SELECT * FROM sesiones WHERE codigo = $1`
+export const buscarVersionSesionCod = `SELECT * FROM sesiones WHERE codigo = $1`;
 // obtener sesiones periodos por código y tipo
 export const cargarPeriodosSesion = `SELECT * FROM sesiones_periodos WHERE codsesion = $1 AND tipo = $2 ORDER BY fecha ASC`;
-// obtener datos de actualización anteriores a fecha de inicio
+
 export const cargarPeriodosxUCPxFecha = `
   SELECT
     fecha,
@@ -29,7 +29,7 @@ export const cargarPeriodosxUCPxFecha = `
     p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, p23, p24,
     observacion
   FROM actualizaciondatos
-  WHERE ucp = $1 AND fecha < $2
-  ORDER BY fecha DESC
-  LIMIT 30
+  WHERE ucp = $1
+    AND (fecha BETWEEN $2 AND $3)
+  ORDER BY fecha ASC
 `;
