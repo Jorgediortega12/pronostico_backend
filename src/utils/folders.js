@@ -41,23 +41,36 @@ export async function findOrCreateFolder(
   codsuperior = 0,
   nivel = 1
 ) {
-  // usamos cast $2::int para que Postgres conozca el tipo del parámetro
+  // NO convertimos codsuperior a NULL: asumimos que la raíz usa 0 en tu esquema
+  // 1) Intentamos encontrar
   const qFind = `
     SELECT * FROM carpetas
-    WHERE nombre ILIKE $1
-      AND ( (codsuperior IS NULL AND $2::int IS NULL) OR codsuperior = $2::int )
+    WHERE lower(nombre) = lower($1)
+      AND codsuperior = $2::int
     LIMIT 1
   `;
-  // si codsuperior === 0 lo pasamos como NULL (equivalente a raíz)
-  const param2 = codsuperior === 0 ? null : codsuperior;
-  const rFind = await client.query(qFind, [nombre, param2]);
-
+  const rFind = await client.query(qFind, [nombre, codsuperior]);
   if (rFind.rows && rFind.rows.length > 0) return rFind.rows[0];
 
-  const qIns = `INSERT INTO carpetas (nombre, codsuperior, nivel) VALUES ($1, $2, $3) RETURNING *`;
-  const vals = [nombre, codsuperior === 0 ? null : codsuperior, nivel];
-  const rIns = await client.query(qIns, vals);
-  return rIns.rows[0];
+  // 2) Si no existe, intentamos insertar. Manejamos conflicto de unicidad.
+  const qIns = `
+    INSERT INTO carpetas (nombre, codsuperior, nivel)
+    VALUES ($1, $2::int, $3)
+    RETURNING *
+  `;
+  try {
+    const rIns = await client.query(qIns, [nombre, codsuperior, nivel]);
+    return rIns.rows[0];
+  } catch (err) {
+    // Si fue un conflicto de unicidad (condición de carrera), re-consultamos la fila
+    if (err && err.code === "23505") {
+      // unique_violation
+      const rRetry = await client.query(qFind, [nombre, codsuperior]);
+      if (rRetry.rows && rRetry.rows.length > 0) return rRetry.rows[0];
+    }
+    // si no es un 23505 o no se encontró después, re-lanzamos el error
+    throw err;
+  }
 }
 
 /**
