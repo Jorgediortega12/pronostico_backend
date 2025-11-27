@@ -109,18 +109,22 @@ export const cargarPeriodosSesion = async (req, res) => {
 
 export const cargarPeriodosxUCPxFecha = async (req, res) => {
   try {
-    const { ucp, fecha } = req.params;
+    const { ucp, fechainicio, fechafin } = req.params;
 
-    if (!ucp || !fecha) {
+    if (!ucp || !fechainicio || !fechafin) {
       return responseError(
         200,
-        "Parametros ucp y fecha no proporcionados",
+        "Parametros ucp o fechas no proporcionadas",
         400,
         res
       );
     }
 
-    const result = await service.cargarPeriodosxUCPxFecha(ucp, fecha);
+    const result = await service.cargarPeriodosxUCPxFecha(
+      ucp,
+      fechainicio,
+      fechafin
+    );
 
     if (!result.success) {
       return responseError(200, result.message, 404, res);

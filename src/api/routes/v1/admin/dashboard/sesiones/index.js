@@ -31,7 +31,7 @@ export default function () {
   );
 
   router.get(
-    "/cargarPeriodosxUCPxFecha/:ucp/:fecha",
+    "/cargarPeriodosxUCPxFecha/:ucp/:fechainicio/:fechafin",
     validator(schema.cargarPeriodosxUCPxFecha),
     controllers.cargarPeriodosxUCPxFecha
   );

@@ -166,11 +166,12 @@ export default class SesionService {
     }
   };
 
-  cargarPeriodosxUCPxFecha = async (ucp, fecha) => {
+  cargarPeriodosxUCPxFecha = async (ucp, fechainicio, fechafin) => {
     try {
       const actualizacionDatos = await model.cargarPeriodosxUCPxFecha(
         ucp,
-        fecha
+        fechainicio,
+        fechafin
       );
 
       if (!actualizacionDatos) {
