@@ -1,1 +1,0 @@
-regedit.exe /s "F:\WebSites\Apps\JANO\pronostico\JANO Batch\proxyUp.reg"

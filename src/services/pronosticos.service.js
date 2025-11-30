@@ -17,12 +17,6 @@ import { Pool } from "pg";
 import path from "path";
 import moment from "moment";
 
-import { exec, execFile } from "child_process";
-import util from "util";
-
-const execAsync = util.promisify(exec); // ya lo usas para taskkill
-const execFileAsync = util.promisify(execFile); // para ejecutar JANOBatch.exe
-
 const model = PronosticosModel.getInstance();
 const configuracionModel = ConfiguracionModel.getInstance();
 const sesionModel = SesionModel.getInstance();
@@ -622,17 +616,6 @@ export default class PronosticosService {
     }
   };
 
-  cerrarMATLAB = async () => {
-    try {
-      // For Windows: force kill by image name
-      await execAsync('taskkill /IM "JANOBatch.exe" /F');
-      Logger.info("Se intentó cerrar JANOBatch.exe (taskkill).");
-    } catch (err) {
-      // taskkill devuelve error si no encuentra procesos — no es fatal
-      Logger.warn("cerrarMATLAB: taskkill result: " + (err && err.message));
-    }
-  };
-
   play = async (mc, finicio, ffin, force_retrain) => {
     try {
       // Validaciones básicas
@@ -715,15 +698,7 @@ export default class PronosticosService {
         };
       }
 
-      // 3) Inicializar proceso: cerrar/limpiar, borrar datos, etc.
-      // -- simplemente intentamos llamar a una función si existe (silencioso).
-      if (typeof this.cerrarMATLAB !== "undefined" && this?.cerrarMATLAB) {
-        try {
-          await this.cerrarMATLAB();
-        } catch (e) {
-          /* no-fatal */
-        }
-      }
+      // 3) Inicializar proceso:borrar datos, etc.
 
       // Borrar datos previos
       await sesionModel.borrarDatosPronostico();
@@ -747,43 +722,7 @@ export default class PronosticosService {
         }
       }
 
-      // Ejecutar batch (MATLAB) si existe ruta
-      const batchRows = await sesionModel.buscarRutaBatch(
-        "API Pronóstico (MATLAB)"
-      );
-      if (batchRows && batchRows.length > 0 && batchRows[0].aux) {
-        const execPath = "JANOBatch.exe";
-
-        // Convertir a ruta absoluta de forma segura
-        const workingDir = path.isAbsolute(batchRows[0].aux)
-          ? batchRows[0].aux
-          : path.resolve(process.cwd(), batchRows[0].aux);
-
-        try {
-          const { stdout, stderr } = await execFileAsync(execPath, [], {
-            cwd: workingDir,
-            timeout: 1000 * 60 * 10, // 10 minutos
-          });
-
-          if (stdout)
-            Logger.info("JANOBatch stdout: " + String(stdout).slice(0, 2000));
-          if (stderr)
-            Logger.warn("JANOBatch stderr: " + String(stderr).slice(0, 2000));
-        } catch (execErr) {
-          Logger.error(
-            colors.red(
-              "Error ejecutando el batch MATLAB: " +
-                (execErr && execErr.message ? execErr.message : execErr)
-            )
-          );
-          return {
-            success: false,
-            data: null,
-            message:
-              "El pronóstico no se ejecutó correctamente. Intente nuevamente",
-          };
-        }
-      }
+      /* PARTE DE MATLAB REEMPLAZAR POR LA API DE SAMUEL */
 
       // 4) Validar que existan los pronósticos generados
       const validarPron = await sesionModel.cargarPeriodosPronosticosxUCPxFecha(
@@ -791,7 +730,6 @@ export default class PronosticosService {
         inicioIso,
         finIso
       );
-      console.log("validarPron:", validarPron);
       if (!validarPron || validarPron.length === 0) {
         return {
           success: false,

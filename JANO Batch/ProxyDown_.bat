@@ -1,1 +1,0 @@
-regedit.exe /S "F:\WebSites\Apps\JANO\pronostico\JANO Batch\proxyDown.reg"

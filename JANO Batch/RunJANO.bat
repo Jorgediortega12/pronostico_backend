@@ -1,1 +1,0 @@
-start /d "F:\WebSites\Apps\JANO\pronostico\JANO Batch" JANOBatch.exe
