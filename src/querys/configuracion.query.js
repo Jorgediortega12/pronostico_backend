@@ -37,3 +37,23 @@ export const buscarDiaFestivo = `SELECT * FROM festivos WHERE fecha=$1 AND ucp=$
 
 //buscar dias potencia
 export const buscarPotenciaDia = `SELECT * FROM datos_potencias WHERE ucp = $1 AND dia=$2`;
+
+// traer datos desde fechaInicio hasta el más reciente
+export const cargarPeriodosxUCPDesdeFecha = `
+  SELECT fecha, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12,
+         p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, p23, p24,
+         observacion
+  FROM actualizaciondatos
+  WHERE LOWER(ucp) = LOWER($1)
+    AND fecha >= $2
+  ORDER BY fecha ASC;
+`;
+
+// traer variables climaticas desde fechaInicio hasta el más reciente
+export const cargarVariablesClimaticasxUCPDesdeFecha = `
+  SELECT *
+  FROM datos_clima
+  WHERE LOWER(ucp) = LOWER($1)
+    AND fecha >= $2
+  ORDER BY fecha ASC;
+`;

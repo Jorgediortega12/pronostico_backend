@@ -153,3 +153,58 @@ export const buscarPotenciaDia = async (req, res) => {
     return InternalError(err);
   }
 };
+
+export const cargarPeriodosxUCPDesdeFecha = async (req, res) => {
+  try {
+    const { ucp, fechaInicio } = req.params;
+
+    if (!ucp || !fechaInicio) {
+      return responseError(
+        200,
+        "Parametros de ucp y fechaInicio no proporcionados",
+        400,
+        res
+      );
+    }
+
+    const result = await service.cargarPeriodosxUCPDesdeFecha(ucp, fechaInicio);
+
+    if (!result.success) {
+      return responseError(200, result.message, 404, res);
+    }
+
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(err);
+  }
+};
+
+export const cargarVariablesClimaticasxUCPDesdeFecha = async (req, res) => {
+  try {
+    const { ucp, fechaInicio } = req.params;
+
+    if (!ucp || !fechaInicio) {
+      return responseError(
+        200,
+        "Parametros de ucp y fechaInicio no proporcionados",
+        400,
+        res
+      );
+    }
+
+    const result = await service.cargarVariablesClimaticasxUCPDesdeFecha(
+      ucp,
+      fechaInicio
+    );
+
+    if (!result.success) {
+      return responseError(200, result.message, 404, res);
+    }
+
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(err);
+  }
+};

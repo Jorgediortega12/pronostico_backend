@@ -48,3 +48,20 @@ export const borrarPronosticos = async (req, res) => {
     return InternalError(res);
   }
 };
+
+export const play = async (req, res) => {
+  const { ucp, fecha_inicio, fecha_fin, force_retrain } = req.body;
+  try {
+    const result = await service.play(
+      ucp,
+      fecha_inicio,
+      fecha_fin,
+      force_retrain
+    );
+    if (!result.success) return responseError(200, result.message, 404, res);
+    return SuccessResponse(res, true, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};

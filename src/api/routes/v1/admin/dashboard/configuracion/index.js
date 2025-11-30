@@ -40,5 +40,19 @@ export default function () {
     validator(schema.buscarPotenciaDia),
     controllers.buscarPotenciaDia
   );
+
+  // traer datos desde fechaInicio hasta el más reciente
+  router.get(
+    "/cargarPeriodosxUCPDesdeFecha/:ucp/:fechaInicio",
+    validator(schema.cargarPeriodosxUCPDesdeFecha),
+    controllers.cargarPeriodosxUCPDesdeFecha
+  );
+
+  // traer datos desde fechaInicio hasta el más reciente
+  router.get(
+    "/cargarVariablesClimaticasxUCPDesdeFecha/:ucp/:fechaInicio",
+    validator(schema.cargarPeriodosxUCPDesdeFecha),
+    controllers.cargarVariablesClimaticasxUCPDesdeFecha
+  );
   return router;
 }

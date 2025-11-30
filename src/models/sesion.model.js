@@ -84,7 +84,7 @@ export default class SesionModel {
       ]);
       return result.rows.length > 0 ? result.rows : null;
     } catch (error) {
-      Logger.error(colors.red("Error SesionModel obtenerSesionesPeriodos"));
+      Logger.error(colors.red("Error SesionModel cargarPeriodosSesion"));
       throw error;
     } finally {
       await client.end();
@@ -102,7 +102,203 @@ export default class SesionModel {
       ]);
       return result.rows.length > 0 ? result.rows : null;
     } catch (error) {
-      Logger.error(colors.red("Error sesionModel obtenerActualizacionDatos"));
+      Logger.error(colors.red("Error sesionModel cargarPeriodosxUCPxFecha"));
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  verificarFechaActualizaciondedatos = async (ucp) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const result = await client.query(
+        querys.verificarFechaActualizaciondedatos,
+        [ucp]
+      );
+      return result.rows.length > 0 ? result.rows : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error sesionModel verificarFechaActualizaciondedatos")
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  verificarFechaClima = async (ucp) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const result = await client.query(querys.verificarFechaClima, [ucp]);
+      return result.rows.length > 0 ? result.rows : null;
+    } catch (error) {
+      Logger.error(colors.red("Error sesionModel verificarFechaClima"));
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  borrarDatosPronostico = async () => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const result = await client.query(querys.borrarDatosPronostico);
+    } catch (error) {
+      Logger.error(colors.red("Error sesionModel borrarDatosPronostico"));
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  eliminarFechasIngresadasTodo = async () => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const result = await client.query(querys.eliminarFechasIngresadasTodo);
+    } catch (error) {
+      Logger.error(
+        colors.red("Error sesionModel eliminarFechasIngresadasTodo")
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  guardarFechasPronosticas = async (fechainicio, fechafin, ucp) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const result = await client.query(querys.guardarFechasPronosticas, [
+        fechainicio,
+        fechafin,
+        ucp,
+      ]);
+    } catch (error) {
+      Logger.error(colors.red("Error sesionModel guardarFechasPronosticas"));
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  borrarDatosTipoPronostico = async (ucp) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const result = await client.query(querys.borrarDatosTipoPronostico, [
+        ucp,
+      ]);
+    } catch (error) {
+      Logger.error(colors.red("Error sesionModel borrarDatosTipoPronostico"));
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  buscarRutaBatch = async (nombre) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const result = await client.query(querys.buscarRutaBatch, [nombre]);
+      return result.rows.length > 0 ? result.rows : null;
+    } catch (error) {
+      Logger.error(colors.red("Error sesionModel buscarRutaBatch"));
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  cargarPeriodosPronosticosxUCPxFecha = async (ucp, fechainicio, fechafin) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const result = await client.query(
+        querys.cargarPeriodosPronosticosxUCPxFecha,
+        [ucp, fechainicio, fechafin]
+      );
+      return result.rows.length > 0 ? result.rows : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error sesionModel cargarPeriodosPronosticosxUCPxFecha")
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  cargarPeriodosxUCPxFechaInicio = async (ucp, fechainicio) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const result = await client.query(querys.cargarPeriodosxUCPxFechaInicio, [
+        ucp,
+        fechainicio,
+      ]);
+      return result.rows.length > 0 ? result.rows : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error sesionModel cargarPeriodosxUCPxFechaInicio")
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  buscarTipoPronostico = async (ucp, fecha) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const result = await client.query(querys.buscarTipoPronostico, [
+        ucp,
+        fecha,
+      ]);
+      return result.rows.length > 0 ? result.rows : null;
+    } catch (error) {
+      Logger.error(colors.red("Error sesionModel buscarTipoPronostico"));
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  ingresarTipoPronostico = async (ucp, fecha, tipopronostico) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const result = await client.query(querys.ingresarTipoPronostico, [
+        ucp,
+        fecha,
+        tipopronostico,
+      ]);
+    } catch (error) {
+      Logger.error(colors.red("Error sesionModel ingresarTipoPronostico"));
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  actualizarTipoPronostico = async (tipopronostico, ucp, fecha) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const result = await client.query(querys.actualizarTipoPronostico, [
+        tipopronostico,
+        ucp,
+        fecha,
+      ]);
+    } catch (error) {
+      Logger.error(colors.red("Error sesionModel actualizarTipoPronostico"));
       throw error;
     } finally {
       await client.end();
