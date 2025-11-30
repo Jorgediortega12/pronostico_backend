@@ -13,5 +13,6 @@ export default function () {
     controllers.exportarBulk
   );
   router.post("/borrarPronosticos", controllers.borrarPronosticos); // puedes añadir schema si quieres
+  router.post("/play", validator(schema.play), controllers.play);
   return router;
 }

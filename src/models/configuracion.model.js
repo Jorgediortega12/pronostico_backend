@@ -216,4 +216,43 @@ export default class ConfiguracionModel {
       await client.end();
     }
   };
+  cargarPeriodosxUCPDesdeFecha = async (ucp, fechaInicio) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const result = await client.query(querys.cargarPeriodosxUCPDesdeFecha, [
+        ucp,
+        fechaInicio,
+      ]);
+      return result.rows.length > 0 ? result.rows : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error configuracionModel cargarPeriodosxUCPDesdeFecha")
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  cargarVariablesClimaticasxUCPDesdeFecha = async (ucp, fechaInicio) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const result = await client.query(
+        querys.cargarVariablesClimaticasxUCPDesdeFecha,
+        [ucp, fechaInicio]
+      );
+      return result.rows.length > 0 ? result.rows : null;
+    } catch (error) {
+      Logger.error(
+        colors.red(
+          "Error configuracionModel cargarVariablesClimaticasxUCPDesdeFecha"
+        )
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
 }

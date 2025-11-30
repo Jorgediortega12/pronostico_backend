@@ -75,4 +75,10 @@ export default {
       .required(),
     datos: Joi.object().required(),
   }),
+  play: Joi.object().keys({
+    ucp: Joi.string().required(),
+    fecha_inicio: Joi.string().required(),
+    fecha_fin: Joi.string().required(),
+    force_retrain: Joi.boolean().required(),
+  }),
 };

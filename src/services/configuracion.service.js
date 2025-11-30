@@ -215,4 +215,67 @@ export default class ConfiguracionService {
       };
     }
   };
+
+  cargarPeriodosxUCPDesdeFecha = async (ucp, fechaInicio) => {
+    try {
+      const res = await model.cargarPeriodosxUCPDesdeFecha(ucp, fechaInicio);
+
+      if (!res) {
+        return {
+          success: false,
+          data: null,
+          message: `no se pudo encontrar los historicos de ${ucp}`,
+        };
+      }
+
+      return {
+        success: true,
+        data: res,
+        message: `Historicos de ${ucp} entontrados`,
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error configuracionServices cargarPeriodosxUCPDesdeFecha")
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al obtener los historicos",
+      };
+    }
+  };
+
+  cargarVariablesClimaticasxUCPDesdeFecha = async (ucp, fechaInicio) => {
+    try {
+      const res = await model.cargarVariablesClimaticasxUCPDesdeFecha(
+        ucp,
+        fechaInicio
+      );
+
+      if (!res) {
+        return {
+          success: false,
+          data: null,
+          message: `no se pudo encontrar las variables climaticas de ${ucp}`,
+        };
+      }
+
+      return {
+        success: true,
+        data: res,
+        message: `las variables climaticas de ${ucp} entontradas`,
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red(
+          "Error configuracionServices cargarVariablesClimaticasxUCPDesdeFecha"
+        )
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al obtener las variables climaticas",
+      };
+    }
+  };
 }

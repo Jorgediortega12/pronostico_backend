@@ -1,6 +1,7 @@
 // services/pronosticos.service.js
 import PronosticosModel from "../models/pronosticos.model.js";
 import ConfiguracionModel from "../models/configuracion.model.js";
+import SesionModel from "../models/sesion.model.js";
 import Logger from "../helpers/logger.js";
 import colors from "colors";
 import {
@@ -18,7 +19,47 @@ import moment from "moment";
 
 const model = PronosticosModel.getInstance();
 const configuracionModel = ConfiguracionModel.getInstance();
+const sesionModel = SesionModel.getInstance();
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+// helpers de fecha (robustos a entradas vacías y varios formatos básicos)
+function toISODateString(input) {
+  if (!input && input !== 0) return "";
+  // si ya viene en formato YYYY-MM-DD
+  if (typeof input === "string" && /^\d{4}-\d{2}-\d{2}/.test(input))
+    return input.slice(0, 10);
+  // intentar Date parse
+  const d = new Date(input);
+  if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+  // intentar formato dd/MM/yyyy o dd-MM-yyyy
+  const m = input.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (m) {
+    const day = String(m[1]).padStart(2, "0");
+    const month = String(m[2]).padStart(2, "0");
+    const year = m[3];
+    return `${year}-${month}-${day}`;
+  }
+  // fallback: devolver input tal cual
+  return input;
+}
+
+function addDaysISO(startISO, days) {
+  const d = new Date(startISO);
+  d.setDate(d.getDate() + Number(days));
+  return d.toISOString().slice(0, 10);
+}
+
+function daysBetweenISO(startISO, endISO) {
+  const a = new Date(startISO);
+  const b = new Date(endISO);
+  return Math.round((b - a) / (1000 * 60 * 60 * 24));
+}
+
+// convierte valores numéricos seguros (si vienen vacíos)
+function toNumberSafe(v) {
+  const n = Number(v);
+  return isNaN(n) ? 0 : n;
+}
 
 export default class PronosticosService {
   static instance;
@@ -492,6 +533,361 @@ export default class PronosticosService {
         err
       );
       throw new Error("ERROR TECNICO");
+    }
+  };
+
+  cargarTipoPronosticoxFechas = async (finicio, ffin, mc) => {
+    try {
+      if (!finicio || !ffin || !mc) {
+        return {
+          success: false,
+          message: "finicio, ffin y mc son requeridos",
+          data: null,
+        };
+      }
+
+      // Normalizar a ISO (YYYY-MM-DD)
+      const inicioIso = toISODateString(finicio);
+      const finIso = toISODateString(ffin);
+      if (!inicioIso || !finIso) {
+        return {
+          success: false,
+          message: "Fechas con formato inválido",
+          data: null,
+        };
+      }
+
+      // Emular: dt_fechainicio = Convert.ToDateTime(fun.convertFechaDia(finicio));
+      // usamos Date con inicioIso
+      let i = 0;
+
+      await sesionModel.borrarDatosTipoPronostico(mc);
+
+      // Iterar mientras dt_fechainicio < dt_fechafin (igual que .NET)
+      while (true) {
+        // calcular la fecha a evaluar
+        const fechaEvaluarIso = i === 0 ? inicioIso : addDaysISO(inicioIso, i);
+
+        // condición de salida: si fechaEvaluarIso >= finIso rompemos (porque .NET usa <)
+        if (new Date(fechaEvaluarIso) >= new Date(finIso)) break;
+
+        // Buscar si ya existe el tipo para esa fecha
+        const buscar = await sesionModel.buscarTipoPronostico(
+          mc,
+          fechaEvaluarIso
+        );
+
+        if (!buscar || buscar.length === 0) {
+          // No existe -> ingresar
+          await sesionModel.ingresarTipoPronostico(
+            mc,
+            fechaEvaluarIso,
+            "Modelo RN"
+          );
+        } else {
+          // Existe -> actualizar (tu model espera ordenar parámetros: tipopronostico, ucp, fecha)
+          await sesionModel.actualizarTipoPronostico(
+            "Modelo RN",
+            mc,
+            fechaEvaluarIso
+          );
+        }
+
+        i++;
+      }
+
+      return {
+        success: true,
+        data: null,
+        message: "Tipos de pronóstico actualizados correctamente",
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red(
+          "Error PronosticosService.cargarTipoPronosticoxFechas: " +
+            (error && error.message ? error.message : error)
+        )
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al ejecutar cargarTipoPronosticoxFechas",
+      };
+    }
+  };
+
+  play = async (mc, finicio, ffin, force_retrain) => {
+    try {
+      // Validaciones básicas
+      if (!mc || String(mc).trim() === "") {
+        return {
+          success: false,
+          data: null,
+          message: "Seleccione el Mercado Comercializador",
+        };
+      }
+      if (!finicio || !ffin) {
+        return {
+          success: false,
+          data: null,
+          message: "Las fechas no pueden estar vacías",
+        };
+      }
+
+      // Normalizar/ISO de entrada (se espera 'YYYY-MM-DD' o convertible)
+      const inicioIso = toISODateString(finicio);
+      const finIso = toISODateString(ffin);
+      if (!inicioIso || !finIso) {
+        return {
+          success: false,
+          data: null,
+          message: "Formato de fecha inválido",
+        };
+      }
+
+      // fecha inicio <= fecha fin
+      if (new Date(inicioIso) > new Date(finIso)) {
+        return {
+          success: false,
+          data: null,
+          message: "La fecha inicial debe ser menor a la fecha final",
+        };
+      }
+
+      // 1) Validar que la fecha inicio sea menor o igual a la fecha de actualización (verificar vFechainicial)
+      const vFechainicialRows =
+        await sesionModel.verificarFechaActualizaciondedatos(mc);
+      if (!vFechainicialRows || vFechainicialRows.length === 0) {
+        return {
+          success: false,
+          data: null,
+          message:
+            "No existe fecha para pronosticar en este Mercado Comercializador",
+        };
+      }
+      // vFechainicialRows[0].fecha contiene la fecha de actualización en DB
+      const fechaActualizacionIso = toISODateString(vFechainicialRows[0].fecha);
+      // fechafinal permitida = searchFechaAñoDiaSiguiente(fechaActualizacion, 1) -> add 1 day from that stored date
+      // Usamos addDaysISO helper (ya usada en tu proyecto)
+      const fechaActualizacionPlus1 = addDaysISO(fechaActualizacionIso, 1);
+
+      if (new Date(inicioIso) > new Date(fechaActualizacionPlus1)) {
+        return {
+          success: false,
+          data: null,
+          message: "La fecha inicial es mayor a la fecha de actualización",
+        };
+      }
+
+      // 2) Validar que la fecha final esté dentro de la fecha del clima
+      const vFechainicialClimaRows = await sesionModel.verificarFechaClima(mc);
+      if (!vFechainicialClimaRows || vFechainicialClimaRows.length === 0) {
+        return {
+          success: false,
+          data: null,
+          message:
+            "No existe fecha registrada para el clima en este mercado comercializador",
+        };
+      }
+      const fechaClimaIso = toISODateString(vFechainicialClimaRows[0].fecha);
+      if (new Date(finIso) > new Date(fechaClimaIso)) {
+        return {
+          success: false,
+          data: null,
+          message: "La fecha final es mayor a la fecha del clima",
+        };
+      }
+
+      // 3) Inicializar proceso:borrar datos, etc.
+
+      // Borrar datos previos
+      await sesionModel.borrarDatosPronostico();
+      await sesionModel.eliminarFechasIngresadasTodo();
+
+      // Guardar las fechas que se van a pronosticar
+      await sesionModel.guardarFechasPronosticas(inicioIso, finIso, mc);
+
+      // Borrar datos por tipo de pronostico (si aplica)
+      await sesionModel.borrarDatosTipoPronostico(mc).catch(() => {}); // no-fatal
+
+      // Cargar tipo pronóstico por fechas (en .NET mp.cargarTipoPronosticoxFechas)
+      if (
+        typeof this.cargarTipoPronosticoxFechas !== "undefined" &&
+        this?.cargarTipoPronosticoxFechas
+      ) {
+        try {
+          await this.cargarTipoPronosticoxFechas(inicioIso, finIso, mc);
+        } catch (e) {
+          /* no-fatal */
+        }
+      }
+
+      /* PARTE DE MATLAB REEMPLAZAR POR LA API DE SAMUEL */
+
+      // 4) Validar que existan los pronósticos generados
+      const validarPron = await sesionModel.cargarPeriodosPronosticosxUCPxFecha(
+        mc,
+        inicioIso,
+        finIso
+      );
+      if (!validarPron || validarPron.length === 0) {
+        return {
+          success: false,
+          data: null,
+          message:
+            "El pronóstico no se ejecutó correctamente. Intente nuevamente",
+        };
+      }
+
+      // 5) Obtener historicos (ultimos registros previos a la fecha inicio)
+      // En .NET usan c.cargarPeriodosxUCPxFecha(mc, convertFechaAño(finicio)) -> devuelve últimos 30 (según query)
+      const datosHistRows = await sesionModel.cargarPeriodosxUCPxFechaInicio(
+        mc,
+        inicioIso
+      ); // tu modelo definido arriba
+      const PeriodosHistoricos = Array.isArray(datosHistRows)
+        ? datosHistRows.map((r) => ({
+            fecha: toISODateString(r.fecha),
+            p1: r.p1 == null ? null : r.p1,
+            p2: r.p2 == null ? null : r.p2,
+            p3: r.p3 == null ? null : r.p3,
+            p4: r.p4 == null ? null : r.p4,
+            p5: r.p5 == null ? null : r.p5,
+            p6: r.p6 == null ? null : r.p6,
+            p7: r.p7 == null ? null : r.p7,
+            p8: r.p8 == null ? null : r.p8,
+            p9: r.p9 == null ? null : r.p9,
+            p10: r.p10 == null ? null : r.p10,
+            p11: r.p11 == null ? null : r.p11,
+            p12: r.p12 == null ? null : r.p12,
+            p13: r.p13 == null ? null : r.p13,
+            p14: r.p14 == null ? null : r.p14,
+            p15: r.p15 == null ? null : r.p15,
+            p16: r.p16 == null ? null : r.p16,
+            p17: r.p17 == null ? null : r.p17,
+            p18: r.p18 == null ? null : r.p18,
+            p19: r.p19 == null ? null : r.p19,
+            p20: r.p20 == null ? null : r.p20,
+            p21: r.p21 == null ? null : r.p21,
+            p22: r.p22 == null ? null : r.p22,
+            p23: r.p23 == null ? null : r.p23,
+            p24: r.p24 == null ? null : r.p24,
+            observacion: r.observacion || "",
+          }))
+        : [];
+
+      // 6) Construir PeriodosHistoricosGrafica iterando dia a dia entre inicio-fin
+      const datosDemandaRows = await sesionModel.cargarPeriodosxUCPxFecha(
+        mc,
+        inicioIso,
+        finIso
+      );
+      const rowsMapByDate = new Map();
+      if (Array.isArray(datosDemandaRows)) {
+        for (const r of datosDemandaRows) {
+          const k = toISODateString(r.fecha);
+          if (!rowsMapByDate.has(k)) rowsMapByDate.set(k, r);
+        }
+      }
+      const PeriodosHistoricosGrafica = [];
+      if (inicioIso && finIso) {
+        const totalDias = daysBetweenISO(inicioIso, finIso);
+        for (let j = 0; j <= totalDias; j++) {
+          const fechaCheck = addDaysISO(inicioIso, j); // 'YYYY-MM-DD'
+          const row = rowsMapByDate.get(fechaCheck);
+          if (row) {
+            // Solo añadimos si existe fila (paridad .NET)
+            PeriodosHistoricosGrafica.push({
+              fecha: toISODateString(row.fecha),
+              p1: toNumberSafe(row.p1),
+              p2: toNumberSafe(row.p2),
+              p3: toNumberSafe(row.p3),
+              p4: toNumberSafe(row.p4),
+              p5: toNumberSafe(row.p5),
+              p6: toNumberSafe(row.p6),
+              p7: toNumberSafe(row.p7),
+              p8: toNumberSafe(row.p8),
+              p9: toNumberSafe(row.p9),
+              p10: toNumberSafe(row.p10),
+              p11: toNumberSafe(row.p11),
+              p12: toNumberSafe(row.p12),
+              p13: toNumberSafe(row.p13),
+              p14: toNumberSafe(row.p14),
+              p15: toNumberSafe(row.p15),
+              p16: toNumberSafe(row.p16),
+              p17: toNumberSafe(row.p17),
+              p18: toNumberSafe(row.p18),
+              p19: toNumberSafe(row.p19),
+              p20: toNumberSafe(row.p20),
+              p21: toNumberSafe(row.p21),
+              p22: toNumberSafe(row.p22),
+              p23: toNumberSafe(row.p23),
+              p24: toNumberSafe(row.p24),
+              observacion: row.observacion || "",
+            });
+          }
+        }
+      }
+
+      // 7) PeriodosPronosticos (tabla + grafica)
+      const datosPRows = await sesionModel.cargarPeriodosPronosticosxUCPxFecha(
+        mc,
+        inicioIso,
+        finIso
+      );
+      const PeriodosPronosticos = Array.isArray(datosPRows)
+        ? datosPRows.map((r) => ({
+            fecha: toISODateString(r.fecha),
+            p1: toNumberSafe(r.p1),
+            p2: toNumberSafe(r.p2),
+            p3: toNumberSafe(r.p3),
+            p4: toNumberSafe(r.p4),
+            p5: toNumberSafe(r.p5),
+            p6: toNumberSafe(r.p6),
+            p7: toNumberSafe(r.p7),
+            p8: toNumberSafe(r.p8),
+            p9: toNumberSafe(r.p9),
+            p10: toNumberSafe(r.p10),
+            p11: toNumberSafe(r.p11),
+            p12: toNumberSafe(r.p12),
+            p13: toNumberSafe(r.p13),
+            p14: toNumberSafe(r.p14),
+            p15: toNumberSafe(r.p15),
+            p16: toNumberSafe(r.p16),
+            p17: toNumberSafe(r.p17),
+            p18: toNumberSafe(r.p18),
+            p19: toNumberSafe(r.p19),
+            p20: toNumberSafe(r.p20),
+            p21: toNumberSafe(r.p21),
+            p22: toNumberSafe(r.p22),
+            p23: toNumberSafe(r.p23),
+            p24: toNumberSafe(r.p24),
+            observacion: r.observacion || "",
+          }))
+        : [];
+
+      // 8) Armar respuesta
+      const payload = {
+        success: true,
+        historicos: PeriodosHistoricos,
+        pronosticosTabla: PeriodosPronosticos,
+        pronosticosGrafica: PeriodosPronosticos,
+        historicosGrafica: PeriodosHistoricosGrafica,
+      };
+
+      return {
+        success: true,
+        data: payload,
+        message: "Ejecución play completada",
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red(
+          "Error PronosticosService.play: " +
+            (error && error.message ? error.message : error)
+        )
+      );
+      return { success: false, data: null, message: "Error al ejecutar play" };
     }
   };
 }
