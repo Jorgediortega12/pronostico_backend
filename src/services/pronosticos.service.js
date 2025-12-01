@@ -620,7 +620,7 @@ export default class PronosticosService {
   };
 
   /**
-   * Llama a la API externa de predicción (http://localhost:8000/predict)
+   * Llama a la API externa de predicción (http://localhost:8000/predict) o (http://localhost:8001/predict) si es produccion
    * n_days: número de días (default 60)
    * force_retrain: boolean
    * timeoutMs: timeout en ms (default 2 minutos)
@@ -629,7 +629,9 @@ export default class PronosticosService {
    */
   async callPredict(n_days = 60, force_retrain = false) {
     const hostsToTry = ["127.0.0.1", "localhost"];
-    const port = 8000;
+    //puerto produccion
+    const port = 8001;
+    // const port = 8000;
 
     for (const host of hostsToTry) {
       try {
@@ -888,7 +890,7 @@ export default class PronosticosService {
           const fechaCheck = addDaysISO(inicioIso, j); // 'YYYY-MM-DD'
           const row = rowsMapByDate.get(fechaCheck);
           if (row) {
-            // Solo añadimos si existe fila (paridad .NET)
+            // Solo añadimos si existe fila (paridad)
             PeriodosHistoricosGrafica.push({
               fecha: toISODateString(row.fecha),
               p1: toNumberSafe(row.p1),
