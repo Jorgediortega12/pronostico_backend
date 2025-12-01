@@ -616,6 +616,51 @@ export default class PronosticosService {
     }
   };
 
+  /**
+   * Llama a la API externa de predicción (http://localhost:8000/predict)
+   * n_days: número de días (default 60)
+   * force_retrain: boolean
+   * timeoutMs: timeout en ms (default 2 minutos)
+   *
+   * Devuelve: { success: boolean, data: any, raw: any, statusCode: number }
+   */
+  async callPredict(n_days = 60, force_retrain = false) {
+    const hostsToTry = ["127.0.0.1", "localhost"];
+    const port = 8000;
+
+    for (const host of hostsToTry) {
+      try {
+        const url = `http://${host}:${port}/predict`;
+
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ n_days, force_retrain }),
+        });
+
+        const statusCode = res.status;
+        const json = await res.json().catch(() => null);
+
+        if (!res.ok) {
+          return { success: false, statusCode, data: json };
+        }
+
+        return { success: true, statusCode, data: json };
+      } catch (err) {
+        Logger.warn(
+          colors.yellow(
+            `callPredict: error conectando a ${host}:${port} — ${err.message}`
+          )
+        );
+      }
+    }
+
+    return { success: false, statusCode: 0, data: null };
+  }
+
   play = async (mc, finicio, ffin, force_retrain) => {
     try {
       // Validaciones básicas
@@ -666,37 +711,37 @@ export default class PronosticosService {
         };
       }
       // vFechainicialRows[0].fecha contiene la fecha de actualización en DB
-      const fechaActualizacionIso = toISODateString(vFechainicialRows[0].fecha);
+      // const fechaActualizacionIso = toISODateString(vFechainicialRows[0].fecha);
       // fechafinal permitida = searchFechaAñoDiaSiguiente(fechaActualizacion, 1) -> add 1 day from that stored date
       // Usamos addDaysISO helper (ya usada en tu proyecto)
-      const fechaActualizacionPlus1 = addDaysISO(fechaActualizacionIso, 1);
+      // const fechaActualizacionPlus1 = addDaysISO(fechaActualizacionIso, 1);
 
-      if (new Date(inicioIso) > new Date(fechaActualizacionPlus1)) {
-        return {
-          success: false,
-          data: null,
-          message: "La fecha inicial es mayor a la fecha de actualización",
-        };
-      }
+      // if (new Date(inicioIso) > new Date(fechaActualizacionPlus1)) {
+      //   return {
+      //     success: false,
+      //     data: null,
+      //     message: "La fecha inicial es mayor a la fecha de actualización",
+      //   };
+      // }
 
       // 2) Validar que la fecha final esté dentro de la fecha del clima
-      const vFechainicialClimaRows = await sesionModel.verificarFechaClima(mc);
-      if (!vFechainicialClimaRows || vFechainicialClimaRows.length === 0) {
-        return {
-          success: false,
-          data: null,
-          message:
-            "No existe fecha registrada para el clima en este mercado comercializador",
-        };
-      }
-      const fechaClimaIso = toISODateString(vFechainicialClimaRows[0].fecha);
-      if (new Date(finIso) > new Date(fechaClimaIso)) {
-        return {
-          success: false,
-          data: null,
-          message: "La fecha final es mayor a la fecha del clima",
-        };
-      }
+      // const vFechainicialClimaRows = await sesionModel.verificarFechaClima(mc);
+      // if (!vFechainicialClimaRows || vFechainicialClimaRows.length === 0) {
+      //   return {
+      //     success: false,
+      //     data: null,
+      //     message:
+      //       "No existe fecha registrada para el clima en este mercado comercializador",
+      //   };
+      // }
+      // const fechaClimaIso = toISODateString(vFechainicialClimaRows[0].fecha);
+      // if (new Date(finIso) > new Date(fechaClimaIso)) {
+      //   return {
+      //     success: false,
+      //     data: null,
+      //     message: "La fecha final es mayor a la fecha del clima",
+      //   };
+      // }
 
       // 3) Inicializar proceso:borrar datos, etc.
 
@@ -722,22 +767,66 @@ export default class PronosticosService {
         }
       }
 
-      /* PARTE DE MATLAB REEMPLAZAR POR LA API DE SAMUEL */
+      /* API EMP PARA PRONOSTICOS */
+      // PRECAUCIÓN: declarar predRes en el scope superior para usarlo más abajo.
+      let predRes = null;
+      try {
+        const n_days = 60;
+        predRes = await this.callPredict(n_days, !!force_retrain);
+        // log sencillo (no vuelques raw)
+        Logger.info(
+          "callPredict returned statusCode: " + (predRes?.statusCode ?? "n/a")
+        );
 
-      // 4) Validar que existan los pronósticos generados
-      const validarPron = await sesionModel.cargarPeriodosPronosticosxUCPxFecha(
-        mc,
-        inicioIso,
-        finIso
-      );
-      if (!validarPron || validarPron.length === 0) {
+        // Validación estricta del payload
+        if (
+          !predRes ||
+          !predRes.success ||
+          !predRes.data ||
+          predRes.data.status !== "success" ||
+          !Array.isArray(predRes.data.predictions)
+        ) {
+          Logger.error(
+            colors.red(
+              "callPredict falló o devolvió payload inesperado: " +
+                JSON.stringify(predRes?.data || {}).slice(0, 2000)
+            )
+          );
+          return {
+            success: false,
+            data: null,
+            message:
+              "La API de predicción no respondió correctamente. Intente nuevamente.",
+          };
+        }
+      } catch (err) {
+        Logger.error(
+          colors.red(
+            "Error llamando a la API de predicción: " +
+              (err && err.message ? err.message : err)
+          )
+        );
         return {
           success: false,
           data: null,
-          message:
-            "El pronóstico no se ejecutó correctamente. Intente nuevamente",
+          message: "Error conectando con la API de predicción",
         };
       }
+
+      // 4) Validar que existan los pronósticos generados
+      // const validarPron = await sesionModel.cargarPeriodosPronosticosxUCPxFecha(
+      //   mc,
+      //   inicioIso,
+      //   finIso
+      // );
+      // if (!validarPron || validarPron.length === 0) {
+      //   return {
+      //     success: false,
+      //     data: null,
+      //     message:
+      //       "El pronóstico no se ejecutó correctamente. Intente nuevamente",
+      //   };
+      // }
 
       // 5) Obtener historicos (ultimos registros previos a la fecha inicio)
       // En .NET usan c.cargarPeriodosxUCPxFecha(mc, convertFechaAño(finicio)) -> devuelve últimos 30 (según query)
@@ -829,42 +918,92 @@ export default class PronosticosService {
         }
       }
 
-      // 7) PeriodosPronosticos (tabla + grafica)
-      const datosPRows = await sesionModel.cargarPeriodosPronosticosxUCPxFecha(
-        mc,
-        inicioIso,
-        finIso
-      );
-      const PeriodosPronosticos = Array.isArray(datosPRows)
-        ? datosPRows.map((r) => ({
-            fecha: toISODateString(r.fecha),
-            p1: toNumberSafe(r.p1),
-            p2: toNumberSafe(r.p2),
-            p3: toNumberSafe(r.p3),
-            p4: toNumberSafe(r.p4),
-            p5: toNumberSafe(r.p5),
-            p6: toNumberSafe(r.p6),
-            p7: toNumberSafe(r.p7),
-            p8: toNumberSafe(r.p8),
-            p9: toNumberSafe(r.p9),
-            p10: toNumberSafe(r.p10),
-            p11: toNumberSafe(r.p11),
-            p12: toNumberSafe(r.p12),
-            p13: toNumberSafe(r.p13),
-            p14: toNumberSafe(r.p14),
-            p15: toNumberSafe(r.p15),
-            p16: toNumberSafe(r.p16),
-            p17: toNumberSafe(r.p17),
-            p18: toNumberSafe(r.p18),
-            p19: toNumberSafe(r.p19),
-            p20: toNumberSafe(r.p20),
-            p21: toNumberSafe(r.p21),
-            p22: toNumberSafe(r.p22),
-            p23: toNumberSafe(r.p23),
-            p24: toNumberSafe(r.p24),
-            observacion: r.observacion || "",
-          }))
-        : [];
+      // // 7) PeriodosPronosticos (tabla + grafica)
+      // const datosPRows = await sesionModel.cargarPeriodosPronosticosxUCPxFecha(
+      //   mc,
+      //   inicioIso,
+      //   finIso
+      // );
+      // const PeriodosPronosticos = Array.isArray(datosPRows)
+      //   ? datosPRows.map((r) => ({
+      //       fecha: toISODateString(r.fecha),
+      //       p1: toNumberSafe(r.p1),
+      //       p2: toNumberSafe(r.p2),
+      //       p3: toNumberSafe(r.p3),
+      //       p4: toNumberSafe(r.p4),
+      //       p5: toNumberSafe(r.p5),
+      //       p6: toNumberSafe(r.p6),
+      //       p7: toNumberSafe(r.p7),
+      //       p8: toNumberSafe(r.p8),
+      //       p9: toNumberSafe(r.p9),
+      //       p10: toNumberSafe(r.p10),
+      //       p11: toNumberSafe(r.p11),
+      //       p12: toNumberSafe(r.p12),
+      //       p13: toNumberSafe(r.p13),
+      //       p14: toNumberSafe(r.p14),
+      //       p15: toNumberSafe(r.p15),
+      //       p16: toNumberSafe(r.p16),
+      //       p17: toNumberSafe(r.p17),
+      //       p18: toNumberSafe(r.p18),
+      //       p19: toNumberSafe(r.p19),
+      //       p20: toNumberSafe(r.p20),
+      //       p21: toNumberSafe(r.p21),
+      //       p22: toNumberSafe(r.p22),
+      //       p23: toNumberSafe(r.p23),
+      //       p24: toNumberSafe(r.p24),
+      //       observacion: r.observacion || "",
+      //     }))
+      //   : [];
+
+      // 7) PeriodosPronosticos desde el resultado de callPredict
+
+      let PeriodosPronosticos = [];
+      if (
+        predRes?.data?.predictions &&
+        Array.isArray(predRes.data.predictions)
+      ) {
+        PeriodosPronosticos = predRes.data.predictions
+          .filter((p) => {
+            const fechaIso = toISODateString(p.fecha);
+            return (
+              new Date(fechaIso) >= new Date(inicioIso) &&
+              new Date(fechaIso) <= new Date(finIso)
+            );
+          })
+          .map((p) => ({
+            fecha: toISODateString(p.fecha),
+
+            // Convertir P1..P24 → p1..p24
+            p1: toNumberSafe(p.P1),
+            p2: toNumberSafe(p.P2),
+            p3: toNumberSafe(p.P3),
+            p4: toNumberSafe(p.P4),
+            p5: toNumberSafe(p.P5),
+            p6: toNumberSafe(p.P6),
+            p7: toNumberSafe(p.P7),
+            p8: toNumberSafe(p.P8),
+            p9: toNumberSafe(p.P9),
+            p10: toNumberSafe(p.P10),
+            p11: toNumberSafe(p.P11),
+            p12: toNumberSafe(p.P12),
+            p13: toNumberSafe(p.P13),
+            p14: toNumberSafe(p.P14),
+            p15: toNumberSafe(p.P15),
+            p16: toNumberSafe(p.P16),
+            p17: toNumberSafe(p.P17),
+            p18: toNumberSafe(p.P18),
+            p19: toNumberSafe(p.P19),
+            p20: toNumberSafe(p.P20),
+            p21: toNumberSafe(p.P21),
+            p22: toNumberSafe(p.P22),
+            p23: toNumberSafe(p.P23),
+            p24: toNumberSafe(p.P24),
+
+            observacion: "", // API no trae observación
+          }));
+      } else {
+        PeriodosPronosticos = [];
+      }
 
       // 8) Armar respuesta
       const payload = {

@@ -59,7 +59,7 @@ export const play = async (req, res) => {
       force_retrain
     );
     if (!result.success) return responseError(200, result.message, 404, res);
-    return SuccessResponse(res, true, result.message);
+    return SuccessResponse(res, result.data, result.message);
   } catch (err) {
     Logger.error(err);
     return InternalError(res);
