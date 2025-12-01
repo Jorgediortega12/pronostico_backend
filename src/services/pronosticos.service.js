@@ -143,8 +143,10 @@ export default class PronosticosService {
     // nombresesion y nombrearchivo
     const dd = stopDate.format("DD");
     const mmStart = startDate.format("MM");
-    const nombresesion = `MC${ucp}AGTE${dd}${mmStart}`;
-    const nombrearchivo = nombreArchivoTxt || `MC${ucp}AGTE${dd}${mmStart}.txt`;
+    // const nombresesion = `MC${ucp}AGTE${dd}${mmStart}`;
+    // const nombrearchivo = nombreArchivoTxt || `MC${ucp}AGTE${dd}${mmStart}.txt`;
+    const nombresesion = `${ucp}AGTE${dd}${mmStart}`;
+    const nombrearchivo = nombreArchivoTxt || `${ucp}AGTE${dd}${mmStart}.txt`;
 
     // cuadroperiodo1..24: tomar de datos si vienen, sino "0"
     const cuadro = {};
@@ -383,7 +385,8 @@ export default class PronosticosService {
       const mm = reportMoment.format("MM");
       const yyyy = reportMoment.format("YYYY");
 
-      const fileBaseName = `MC${ucp}AGTE${dd}${mm}`;
+      // const fileBaseName = `MC${ucp}AGTE${dd}${mm}`;
+      const fileBaseName = `${ucp}AGTE${dd}${mm}`;
 
       // 3) Obtener/crear carpeta en BD y carpeta física
       const reportDirPhysicalRoot =
