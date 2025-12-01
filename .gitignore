@@ -12,7 +12,6 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 docker-compose.yml
-scripts
 Reportes
 pnpm-lock.yaml
 
