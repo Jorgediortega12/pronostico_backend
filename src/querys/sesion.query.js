@@ -57,3 +57,9 @@ export const buscarTipoPronostico = `SELECT * FROM fechas_tipopronostico WHERE u
 export const ingresarTipoPronostico = `INSERT INTO fechas_tipopronostico (ucp, fecha, tipopronostico) VALUES ($1, $2, $3)`;
 
 export const actualizarTipoPronostico = `UPDATE fechas_tipopronostico SET tipopronostico=$1 WHERE ucp=$2 AND fecha=$3`;
+
+export const verificarUltimaActualizacionPorUcp = `
+SELECT DISTINCT ON (ucp) *
+FROM actualizaciondatos
+ORDER BY ucp, fecha DESC
+`;

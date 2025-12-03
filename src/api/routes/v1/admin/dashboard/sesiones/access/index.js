@@ -157,3 +157,18 @@ export const cargarSesion = async (req, res) => {
     return InternalError(err);
   }
 };
+
+export const verificarUltimaActualizacionPorUcp = async (req, res) => {
+  try {
+    const result = await service.verificarUltimaActualizacionPorUcp();
+
+    if (!result.success) {
+      return responseError(200, result.message, 404, res);
+    }
+
+    return SuccessResponse(res, result.data, result.messasge);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};

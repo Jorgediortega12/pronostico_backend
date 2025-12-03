@@ -25,33 +25,58 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 // helpers de fecha (robustos a entradas vacías y varios formatos básicos)
 function toISODateString(input) {
   if (!input && input !== 0) return "";
-  // si ya viene en formato YYYY-MM-DD
-  if (typeof input === "string" && /^\d{4}-\d{2}-\d{2}/.test(input))
+
+  // si ya viene en formato YYYY-MM-DD (solo fecha)
+  if (typeof input === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input))
+    return input;
+
+  // si viene con hora ISO (YYYY-MM-DDTHH:mm:ss)
+  if (typeof input === "string" && /^\d{4}-\d{2}-\d{2}T/.test(input))
     return input.slice(0, 10);
-  // intentar Date parse
+
+  // intentar Date parse usando UTC
   const d = new Date(input);
-  if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+  if (!isNaN(d.getTime())) {
+    // Usar UTC para evitar problemas de zona horaria
+    const year = d.getUTCFullYear();
+    const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(d.getUTCDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
   // intentar formato dd/MM/yyyy o dd-MM-yyyy
-  const m = input.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  const m = String(input).match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
   if (m) {
     const day = String(m[1]).padStart(2, "0");
     const month = String(m[2]).padStart(2, "0");
     const year = m[3];
     return `${year}-${month}-${day}`;
   }
+
   // fallback: devolver input tal cual
-  return input;
+  return String(input);
 }
 
 function addDaysISO(startISO, days) {
-  const d = new Date(startISO);
-  d.setDate(d.getDate() + Number(days));
-  return d.toISOString().slice(0, 10);
+  // Forzar interpretación UTC agregando 'T00:00:00Z'
+  const dateStr = startISO.includes("T") ? startISO : `${startISO}T00:00:00Z`;
+  const d = new Date(dateStr);
+  d.setUTCDate(d.getUTCDate() + Number(days));
+
+  // Retornar en formato YYYY-MM-DD usando UTC
+  const year = d.getUTCFullYear();
+  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function daysBetweenISO(startISO, endISO) {
-  const a = new Date(startISO);
-  const b = new Date(endISO);
+  // Forzar interpretación UTC
+  const startStr = startISO.includes("T") ? startISO : `${startISO}T00:00:00Z`;
+  const endStr = endISO.includes("T") ? endISO : `${endISO}T00:00:00Z`;
+
+  const a = new Date(startStr);
+  const b = new Date(endStr);
   return Math.round((b - a) / (1000 * 60 * 60 * 24));
 }
 
@@ -627,11 +652,14 @@ export default class PronosticosService {
    *
    * Devuelve: { success: boolean, data: any, raw: any, statusCode: number }
    */
-  async callPredict(n_days = 60, force_retrain = false) {
+  async callPredict(inicioIso, finIso, force_retrain = false) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    const port = 8001;
-    // const port = 8000;
+    // const port = 8001;
+    const port = 8000;
+
+    // Calcular número de días entre inicio y fin
+    const n_days = daysBetweenISO(inicioIso, finIso) + 1; // +1 para incluir ambos días
 
     for (const host of hostsToTry) {
       try {
@@ -643,16 +671,30 @@ export default class PronosticosService {
             accept: "application/json",
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ n_days, force_retrain }),
+          body: JSON.stringify({
+            end_date: inicioIso, // La fecha de inicio es el end_date
+            n_days: n_days, // Días calculados entre inicio y fin
+            force_retrain,
+          }),
         });
 
         const statusCode = res.status;
         const json = await res.json().catch(() => null);
 
         if (!res.ok) {
+          Logger.warn(
+            colors.yellow(
+              `callPredict: HTTP ${statusCode} desde ${host}:${port}`
+            )
+          );
           return { success: false, statusCode, data: json };
         }
 
+        Logger.info(
+          colors.green(
+            `callPredict: Predicción exitosa desde ${host}:${port} para ${n_days} días desde ${inicioIso}`
+          )
+        );
         return { success: true, statusCode, data: json };
       } catch (err) {
         Logger.warn(
@@ -663,6 +705,11 @@ export default class PronosticosService {
       }
     }
 
+    Logger.error(
+      colors.red(
+        `callPredict: Falló en todos los hosts para ${inicioIso} (${n_days} días)`
+      )
+    );
     return { success: false, statusCode: 0, data: null };
   }
 
@@ -776,8 +823,7 @@ export default class PronosticosService {
       // PRECAUCIÓN: declarar predRes en el scope superior para usarlo más abajo.
       let predRes = null;
       try {
-        const n_days = 60;
-        predRes = await this.callPredict(n_days, !!force_retrain);
+        predRes = await this.callPredict(inicioIso, finIso, !!force_retrain);
         // log sencillo (no vuelques raw)
         Logger.info(
           "callPredict returned statusCode: " + (predRes?.statusCode ?? "n/a")
@@ -1009,7 +1055,6 @@ export default class PronosticosService {
       } else {
         PeriodosPronosticos = [];
       }
-
       // 8) Armar respuesta
       const payload = {
         success: true,

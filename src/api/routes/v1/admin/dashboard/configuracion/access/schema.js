@@ -96,4 +96,9 @@ export default {
     ucp: Joi.string().required(),
     fechaInicio: Joi.string().required(),
   }),
+  cargarPeriodosxUCPxUnaFechaxLimite: Joi.object().keys({
+    ucp: Joi.string().required(),
+    fechaInicio: Joi.string().required(),
+    limite: Joi.number().required(),
+  }),
 };

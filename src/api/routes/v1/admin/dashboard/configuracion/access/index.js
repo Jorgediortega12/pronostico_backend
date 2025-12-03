@@ -208,3 +208,33 @@ export const cargarVariablesClimaticasxUCPDesdeFecha = async (req, res) => {
     return InternalError(err);
   }
 };
+
+export const cargarPeriodosxUCPxUnaFechaxLimite = async (req, res) => {
+  try {
+    const { ucp, fechaInicio, limite } = req.params;
+
+    if (!ucp || !fechaInicio || !limite) {
+      return responseError(
+        200,
+        "Parametros de ucp, fechaInicio o limite no proporcionados",
+        400,
+        res
+      );
+    }
+
+    const result = await service.cargarPeriodosxUCPxUnaFechaxLimite(
+      ucp,
+      fechaInicio,
+      limite
+    );
+
+    if (!result.success) {
+      return responseError(200, result.message, 404, res);
+    }
+
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(err);
+  }
+};

@@ -7,33 +7,58 @@ const model = SesionModel.getInstance();
 // helpers de fecha (robustos a entradas vacías y varios formatos básicos)
 function toISODateString(input) {
   if (!input && input !== 0) return "";
-  // si ya viene en formato YYYY-MM-DD
-  if (typeof input === "string" && /^\d{4}-\d{2}-\d{2}/.test(input))
+
+  // si ya viene en formato YYYY-MM-DD (solo fecha)
+  if (typeof input === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input))
+    return input;
+
+  // si viene con hora ISO (YYYY-MM-DDTHH:mm:ss)
+  if (typeof input === "string" && /^\d{4}-\d{2}-\d{2}T/.test(input))
     return input.slice(0, 10);
-  // intentar Date parse
+
+  // intentar Date parse usando UTC
   const d = new Date(input);
-  if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+  if (!isNaN(d.getTime())) {
+    // Usar UTC para evitar problemas de zona horaria
+    const year = d.getUTCFullYear();
+    const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(d.getUTCDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
   // intentar formato dd/MM/yyyy o dd-MM-yyyy
-  const m = input.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  const m = String(input).match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
   if (m) {
     const day = String(m[1]).padStart(2, "0");
     const month = String(m[2]).padStart(2, "0");
     const year = m[3];
     return `${year}-${month}-${day}`;
   }
+
   // fallback: devolver input tal cual
-  return input;
+  return String(input);
 }
 
 function addDaysISO(startISO, days) {
-  const d = new Date(startISO);
-  d.setDate(d.getDate() + Number(days));
-  return d.toISOString().slice(0, 10);
+  // Forzar interpretación UTC agregando 'T00:00:00Z'
+  const dateStr = startISO.includes("T") ? startISO : `${startISO}T00:00:00Z`;
+  const d = new Date(dateStr);
+  d.setUTCDate(d.getUTCDate() + Number(days));
+
+  // Retornar en formato YYYY-MM-DD usando UTC
+  const year = d.getUTCFullYear();
+  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function daysBetweenISO(startISO, endISO) {
-  const a = new Date(startISO);
-  const b = new Date(endISO);
+  // Forzar interpretación UTC
+  const startStr = startISO.includes("T") ? startISO : `${startISO}T00:00:00Z`;
+  const endStr = endISO.includes("T") ? endISO : `${endISO}T00:00:00Z`;
+
+  const a = new Date(startStr);
+  const b = new Date(endStr);
   return Math.round((b - a) / (1000 * 60 * 60 * 24));
 }
 
@@ -433,6 +458,35 @@ export default class SesionService {
         success: false,
         data: null,
         message: "Error al cargar la sesión",
+      };
+    }
+  };
+
+  verificarUltimaActualizacionPorUcp = async () => {
+    try {
+      const res = await model.verificarUltimaActualizacionPorUcp();
+
+      if (!res) {
+        return {
+          success: false,
+          data: null,
+          message: "Error al buscar las ultimas fechas de actualizacion",
+        };
+      }
+
+      return {
+        success: true,
+        data: res,
+        message: "La busqueda las ultimas fechas de actualizacion fue exitosa",
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error sesionServices verificarUltimaActualizacionPorUcp")
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al buscar las ultimas fechas de actualizacion",
       };
     }
   };
