@@ -40,5 +40,9 @@ export default function () {
     validator(schema.buscarVersionSesionCod),
     controllers.cargarSesion
   );
+  router.get(
+    "/verificarUltimaActualizacionPorUcp",
+    controllers.verificarUltimaActualizacionPorUcp
+  );
   return router;
 }

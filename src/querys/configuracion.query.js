@@ -57,3 +57,5 @@ export const cargarVariablesClimaticasxUCPDesdeFecha = `
     AND fecha >= $2
   ORDER BY fecha ASC;
 `;
+
+export const cargarPeriodosxUCPxUnaFechaxLimite = `SELECT * FROM actualizaciondatos ac WHERE ucp =$1 AND fecha<$2 ORDER BY fecha DESC LIMIT $3`;

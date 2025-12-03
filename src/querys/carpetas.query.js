@@ -1,4 +1,4 @@
-import pool from '../config/database.js';
+import pool from "../config/database.js";
 
 /**
  * Clase para manejar las consultas relacionadas con carpetas
@@ -26,7 +26,7 @@ class CarpetasQuery {
 
       return result.rows[0];
     } catch (error) {
-      console.error('Error en obtenerArchivoPorCodigo:', error);
+      console.error("Error en obtenerArchivoPorCodigo:", error);
       throw error;
     }
   }
@@ -49,7 +49,7 @@ class CarpetasQuery {
 
       return result.rows[0];
     } catch (error) {
-      console.error('Error en obtenerCarpetaPorCodigo:', error);
+      console.error("Error en obtenerCarpetaPorCodigo:", error);
       throw error;
     }
   }
@@ -70,8 +70,10 @@ class CarpetasQuery {
         SELECT codigo FROM subcarpetas
       `;
 
-      const resultCarpetas = await this.pool.query(consultaCarpetas, [codigoCarpeta]);
-      const codigosCarpetas = resultCarpetas.rows.map(row => row.codigo);
+      const resultCarpetas = await this.pool.query(consultaCarpetas, [
+        codigoCarpeta,
+      ]);
+      const codigosCarpetas = resultCarpetas.rows.map((row) => row.codigo);
 
       if (codigosCarpetas.length === 0) {
         return [];
@@ -85,10 +87,12 @@ class CarpetasQuery {
         ORDER BY codcarpeta, nombrearchivo
       `;
 
-      const resultArchivos = await this.pool.query(consultaArchivos, [codigosCarpetas]);
+      const resultArchivos = await this.pool.query(consultaArchivos, [
+        codigosCarpetas,
+      ]);
       return resultArchivos.rows;
     } catch (error) {
-      console.error('Error en obtenerArchivosDeCarpeta:', error);
+      console.error("Error en obtenerArchivosDeCarpeta:", error);
       throw error;
     }
   }
@@ -115,7 +119,7 @@ class CarpetasQuery {
       const result = await this.pool.query(consulta, [codigoCarpeta]);
       return result.rows;
     } catch (error) {
-      console.error('Error en obtenerSubcarpetas:', error);
+      console.error("Error en obtenerSubcarpetas:", error);
       throw error;
     }
   }
@@ -127,22 +131,23 @@ class CarpetasQuery {
     try {
       // Consultar todas las carpetas
       const consultaCarpetas = `
-        SELECT * FROM carpetas
-        ORDER BY nivel ASC, nombre ASC
-      `;
+      SELECT * FROM carpetas
+      ORDER BY nivel ASC, nombre ASC
+    `;
       const resultCarpetas = await this.pool.query(consultaCarpetas);
 
-      // Consultar todos los archivos
+      // Consultar archivos, obteniendo solo el de mayor código cuando hay duplicados
       const consultaArchivos = `
-        SELECT codigo, codcarpeta, nombrearchivo, path, "contentType"
-        FROM archivos
-        ORDER BY codcarpeta, nombrearchivo
-      `;
+      SELECT DISTINCT ON (codcarpeta, nombrearchivo) 
+        codigo, codcarpeta, nombrearchivo, path, "contentType"
+      FROM archivos
+      ORDER BY codcarpeta, nombrearchivo, codigo DESC
+    `;
       const resultArchivos = await this.pool.query(consultaArchivos);
 
       // Crear un mapa de archivos por carpeta
       const archivosPorCarpeta = new Map();
-      resultArchivos.rows.forEach(archivo => {
+      resultArchivos.rows.forEach((archivo) => {
         if (!archivosPorCarpeta.has(archivo.codcarpeta)) {
           archivosPorCarpeta.set(archivo.codcarpeta, []);
         }
@@ -150,7 +155,7 @@ class CarpetasQuery {
           codigo: archivo.codigo,
           nombrearchivo: archivo.nombrearchivo,
           path: archivo.path,
-          contentType: archivo.contentType
+          contentType: archivo.contentType,
         });
       });
 
@@ -159,16 +164,16 @@ class CarpetasQuery {
       const arbol = [];
 
       // Primero, crear un mapa de todas las carpetas con subcarpetas y archivos
-      resultCarpetas.rows.forEach(carpeta => {
+      resultCarpetas.rows.forEach((carpeta) => {
         carpetasMap.set(carpeta.codigo, {
           ...carpeta,
           subcarpetas: [],
-          archivos: archivosPorCarpeta.get(carpeta.codigo) || []
+          archivos: archivosPorCarpeta.get(carpeta.codigo) || [],
         });
       });
 
       // Luego, construir la jerarquía
-      resultCarpetas.rows.forEach(carpeta => {
+      resultCarpetas.rows.forEach((carpeta) => {
         const nodo = carpetasMap.get(carpeta.codigo);
         if (carpeta.codsuperior === 0 || carpeta.codsuperior === null) {
           arbol.push(nodo);
@@ -182,7 +187,7 @@ class CarpetasQuery {
 
       return arbol;
     } catch (error) {
-      console.error('Error en obtenerArbolCarpetas:', error);
+      console.error("Error en obtenerArbolCarpetas:", error);
       throw error;
     }
   }

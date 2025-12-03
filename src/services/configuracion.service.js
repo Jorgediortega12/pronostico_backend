@@ -278,4 +278,39 @@ export default class ConfiguracionService {
       };
     }
   };
+
+  cargarPeriodosxUCPxUnaFechaxLimite = async (ucp, fechaInicio, limite) => {
+    try {
+      const res = await model.cargarPeriodosxUCPxUnaFechaxLimite(
+        ucp,
+        fechaInicio,
+        limite
+      );
+
+      if (!res) {
+        return {
+          success: false,
+          data: null,
+          message: `no se pudo historicos de ${ucp}`,
+        };
+      }
+
+      return {
+        success: true,
+        data: res,
+        message: `historicos de ${ucp} entontradas`,
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red(
+          "Error configuracionServices cargarPeriodosxUCPxUnaFechaxLimite"
+        )
+      );
+      return {
+        success: false,
+        data: null,
+        message: `Error al obtener los historicos de ${ucp}`,
+      };
+    }
+  };
 }

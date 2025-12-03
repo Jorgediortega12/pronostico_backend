@@ -255,4 +255,25 @@ export default class ConfiguracionModel {
       await client.end();
     }
   };
+
+  cargarPeriodosxUCPxUnaFechaxLimite = async (ucp, fechaInicio, limite) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const result = await client.query(
+        querys.cargarPeriodosxUCPxUnaFechaxLimite,
+        [ucp, fechaInicio, limite]
+      );
+      return result.rows.length > 0 ? result.rows : null;
+    } catch (error) {
+      Logger.error(
+        colors.red(
+          "Error configuracionModel cargarPeriodosxUCPxUnaFechaxLimite"
+        )
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
 }

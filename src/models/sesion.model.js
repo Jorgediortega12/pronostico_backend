@@ -304,4 +304,22 @@ export default class SesionModel {
       await client.end();
     }
   };
+
+  verificarUltimaActualizacionPorUcp = async () => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const result = await client.query(
+        querys.verificarUltimaActualizacionPorUcp
+      );
+      return result.rows.length > 0 ? result.rows : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error sesionModel verificarUltimaActualizacionPorUcp")
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
 }
