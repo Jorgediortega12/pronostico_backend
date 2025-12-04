@@ -374,4 +374,108 @@ export default class ConfiguracionModel {
       await client.end();
     }
   };
+
+  // AGREGAR FUENTES
+  agregarUCPMedida = async ({
+    nombre,
+    factor,
+    codigo_rpm,
+    codpadre,
+    estado,
+    aux,
+    aux2,
+    aux3,
+    aux4,
+  }) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const params = [
+        nombre,
+        factor,
+        codigo_rpm,
+        codpadre,
+        estado,
+        aux,
+        aux2,
+        aux3,
+        aux4,
+      ];
+      const result = await client.query(querys.agregarUCPMedida, params);
+      return result.rows && result.rows.length > 0 ? result.rows[0] : null;
+    } catch (error) {
+      Logger.error(colors.red("Error ucpModel agregarUCPMedida"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  // CARGAR FUENTES
+  cargarFuentes = async () => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const result = await client.query(querys.cargarFuentes);
+      return result.rows && result.rows.length > 0 ? result.rows : [];
+    } catch (error) {
+      Logger.error(colors.red("Error ucpModel cargarFuentes"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  // actualizarUCPMedida
+  actualizarUCPMedida = async ({
+    codigo,
+    nombre,
+    factor,
+    codigo_rpm,
+    codpadre,
+    estado,
+    aux,
+    aux2,
+    aux3,
+    aux4,
+  }) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const params = [
+        nombre,
+        factor,
+        codigo_rpm,
+        codpadre,
+        estado,
+        aux,
+        aux2,
+        aux3,
+        aux4,
+        codigo,
+      ];
+      const result = await client.query(querys.actualizarUCPMedida, params);
+      return result.rows && result.rows.length > 0 ? result.rows[0] : null;
+    } catch (error) {
+      Logger.error(colors.red("Error ucpModel actualizarUCPMedida"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  // eliminarUCPMedida
+  eliminarUCPMedida = async (codigo) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const result = await client.query(querys.eliminarUCPMedida, [codigo]);
+      return result.rows && result.rows.length > 0 ? result.rows[0] : null;
+    } catch (error) {
+      Logger.error(colors.red("Error ucpModel eliminarUCPMedida"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
 }

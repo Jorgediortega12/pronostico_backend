@@ -82,5 +82,29 @@ export default function () {
     controllers.crearDiaPotencia
   );
 
+  // POST agregar UCP fuente
+  router.post(
+    "/agregarUCPMedida",
+    validator(schema.agregarUCPMedida),
+    controllers.agregarUCPMedida
+  );
+
+  // GET cargar fuentes
+  router.get("/cargarFuentes", controllers.cargarFuentes);
+
+  // PUT actualizar
+  router.put(
+    "/actualizarUCPMedida",
+    validator(schema.actualizarUCPMedida), // si usas middleware
+    controllers.actualizarUCPMedida
+  );
+
+  // DELETE eliminar
+  router.delete(
+    "/eliminarUCPMedida/:codigo",
+    validator(schema.eliminarUCPMedidaParams),
+    controllers.eliminarUCPMedida
+  );
+
   return router;
 }

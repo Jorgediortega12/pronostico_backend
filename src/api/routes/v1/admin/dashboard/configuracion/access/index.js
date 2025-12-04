@@ -334,3 +334,119 @@ export const crearDiaPotencia = async (req, res) => {
     return InternalError(res);
   }
 };
+// AGREGAR FUENTES
+export const agregarUCPMedida = async (req, res) => {
+  try {
+    // Obtener campos del body (asumimos middleware Joi los validó)
+    const {
+      nombre,
+      factor,
+      codigo_rpm,
+      codpadre,
+      estado,
+      aux,
+      aux2,
+      aux3,
+      aux4,
+    } = req.body;
+
+    const payload = {
+      nombre,
+      factor,
+      codigo_rpm,
+      codpadre,
+      estado,
+      aux,
+      aux2,
+      aux3,
+      aux4,
+    };
+
+    const result = await service.agregarUCPMedida(payload);
+
+    if (!result.success) {
+      // 400 bad request semántico, mantengo tu patrón de responseError (ajusta códigos si lo deseas)
+      return responseError(200, result.message, 400, res);
+    }
+
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+// CARGAR FUENTES
+export const cargarFuentes = async (req, res) => {
+  try {
+    const result = await service.cargarFuentes();
+    if (!result.success) {
+      return responseError(200, result.message, 404, res);
+    }
+    // Devuelve array en data
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const actualizarUCPMedida = async (req, res) => {
+  try {
+    const {
+      codigo,
+      nombre,
+      factor,
+      codigo_rpm,
+      codpadre,
+      estado,
+      aux,
+      aux2,
+      aux3,
+      aux4,
+    } = req.body;
+
+    const payload = {
+      codigo,
+      nombre,
+      factor,
+      codigo_rpm,
+      codpadre,
+      estado,
+      aux,
+      aux2,
+      aux3,
+      aux4,
+    };
+
+    const result = await service.actualizarUCPMedida(payload);
+
+    if (!result.success) {
+      return responseError(200, result.message, 400, res);
+    }
+
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const eliminarUCPMedida = async (req, res) => {
+  try {
+    const { codigo } = req.params;
+    const codeNum = Number(codigo);
+    if (Number.isNaN(codeNum)) {
+      return responseError(200, "Código inválido", 400, res);
+    }
+
+    const result = await service.eliminarUCPMedida(codeNum);
+    if (!result.success) {
+      return responseError(200, result.message, 404, res);
+    }
+
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};

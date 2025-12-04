@@ -124,4 +124,30 @@ export default {
     potencia7: Joi.number().required(),
     ucp: Joi.string().required(),
   }),
+  agregarUCPMedida: Joi.object().keys({
+    nombre: Joi.string().trim().required(),
+    factor: Joi.number().allow(null).required(), // si quieres que sea requerido pero acepta null ajusta
+    codigo_rpm: Joi.string().allow(null),
+    codpadre: Joi.number().integer().allow(null),
+    estado: Joi.number().required(),
+    aux: Joi.string().allow(null, ""),
+    aux2: Joi.string().allow(null, ""),
+    aux3: Joi.string().allow(null, ""),
+    aux4: Joi.string().allow(null, ""),
+  }),
+  actualizarUCPMedida: Joi.object().keys({
+    codigo: Joi.number().required(),
+    nombre: Joi.string().trim().required(),
+    factor: Joi.number().allow(null).required(),
+    codigo_rpm: Joi.string().allow(null),
+    codpadre: Joi.number().integer().allow(null),
+    estado: Joi.number().required(),
+    aux: Joi.string().allow(null, ""),
+    aux2: Joi.string().allow(null, ""),
+    aux3: Joi.string().allow(null, ""),
+    aux4: Joi.string().allow(null, ""),
+  }),
+  eliminarUCPMedidaParams: Joi.object().keys({
+    codigo: Joi.number().required(),
+  }),
 };

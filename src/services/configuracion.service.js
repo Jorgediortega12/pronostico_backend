@@ -399,4 +399,101 @@ export default class ConfiguracionService {
       };
     }
   };
+  // AGREGAR FUENTES
+  agregarUCPMedida = async (payload) => {
+    try {
+      // payload debería venir validado por Joi en la ruta
+      const created = await model.agregarUCPMedida(payload);
+      if (!created) {
+        return {
+          success: false,
+          data: null,
+          message: "No se pudo crear la UCP.",
+        };
+      }
+      return {
+        success: true,
+        data: created,
+        message: "UCP creada correctamente.",
+      };
+    } catch (error) {
+      Logger.error(colors.red("Error UCPService agregarUCPMedida"), error);
+      // Podrías inspeccionar error.code para errores SQL (p. ej. duplicado) y devolver mensajes específicos
+      return {
+        success: false,
+        data: null,
+        message: "Error al crear la UCP.",
+      };
+    }
+  };
+  // CARGAR FUENTES
+  cargarFuentes = async () => {
+    try {
+      const rows = await model.cargarFuentes();
+      return {
+        success: true,
+        data: rows,
+        message: "Fuentes obtenidas correctamente.",
+      };
+    } catch (error) {
+      Logger.error(colors.red("Error UCPService cargarFuentes"), error);
+      return {
+        success: false,
+        data: null,
+        message: "Error al obtener las fuentes.",
+      };
+    }
+  };
+
+  actualizarUCPMedida = async (payload) => {
+    try {
+      // payload validado por Joi en la ruta
+      const updated = await model.actualizarUCPMedida(payload);
+      if (!updated) {
+        return {
+          success: false,
+          data: null,
+          message: "No se encontró la UCP o no se actualizó.",
+        };
+      }
+      return {
+        success: true,
+        data: updated,
+        message: "UCP actualizada correctamente.",
+      };
+    } catch (error) {
+      Logger.error(colors.red("Error UCPService actualizarUCPMedida"), error);
+      // manejar errores SQL concretos si quieres
+      return {
+        success: false,
+        data: null,
+        message: "Error al actualizar la UCP.",
+      };
+    }
+  };
+
+  eliminarUCPMedida = async (codigo) => {
+    try {
+      const deleted = await model.eliminarUCPMedida(codigo);
+      if (!deleted) {
+        return {
+          success: false,
+          data: null,
+          message: "No se encontró la UCP a eliminar.",
+        };
+      }
+      return {
+        success: true,
+        data: deleted,
+        message: "UCP eliminada correctamente.",
+      };
+    } catch (error) {
+      Logger.error(colors.red("Error UCPService eliminarUCPMedida"), error);
+      return {
+        success: false,
+        data: null,
+        message: "Error al eliminar la UCP.",
+      };
+    }
+  };
 }

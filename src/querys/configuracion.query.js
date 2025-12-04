@@ -85,3 +85,48 @@ export const crearDiaPotencia = `
     ($1, $2, $3, $4, $5, $6, $7, $8, $9)
   RETURNING *;
 `;
+
+// AGREGAR FUENTES
+export const agregarUCPMedida = `
+  INSERT INTO ucp
+    (nombre, factor, codigo_rpm, codpadre, estado, aux, aux2, aux3, aux4)
+  VALUES
+    ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+  RETURNING *;
+`;
+
+// CARGAR FUENTES
+export const cargarFuentes = `
+  SELECT *
+  FROM ucp
+  WHERE codigo_rpm IS NULL
+    AND codpadre = 0
+    AND estado = 1
+    AND aux IS NULL
+    AND aux2 = 'Fuente'
+    AND aux3 IS NULL
+  ORDER BY nombre ASC;
+`;
+
+// actualizar UCP (actualiza nombre, factor, y campos opcionales si quieres)
+export const actualizarUCPMedida = `
+  UPDATE ucp
+  SET nombre = $1,
+      factor = $2,
+      codigo_rpm = $3,
+      codpadre = $4,
+      estado = $5,
+      aux = $6,
+      aux2 = $7,
+      aux3 = $8,
+      aux4 = $9
+  WHERE codigo = $10
+  RETURNING *;
+`;
+
+// eliminar UCP por codigo
+export const eliminarUCPMedida = `
+  DELETE FROM ucp
+  WHERE codigo = $1
+  RETURNING *;
+`;
