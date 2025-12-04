@@ -313,4 +313,90 @@ export default class ConfiguracionService {
       };
     }
   };
+
+  cargarTodosLosDiasPotencia = async () => {
+    try {
+      const result = await model.cargarTodosLosDiasPotencia();
+      if (!result) {
+        return {
+          success: false,
+          data: null,
+          message: "No se encontraron datos de potencias.",
+        };
+      }
+      return {
+        success: true,
+        data: result,
+        message: "Datos de potencia obtenidos correctamente.",
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ConfiguracionService cargarTodosLosDiasPotencia"),
+        error
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al obtener los datos de potencia.",
+      };
+    }
+  };
+
+  actualizarDiaPotencia = async (payload) => {
+    try {
+      const updated = await model.actualizarDiaPotencia(payload);
+      if (!updated) {
+        return {
+          success: false,
+          data: null,
+          message:
+            "No se encontró el registro o no se realizó ninguna actualización.",
+        };
+      }
+      return {
+        success: true,
+        data: updated,
+        message: "Día de potencia actualizado correctamente.",
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ConfiguracionService actualizarDiaPotencia"),
+        error
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al actualizar el día de potencia.",
+      };
+    }
+  };
+
+  crearDiaPotencia = async (payload) => {
+    try {
+      // payload ya validado por Joi en la ruta/middleware
+      const created = await model.crearDiaPotencia(payload);
+      if (!created) {
+        return {
+          success: false,
+          data: null,
+          message: "No se pudo crear el día de potencia.",
+        };
+      }
+      return {
+        success: true,
+        data: created,
+        message: "Día de potencia creado correctamente.",
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ConfiguracionService crearDiaPotencia"),
+        error
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al crear el día de potencia.",
+      };
+    }
+  };
 }

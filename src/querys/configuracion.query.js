@@ -59,3 +59,29 @@ export const cargarVariablesClimaticasxUCPDesdeFecha = `
 `;
 
 export const cargarPeriodosxUCPxUnaFechaxLimite = `SELECT * FROM actualizaciondatos ac WHERE ucp =$1 AND fecha<$2 ORDER BY fecha DESC LIMIT $3`;
+
+export const cargarTodosLosDiasPotencia =
+  "SELECT * FROM datos_potencias ORDER BY dia ASC";
+
+export const actualizarDiaPotencia = `
+  UPDATE datos_potencias
+  SET dia=$1,
+      potencia1=$2,
+      potencia2=$3,
+      potencia3=$4,
+      potencia4=$5,
+      potencia5=$6,
+      potencia6=$7,
+      potencia7=$8,
+      ucp=$9
+  WHERE codigo=$10
+  RETURNING *;
+`;
+
+export const crearDiaPotencia = `
+  INSERT INTO datos_potencias
+    (dia, potencia1, potencia2, potencia3, potencia4, potencia5, potencia6, potencia7, ucp)
+  VALUES
+    ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+  RETURNING *;
+`;

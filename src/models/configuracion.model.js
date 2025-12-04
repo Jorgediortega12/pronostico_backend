@@ -276,4 +276,102 @@ export default class ConfiguracionModel {
       await client.end();
     }
   };
+
+  cargarTodosLosDiasPotencia = async () => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const result = await client.query(querys.cargarTodosLosDiasPotencia);
+      return result.rows.length > 0 ? result.rows : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error configuracionModel cargarTodosLosDiasPotencia"),
+        error
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  actualizarDiaPotencia = async ({
+    codigo,
+    dia,
+    potencia1,
+    potencia2,
+    potencia3,
+    potencia4,
+    potencia5,
+    potencia6,
+    potencia7,
+    ucp,
+  }) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const params = [
+        dia,
+        potencia1,
+        potencia2,
+        potencia3,
+        potencia4,
+        potencia5,
+        potencia6,
+        potencia7,
+        ucp,
+        codigo,
+      ];
+      const result = await client.query(querys.actualizarDiaPotencia, params);
+      // si usas RETURNING * devolverá el row actualizado
+      return result.rows && result.rows.length > 0 ? result.rows[0] : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error configuracionModel actualizarDiaPotencia"),
+        error
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  // importar querys, Logger, colors según tu proyecto
+  crearDiaPotencia = async ({
+    dia,
+    potencia1,
+    potencia2,
+    potencia3,
+    potencia4,
+    potencia5,
+    potencia6,
+    potencia7,
+    ucp,
+  }) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const params = [
+        dia,
+        potencia1,
+        potencia2,
+        potencia3,
+        potencia4,
+        potencia5,
+        potencia6,
+        potencia7,
+        ucp,
+      ];
+      const result = await client.query(querys.crearDiaPotencia, params);
+      // Devolver el registro creado (RETURNING *)
+      return result.rows && result.rows.length > 0 ? result.rows[0] : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error configuracionModel crearDiaPotencia"),
+        error
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
 }

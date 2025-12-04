@@ -61,5 +61,26 @@ export default function () {
     validator(schema.cargarPeriodosxUCPxUnaFechaxLimite),
     controllers.cargarPeriodosxUCPxUnaFechaxLimite
   );
+
+  //cargar todos los dias potencias
+  router.get(
+    "/cargarTodosLosDiasPotencia",
+    controllers.cargarTodosLosDiasPotencia
+  );
+
+  // actualizar dia potencia
+  router.put(
+    "/actualizarDiaPotencia",
+    validator(schema.actualizarDiaPotencia),
+    controllers.actualizarDiaPotencia
+  );
+
+  // POST crear dia potencia
+  router.post(
+    "/crearDiaPotencia",
+    validator(schema.crearDiaPotencia),
+    controllers.crearDiaPotencia
+  );
+
   return router;
 }

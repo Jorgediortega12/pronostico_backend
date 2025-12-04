@@ -238,3 +238,99 @@ export const cargarPeriodosxUCPxUnaFechaxLimite = async (req, res) => {
     return InternalError(err);
   }
 };
+
+export const cargarTodosLosDiasPotencia = async (req, res) => {
+  try {
+    const result = await service.cargarTodosLosDiasPotencia();
+
+    if (!result.success) {
+      return responseError(200, result.message, 404, res);
+    }
+
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const actualizarDiaPotencia = async (req, res) => {
+  try {
+    // asumo que envías los datos en req.body
+    const {
+      codigo,
+      dia,
+      potencia1,
+      potencia2,
+      potencia3,
+      potencia4,
+      potencia5,
+      potencia6,
+      potencia7,
+      ucp,
+    } = req.body;
+
+    const result = await service.actualizarDiaPotencia({
+      codigo,
+      dia,
+      potencia1,
+      potencia2,
+      potencia3,
+      potencia4,
+      potencia5,
+      potencia6,
+      potencia7,
+      ucp,
+    });
+
+    if (!result.success) {
+      return responseError(200, result.message, 404, res);
+    }
+
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const crearDiaPotencia = async (req, res) => {
+  try {
+    // Asumimos que el body ya pasó por validación Joi
+    const {
+      dia,
+      potencia1,
+      potencia2,
+      potencia3,
+      potencia4,
+      potencia5,
+      potencia6,
+      potencia7,
+      ucp,
+    } = req.body;
+
+    const payload = {
+      dia: Number(dia),
+      potencia1: Number(potencia1),
+      potencia2: Number(potencia2),
+      potencia3: Number(potencia3),
+      potencia4: Number(potencia4),
+      potencia5: Number(potencia5),
+      potencia6: Number(potencia6),
+      potencia7: Number(potencia7),
+      ucp,
+    };
+
+    const result = await service.crearDiaPotencia(payload);
+
+    if (!result.success) {
+      return responseError(200, result.message, 400, res);
+    }
+
+    // devolver el objeto creado
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
