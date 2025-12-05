@@ -655,8 +655,8 @@ export default class PronosticosService {
   async callPredict(inicioIso, finIso, force_retrain = false, ucp) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    // const port = 8001;
-    const port = 8000;
+    const port = 8001;
+    // const port = 8000;
 
     // Calcular número de días entre inicio y fin
     const n_days = daysBetweenISO(inicioIso, finIso) + 1; // +1 para incluir ambos días
@@ -764,18 +764,18 @@ export default class PronosticosService {
         };
       }
       // vFechainicialRows[0].fecha contiene la fecha de actualización en DB
-      // const fechaActualizacionIso = toISODateString(vFechainicialRows[0].fecha);
+      const fechaActualizacionIso = toISODateString(vFechainicialRows[0].fecha);
       // fechafinal permitida = searchFechaAñoDiaSiguiente(fechaActualizacion, 1) -> add 1 day from that stored date
       // Usamos addDaysISO helper (ya usada en tu proyecto)
-      // const fechaActualizacionPlus1 = addDaysISO(fechaActualizacionIso, 1);
+      const fechaActualizacionPlus1 = addDaysISO(fechaActualizacionIso, 1);
 
-      // if (new Date(inicioIso) > new Date(fechaActualizacionPlus1)) {
-      //   return {
-      //     success: false,
-      //     data: null,
-      //     message: "La fecha inicial es mayor a la fecha de actualización",
-      //   };
-      // }
+      if (new Date(inicioIso) > new Date(fechaActualizacionPlus1)) {
+        return {
+          success: false,
+          data: null,
+          message: "La fecha inicial es mayor a la fecha de actualización",
+        };
+      }
 
       // 2) Validar que la fecha final esté dentro de la fecha del clima
       // const vFechainicialClimaRows = await sesionModel.verificarFechaClima(mc);
