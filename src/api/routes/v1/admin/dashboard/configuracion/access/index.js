@@ -497,3 +497,39 @@ export const editarMercadoCascade = async (req, res) => {
       .json({ success: false, message: "Internal server error" });
   }
 };
+
+export const cargarUmbral = async (req, res) => {
+  try {
+    const codpadre = Number(req.query.codpadre ?? 79);
+    const estado = Number(req.query.estado ?? 1);
+    const result = await service.cargarUmbral(codpadre, estado);
+    if (!result.success) {
+      return res.status(500).json({ success: false, message: result.message });
+    }
+    // mantenemos convención response.data.data en frontend: devolvemos en data
+    return res
+      .status(200)
+      .json({ success: true, data: result.data, message: result.message });
+  } catch (err) {
+    Logger.error(colors.red("Error controller cargarUmbral"), err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  }
+};
+
+export const editarUmbral = async (req, res) => {
+  try {
+    const { codigo, aux2 } = req.body;
+    const result = await service.editarUmbral(Number(codigo), aux2);
+    if (!result.success) {
+      return res.status(400).json({ success: false, message: result.message });
+    }
+    return res.status(200).json({ success: true, message: result.message });
+  } catch (err) {
+    Logger.error(colors.red("Error controller editarUmbral"), err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  }
+};

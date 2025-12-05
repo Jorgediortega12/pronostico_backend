@@ -158,4 +158,14 @@ export default {
     mc: Joi.string().trim().required(),
     mcnuevo: Joi.string().trim().required(),
   }),
+  cargarUmbralSchema: Joi.object().keys({
+    codpadre: Joi.number().integer().optional().default(79),
+    estado: Joi.number().integer().optional().default(1),
+  }),
+  editarUmbralSchema: Joi.object().keys({
+    codigo: Joi.number().integer().required(),
+    aux2: Joi.alternatives()
+      .try(Joi.string().allow(""), Joi.number())
+      .required(),
+  }),
 };

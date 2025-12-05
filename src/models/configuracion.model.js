@@ -546,4 +546,34 @@ export default class ConfiguracionModel {
       await client.end();
     }
   }
+  // Cargar umbrales (codpadre=79, estado=1)
+  async cargarUmbral(codpadre = 79, estado = 1) {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const res = await client.query(querys.cargarUmbral, [codpadre, estado]);
+      return res.rows;
+    } catch (error) {
+      Logger.error(colors.red("Error ucpModel cargarUmbral"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  }
+
+  // Editar umbral: aux2 + codigo
+  async editarUmbral(aux2, codigo) {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const res = await client.query(querys.editarUmbral, [aux2, codigo]);
+      // res.rowCount nos dice si se actualizó
+      return { rowCount: res.rowCount };
+    } catch (error) {
+      Logger.error(colors.red("Error ucpModel editarUmbral"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  }
 }

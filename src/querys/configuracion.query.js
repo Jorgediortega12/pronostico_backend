@@ -175,3 +175,18 @@ export const editarMercadoCascadeQueries = {
   editarMercadoSesiones: `UPDATE sesiones SET ucp = $2 WHERE ucp = $1;`,
   editarMercadoActualizacionDatos: `UPDATE actualizaciondatos SET ucp = $2 WHERE ucp = $1;`,
 };
+
+export const cargarUmbral = `
+  SELECT *
+  FROM ucp
+  WHERE codpadre = $1
+    AND estado = $2
+  ORDER BY codigo ASC;
+`;
+
+// editarUmbral: $1 = aux2 (valor), $2 = codigo
+export const editarUmbral = `
+  UPDATE ucp
+  SET aux2 = $1
+  WHERE codigo = $2;
+`;

@@ -550,4 +550,40 @@ export default class ConfiguracionService {
       };
     }
   };
+
+  cargarUmbral = async (codpadre = 79, estado = 1) => {
+    try {
+      const rows = await model.cargarUmbral(codpadre, estado);
+      return { success: true, data: rows, message: "Umbrales cargados." };
+    } catch (error) {
+      Logger.error(colors.red("Error UcpService cargarUmbral"), error);
+      return {
+        success: false,
+        data: null,
+        message: "Error al cargar umbrales.",
+      };
+    }
+  };
+
+  editarUmbral = async (codigo, aux2) => {
+    try {
+      const res = await model.editarUmbral(aux2, codigo);
+      if (res.rowCount && res.rowCount > 0) {
+        return { success: true, data: null, message: "Umbral actualizado." };
+      } else {
+        return {
+          success: false,
+          data: null,
+          message: "No se actualizó ningún registro.",
+        };
+      }
+    } catch (error) {
+      Logger.error(colors.red("Error UcpService editarUmbral"), error);
+      return {
+        success: false,
+        data: null,
+        message: "Error al actualizar umbral.",
+      };
+    }
+  };
 }

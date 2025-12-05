@@ -118,5 +118,16 @@ export default function () {
     validator(schema.editarMercado),
     controllers.editarMercadoCascade
   );
+
+  router.get(
+    "/cargarUmbral",
+    validator(schema.cargarUmbralSchema),
+    controllers.cargarUmbral
+  );
+  router.post(
+    "/editarUmbral",
+    validator(schema.editarUmbralSchema),
+    controllers.editarUmbral
+  );
   return router;
 }
