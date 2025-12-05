@@ -652,7 +652,7 @@ export default class PronosticosService {
    *
    * Devuelve: { success: boolean, data: any, raw: any, statusCode: number }
    */
-  async callPredict(inicioIso, finIso, force_retrain = false) {
+  async callPredict(inicioIso, finIso, force_retrain = false, ucp) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
     // const port = 8001;
@@ -675,6 +675,7 @@ export default class PronosticosService {
             end_date: inicioIso, // La fecha de inicio es el end_date
             n_days: n_days, // Días calculados entre inicio y fin
             force_retrain,
+            ucp,
           }),
         });
 
@@ -823,7 +824,12 @@ export default class PronosticosService {
       // PRECAUCIÓN: declarar predRes en el scope superior para usarlo más abajo.
       let predRes = null;
       try {
-        predRes = await this.callPredict(inicioIso, finIso, !!force_retrain);
+        predRes = await this.callPredict(
+          inicioIso,
+          finIso,
+          !!force_retrain,
+          mc
+        );
         // log sencillo (no vuelques raw)
         Logger.info(
           "callPredict returned statusCode: " + (predRes?.statusCode ?? "n/a")
