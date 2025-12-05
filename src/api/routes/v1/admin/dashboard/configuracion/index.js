@@ -106,5 +106,8 @@ export default function () {
     controllers.eliminarUCPMedida
   );
 
+  // GET cargar equivalencias
+  router.get("/cargarEquivalencias", controllers.cargarEquivalencias);
+
   return router;
 }

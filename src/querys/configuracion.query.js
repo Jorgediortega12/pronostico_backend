@@ -130,3 +130,17 @@ export const eliminarUCPMedida = `
   WHERE codigo = $1
   RETURNING *;
 `;
+
+export const cargarEquivalencias = `
+  SELECT
+    u.nombre AS nombrepadre,
+    u2.*,
+    (CASE u2.aux4 WHEN '1' THEN 'Aplica' ELSE 'No aplica' END) AS c_as
+  FROM ucp u
+  INNER JOIN ucp u2 ON u.codigo = u2.codpadre
+  WHERE u.estado = '1'
+    AND u2.estado = '1'
+    AND u.aux2 = 'Fuente'
+    AND u2.aux3 IS NOT NULL
+  ORDER BY u2.nombre, u.nombre;
+`;

@@ -478,4 +478,20 @@ export default class ConfiguracionModel {
       await client.end();
     }
   };
+
+  // Dentro de tu model (por ejemplo ucpModel)
+  cargarEquivalencias = async () => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const result = await client.query(querys.cargarEquivalencias);
+      // devolvemos siempre un array (vacío si no hay filas)
+      return result.rows && result.rows.length > 0 ? result.rows : [];
+    } catch (error) {
+      Logger.error(colors.red("Error ucpModel cargarEquivalencias"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
 }

@@ -125,8 +125,8 @@ export default {
     ucp: Joi.string().required(),
   }),
   agregarUCPMedida: Joi.object().keys({
-    nombre: Joi.string().trim().required(),
-    factor: Joi.number().allow(null).required(), // si quieres que sea requerido pero acepta null ajusta
+    nombre: Joi.string().allow(null, ""),
+    factor: Joi.number().allow(null, ""),
     codigo_rpm: Joi.string().allow(null),
     codpadre: Joi.number().integer().allow(null),
     estado: Joi.number().required(),
@@ -137,7 +137,7 @@ export default {
   }),
   actualizarUCPMedida: Joi.object().keys({
     codigo: Joi.number().required(),
-    nombre: Joi.string().trim().required(),
+    nombre: Joi.string().allow(null, ""),
     factor: Joi.number().allow(null).required(),
     codigo_rpm: Joi.string().allow(null),
     codpadre: Joi.number().integer().allow(null),

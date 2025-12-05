@@ -496,4 +496,22 @@ export default class ConfiguracionService {
       };
     }
   };
+
+  cargarEquivalencias = async () => {
+    try {
+      const rows = await model.cargarEquivalencias();
+      return {
+        success: true,
+        data: rows,
+        message: "Equivalencias obtenidas correctamente.",
+      };
+    } catch (error) {
+      Logger.error(colors.red("Error UCPService cargarEquivalencias"), error);
+      return {
+        success: false,
+        data: null,
+        message: "Error al obtener las equivalencias.",
+      };
+    }
+  };
 }

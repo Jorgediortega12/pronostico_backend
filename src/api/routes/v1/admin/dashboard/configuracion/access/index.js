@@ -450,3 +450,16 @@ export const eliminarUCPMedida = async (req, res) => {
     return InternalError(res);
   }
 };
+
+export const cargarEquivalencias = async (req, res) => {
+  try {
+    const result = await service.cargarEquivalencias();
+    if (!result.success) {
+      return responseError(200, result.message, 404, res);
+    }
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
