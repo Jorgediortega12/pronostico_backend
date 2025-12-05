@@ -109,5 +109,14 @@ export default function () {
   // GET cargar equivalencias
   router.get("/cargarEquivalencias", controllers.cargarEquivalencias);
 
+  // GET cargarUCP?codpadre=2&estado=1
+  router.get("/cargarUCP", validator(schema.cargarUCP), controllers.cargarUCP);
+
+  // POST editar mercado en cascada
+  router.post(
+    "/editarMercadoCascade",
+    validator(schema.editarMercado),
+    controllers.editarMercadoCascade
+  );
   return router;
 }

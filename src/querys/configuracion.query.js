@@ -144,3 +144,34 @@ export const cargarEquivalencias = `
     AND u2.aux3 IS NOT NULL
   ORDER BY u2.nombre, u.nombre;
 `;
+
+export const cargarUCP = `
+  SELECT DISTINCT(aux2) AS mc
+  FROM ucp
+  WHERE codpadre = $1
+    AND estado = $2
+    AND aux2 IS NOT NULL
+    AND aux2 <> ''
+  ORDER BY aux2 ASC;
+`;
+
+// Query para usar en la transacción de actualización en cascada.
+// Usaremos parámetros ($1 = mc, $2 = mcnuevo)
+export const editarMercadoCascadeQueries = {
+  // actualizar nombre en ucp (registro padre/hijo)
+  editarMercadoNombre: `UPDATE ucp SET nombre = $2 WHERE nombre = $1;`,
+  editarMercadoAux2: `UPDATE ucp SET aux2 = $2 WHERE aux2 = $1;`,
+  editarMercadoAux3: `UPDATE ucp SET aux3 = $2 WHERE aux3 = $1;`,
+  // tablas relacionadas
+  editarMercadoBarras: `UPDATE barras SET mc = $2 WHERE mc = $1;`,
+  editarMercadoDatosClima: `UPDATE datos_clima SET ucp = $2 WHERE ucp = $1;`,
+  editarMercadoDatosClimaLog: `UPDATE datos_climalog SET ucp = $2 WHERE ucp = $1;`,
+  editarMercadoDatosPotencias: `UPDATE datos_potencias SET ucp = $2 WHERE ucp = $1;`,
+  editarMercadoFechasIngresadas: `UPDATE fechas_ingresadas SET ucp = $2 WHERE ucp = $1;`,
+  editarMercadoFechasTipoPronosticos: `UPDATE fechas_tipopronostico SET ucp = $2 WHERE ucp = $1;`,
+  editarMercadoFestivos: `UPDATE festivos SET ucp = $2 WHERE ucp = $1;`,
+  editarMercadoObservaciones: `UPDATE observaciones_analisis SET ucp = $2 WHERE ucp = $1;`,
+  editarMercadoPronostico: `UPDATE pronosticos SET ucp = $2 WHERE ucp = $1;`,
+  editarMercadoSesiones: `UPDATE sesiones SET ucp = $2 WHERE ucp = $1;`,
+  editarMercadoActualizacionDatos: `UPDATE actualizaciondatos SET ucp = $2 WHERE ucp = $1;`,
+};

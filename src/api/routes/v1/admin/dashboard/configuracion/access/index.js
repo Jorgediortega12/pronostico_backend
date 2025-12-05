@@ -463,3 +463,37 @@ export const cargarEquivalencias = async (req, res) => {
     return InternalError(res);
   }
 };
+
+export const cargarUCP = async (req, res) => {
+  try {
+    const { codpadre = 0, estado = 1 } = req.query;
+    const result = await service.cargarUCP(Number(codpadre), Number(estado));
+    if (!result.success) {
+      return res.status(500).json({ success: false, message: result.message });
+    }
+    return res
+      .status(200)
+      .json({ success: true, data: result.data, message: result.message });
+  } catch (err) {
+    Logger.error(colors.red("Error cargarUCP controller"), err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  }
+};
+
+export const editarMercadoCascade = async (req, res) => {
+  try {
+    const { mc, mcnuevo } = req.body;
+    const result = await service.editarMercadoCascade(mc, mcnuevo);
+    if (!result.success) {
+      return res.status(500).json({ success: false, message: result.message });
+    }
+    return res.status(200).json({ success: true, message: result.message });
+  } catch (err) {
+    Logger.error(colors.red("Error editarMercadoCascade controller"), err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  }
+};

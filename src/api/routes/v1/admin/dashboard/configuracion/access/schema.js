@@ -150,4 +150,12 @@ export default {
   eliminarUCPMedidaParams: Joi.object().keys({
     codigo: Joi.number().required(),
   }),
+  cargarUCP: Joi.object().keys({
+    codpadre: Joi.number().integer().optional().default(0),
+    estado: Joi.number().integer().optional().default(1),
+  }),
+  editarMercado: Joi.object().keys({
+    mc: Joi.string().trim().required(),
+    mcnuevo: Joi.string().trim().required(),
+  }),
 };

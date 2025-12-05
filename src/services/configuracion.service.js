@@ -514,4 +514,40 @@ export default class ConfiguracionService {
       };
     }
   };
+
+  cargarUCP = async (codpadre = 0, estado = 1) => {
+    try {
+      const rows = await model.cargarUCP(codpadre, estado);
+      return {
+        success: true,
+        data: rows,
+        message: "UCPs cargadas correctamente.",
+      };
+    } catch (error) {
+      Logger.error(colors.red("Error UcpService cargarUCP"), error);
+      return {
+        success: false,
+        data: null,
+        message: "Error al cargar UCPs.",
+      };
+    }
+  };
+
+  editarMercadoCascade = async (mc, mcnuevo) => {
+    try {
+      await model.editarMercadoCascade(mc, mcnuevo);
+      return {
+        success: true,
+        data: null,
+        message: "Mercado actualizado correctamente.",
+      };
+    } catch (error) {
+      Logger.error(colors.red("Error UcpService editarMercadoCascade"), error);
+      return {
+        success: false,
+        data: null,
+        message: "Error al actualizar el mercado.",
+      };
+    }
+  };
 }
