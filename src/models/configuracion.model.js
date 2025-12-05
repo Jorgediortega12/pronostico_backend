@@ -276,4 +276,304 @@ export default class ConfiguracionModel {
       await client.end();
     }
   };
+
+  cargarTodosLosDiasPotencia = async () => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const result = await client.query(querys.cargarTodosLosDiasPotencia);
+      return result.rows.length > 0 ? result.rows : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error configuracionModel cargarTodosLosDiasPotencia"),
+        error
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  actualizarDiaPotencia = async ({
+    codigo,
+    dia,
+    potencia1,
+    potencia2,
+    potencia3,
+    potencia4,
+    potencia5,
+    potencia6,
+    potencia7,
+    ucp,
+  }) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const params = [
+        dia,
+        potencia1,
+        potencia2,
+        potencia3,
+        potencia4,
+        potencia5,
+        potencia6,
+        potencia7,
+        ucp,
+        codigo,
+      ];
+      const result = await client.query(querys.actualizarDiaPotencia, params);
+      // si usas RETURNING * devolverá el row actualizado
+      return result.rows && result.rows.length > 0 ? result.rows[0] : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error configuracionModel actualizarDiaPotencia"),
+        error
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  // importar querys, Logger, colors según tu proyecto
+  crearDiaPotencia = async ({
+    dia,
+    potencia1,
+    potencia2,
+    potencia3,
+    potencia4,
+    potencia5,
+    potencia6,
+    potencia7,
+    ucp,
+  }) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const params = [
+        dia,
+        potencia1,
+        potencia2,
+        potencia3,
+        potencia4,
+        potencia5,
+        potencia6,
+        potencia7,
+        ucp,
+      ];
+      const result = await client.query(querys.crearDiaPotencia, params);
+      // Devolver el registro creado (RETURNING *)
+      return result.rows && result.rows.length > 0 ? result.rows[0] : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error configuracionModel crearDiaPotencia"),
+        error
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  // AGREGAR FUENTES
+  agregarUCPMedida = async ({
+    nombre,
+    factor,
+    codigo_rpm,
+    codpadre,
+    estado,
+    aux,
+    aux2,
+    aux3,
+    aux4,
+  }) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const params = [
+        nombre,
+        factor,
+        codigo_rpm,
+        codpadre,
+        estado,
+        aux,
+        aux2,
+        aux3,
+        aux4,
+      ];
+      const result = await client.query(querys.agregarUCPMedida, params);
+      return result.rows && result.rows.length > 0 ? result.rows[0] : null;
+    } catch (error) {
+      Logger.error(colors.red("Error ucpModel agregarUCPMedida"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  // CARGAR FUENTES
+  cargarFuentes = async () => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const result = await client.query(querys.cargarFuentes);
+      return result.rows && result.rows.length > 0 ? result.rows : [];
+    } catch (error) {
+      Logger.error(colors.red("Error ucpModel cargarFuentes"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  // actualizarUCPMedida
+  actualizarUCPMedida = async ({
+    codigo,
+    nombre,
+    factor,
+    codigo_rpm,
+    codpadre,
+    estado,
+    aux,
+    aux2,
+    aux3,
+    aux4,
+  }) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const params = [
+        nombre,
+        factor,
+        codigo_rpm,
+        codpadre,
+        estado,
+        aux,
+        aux2,
+        aux3,
+        aux4,
+        codigo,
+      ];
+      const result = await client.query(querys.actualizarUCPMedida, params);
+      return result.rows && result.rows.length > 0 ? result.rows[0] : null;
+    } catch (error) {
+      Logger.error(colors.red("Error ucpModel actualizarUCPMedida"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  // eliminarUCPMedida
+  eliminarUCPMedida = async (codigo) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const result = await client.query(querys.eliminarUCPMedida, [codigo]);
+      return result.rows && result.rows.length > 0 ? result.rows[0] : null;
+    } catch (error) {
+      Logger.error(colors.red("Error ucpModel eliminarUCPMedida"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  // Dentro de tu model (por ejemplo ucpModel)
+  cargarEquivalencias = async () => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const result = await client.query(querys.cargarEquivalencias);
+      // devolvemos siempre un array (vacío si no hay filas)
+      return result.rows && result.rows.length > 0 ? result.rows : [];
+    } catch (error) {
+      Logger.error(colors.red("Error ucpModel cargarEquivalencias"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  // cargarUCP: retorna array de strings [{ mc: 'Atlantico' }, ...]
+  async cargarUCP(codpadre = 0, estado = 1) {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const res = await client.query(querys.cargarUCP, [codpadre, estado]);
+      return res.rows;
+    } catch (error) {
+      Logger.error(colors.red("Error ucpModel cargarUCP"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  }
+
+  // editarMercadoCascade: ejecuta todas las updates en transacción
+  // input: mc (viejo nombre), mcnuevo (nuevo nombre)
+  async editarMercadoCascade(mc, mcnuevo) {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      await client.query("BEGIN");
+
+      const q = querys.editarMercadoCascadeQueries;
+
+      // Ejecutar cada update en orden. Usamos same params ($1=mc, $2=mcnuevo)
+      await client.query(q.editarMercadoNombre, [mc, mcnuevo]);
+      await client.query(q.editarMercadoAux2, [mc, mcnuevo]);
+      await client.query(q.editarMercadoAux3, [mc, mcnuevo]);
+      await client.query(q.editarMercadoBarras, [mc, mcnuevo]);
+      await client.query(q.editarMercadoDatosClima, [mc, mcnuevo]);
+      await client.query(q.editarMercadoDatosClimaLog, [mc, mcnuevo]);
+      await client.query(q.editarMercadoDatosPotencias, [mc, mcnuevo]);
+      await client.query(q.editarMercadoFechasIngresadas, [mc, mcnuevo]);
+      await client.query(q.editarMercadoFechasTipoPronosticos, [mc, mcnuevo]);
+      await client.query(q.editarMercadoFestivos, [mc, mcnuevo]);
+      await client.query(q.editarMercadoObservaciones, [mc, mcnuevo]);
+      await client.query(q.editarMercadoPronostico, [mc, mcnuevo]);
+      await client.query(q.editarMercadoSesiones, [mc, mcnuevo]);
+      await client.query(q.editarMercadoActualizacionDatos, [mc, mcnuevo]);
+
+      await client.query("COMMIT");
+      return { success: true };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      Logger.error(colors.red("Error ucpModel editarMercadoCascade"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  }
+  // Cargar umbrales (codpadre=79, estado=1)
+  async cargarUmbral(codpadre = 79, estado = 1) {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const res = await client.query(querys.cargarUmbral, [codpadre, estado]);
+      return res.rows;
+    } catch (error) {
+      Logger.error(colors.red("Error ucpModel cargarUmbral"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  }
+
+  // Editar umbral: aux2 + codigo
+  async editarUmbral(aux2, codigo) {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const res = await client.query(querys.editarUmbral, [aux2, codigo]);
+      // res.rowCount nos dice si se actualizó
+      return { rowCount: res.rowCount };
+    } catch (error) {
+      Logger.error(colors.red("Error ucpModel editarUmbral"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  }
 }

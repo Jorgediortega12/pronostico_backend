@@ -313,4 +313,277 @@ export default class ConfiguracionService {
       };
     }
   };
+
+  cargarTodosLosDiasPotencia = async () => {
+    try {
+      const result = await model.cargarTodosLosDiasPotencia();
+      if (!result) {
+        return {
+          success: false,
+          data: null,
+          message: "No se encontraron datos de potencias.",
+        };
+      }
+      return {
+        success: true,
+        data: result,
+        message: "Datos de potencia obtenidos correctamente.",
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ConfiguracionService cargarTodosLosDiasPotencia"),
+        error
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al obtener los datos de potencia.",
+      };
+    }
+  };
+
+  actualizarDiaPotencia = async (payload) => {
+    try {
+      const updated = await model.actualizarDiaPotencia(payload);
+      if (!updated) {
+        return {
+          success: false,
+          data: null,
+          message:
+            "No se encontró el registro o no se realizó ninguna actualización.",
+        };
+      }
+      return {
+        success: true,
+        data: updated,
+        message: "Día de potencia actualizado correctamente.",
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ConfiguracionService actualizarDiaPotencia"),
+        error
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al actualizar el día de potencia.",
+      };
+    }
+  };
+
+  crearDiaPotencia = async (payload) => {
+    try {
+      // payload ya validado por Joi en la ruta/middleware
+      const created = await model.crearDiaPotencia(payload);
+      if (!created) {
+        return {
+          success: false,
+          data: null,
+          message: "No se pudo crear el día de potencia.",
+        };
+      }
+      return {
+        success: true,
+        data: created,
+        message: "Día de potencia creado correctamente.",
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ConfiguracionService crearDiaPotencia"),
+        error
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al crear el día de potencia.",
+      };
+    }
+  };
+  // AGREGAR FUENTES
+  agregarUCPMedida = async (payload) => {
+    try {
+      // payload debería venir validado por Joi en la ruta
+      const created = await model.agregarUCPMedida(payload);
+      if (!created) {
+        return {
+          success: false,
+          data: null,
+          message: "No se pudo crear la UCP.",
+        };
+      }
+      return {
+        success: true,
+        data: created,
+        message: "UCP creada correctamente.",
+      };
+    } catch (error) {
+      Logger.error(colors.red("Error UCPService agregarUCPMedida"), error);
+      // Podrías inspeccionar error.code para errores SQL (p. ej. duplicado) y devolver mensajes específicos
+      return {
+        success: false,
+        data: null,
+        message: "Error al crear la UCP.",
+      };
+    }
+  };
+  // CARGAR FUENTES
+  cargarFuentes = async () => {
+    try {
+      const rows = await model.cargarFuentes();
+      return {
+        success: true,
+        data: rows,
+        message: "Fuentes obtenidas correctamente.",
+      };
+    } catch (error) {
+      Logger.error(colors.red("Error UCPService cargarFuentes"), error);
+      return {
+        success: false,
+        data: null,
+        message: "Error al obtener las fuentes.",
+      };
+    }
+  };
+
+  actualizarUCPMedida = async (payload) => {
+    try {
+      // payload validado por Joi en la ruta
+      const updated = await model.actualizarUCPMedida(payload);
+      if (!updated) {
+        return {
+          success: false,
+          data: null,
+          message: "No se encontró la UCP o no se actualizó.",
+        };
+      }
+      return {
+        success: true,
+        data: updated,
+        message: "UCP actualizada correctamente.",
+      };
+    } catch (error) {
+      Logger.error(colors.red("Error UCPService actualizarUCPMedida"), error);
+      // manejar errores SQL concretos si quieres
+      return {
+        success: false,
+        data: null,
+        message: "Error al actualizar la UCP.",
+      };
+    }
+  };
+
+  eliminarUCPMedida = async (codigo) => {
+    try {
+      const deleted = await model.eliminarUCPMedida(codigo);
+      if (!deleted) {
+        return {
+          success: false,
+          data: null,
+          message: "No se encontró la UCP a eliminar.",
+        };
+      }
+      return {
+        success: true,
+        data: deleted,
+        message: "UCP eliminada correctamente.",
+      };
+    } catch (error) {
+      Logger.error(colors.red("Error UCPService eliminarUCPMedida"), error);
+      return {
+        success: false,
+        data: null,
+        message: "Error al eliminar la UCP.",
+      };
+    }
+  };
+
+  cargarEquivalencias = async () => {
+    try {
+      const rows = await model.cargarEquivalencias();
+      return {
+        success: true,
+        data: rows,
+        message: "Equivalencias obtenidas correctamente.",
+      };
+    } catch (error) {
+      Logger.error(colors.red("Error UCPService cargarEquivalencias"), error);
+      return {
+        success: false,
+        data: null,
+        message: "Error al obtener las equivalencias.",
+      };
+    }
+  };
+
+  cargarUCP = async (codpadre = 0, estado = 1) => {
+    try {
+      const rows = await model.cargarUCP(codpadre, estado);
+      return {
+        success: true,
+        data: rows,
+        message: "UCPs cargadas correctamente.",
+      };
+    } catch (error) {
+      Logger.error(colors.red("Error UcpService cargarUCP"), error);
+      return {
+        success: false,
+        data: null,
+        message: "Error al cargar UCPs.",
+      };
+    }
+  };
+
+  editarMercadoCascade = async (mc, mcnuevo) => {
+    try {
+      await model.editarMercadoCascade(mc, mcnuevo);
+      return {
+        success: true,
+        data: null,
+        message: "Mercado actualizado correctamente.",
+      };
+    } catch (error) {
+      Logger.error(colors.red("Error UcpService editarMercadoCascade"), error);
+      return {
+        success: false,
+        data: null,
+        message: "Error al actualizar el mercado.",
+      };
+    }
+  };
+
+  cargarUmbral = async (codpadre = 79, estado = 1) => {
+    try {
+      const rows = await model.cargarUmbral(codpadre, estado);
+      return { success: true, data: rows, message: "Umbrales cargados." };
+    } catch (error) {
+      Logger.error(colors.red("Error UcpService cargarUmbral"), error);
+      return {
+        success: false,
+        data: null,
+        message: "Error al cargar umbrales.",
+      };
+    }
+  };
+
+  editarUmbral = async (codigo, aux2) => {
+    try {
+      const res = await model.editarUmbral(aux2, codigo);
+      if (res.rowCount && res.rowCount > 0) {
+        return { success: true, data: null, message: "Umbral actualizado." };
+      } else {
+        return {
+          success: false,
+          data: null,
+          message: "No se actualizó ningún registro.",
+        };
+      }
+    } catch (error) {
+      Logger.error(colors.red("Error UcpService editarUmbral"), error);
+      return {
+        success: false,
+        data: null,
+        message: "Error al actualizar umbral.",
+      };
+    }
+  };
 }

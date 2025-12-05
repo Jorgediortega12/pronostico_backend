@@ -652,7 +652,7 @@ export default class PronosticosService {
    *
    * Devuelve: { success: boolean, data: any, raw: any, statusCode: number }
    */
-  async callPredict(inicioIso, finIso, force_retrain = false) {
+  async callPredict(inicioIso, finIso, force_retrain = false, ucp) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
     const port = 8001;
@@ -675,6 +675,7 @@ export default class PronosticosService {
             end_date: inicioIso, // La fecha de inicio es el end_date
             n_days: n_days, // Días calculados entre inicio y fin
             force_retrain,
+            ucp,
           }),
         });
 
@@ -763,18 +764,18 @@ export default class PronosticosService {
         };
       }
       // vFechainicialRows[0].fecha contiene la fecha de actualización en DB
-      // const fechaActualizacionIso = toISODateString(vFechainicialRows[0].fecha);
+      const fechaActualizacionIso = toISODateString(vFechainicialRows[0].fecha);
       // fechafinal permitida = searchFechaAñoDiaSiguiente(fechaActualizacion, 1) -> add 1 day from that stored date
       // Usamos addDaysISO helper (ya usada en tu proyecto)
-      // const fechaActualizacionPlus1 = addDaysISO(fechaActualizacionIso, 1);
+      const fechaActualizacionPlus1 = addDaysISO(fechaActualizacionIso, 1);
 
-      // if (new Date(inicioIso) > new Date(fechaActualizacionPlus1)) {
-      //   return {
-      //     success: false,
-      //     data: null,
-      //     message: "La fecha inicial es mayor a la fecha de actualización",
-      //   };
-      // }
+      if (new Date(inicioIso) > new Date(fechaActualizacionPlus1)) {
+        return {
+          success: false,
+          data: null,
+          message: "La fecha inicial es mayor a la fecha de actualización",
+        };
+      }
 
       // 2) Validar que la fecha final esté dentro de la fecha del clima
       // const vFechainicialClimaRows = await sesionModel.verificarFechaClima(mc);
@@ -823,7 +824,12 @@ export default class PronosticosService {
       // PRECAUCIÓN: declarar predRes en el scope superior para usarlo más abajo.
       let predRes = null;
       try {
-        predRes = await this.callPredict(inicioIso, finIso, !!force_retrain);
+        predRes = await this.callPredict(
+          inicioIso,
+          finIso,
+          !!force_retrain,
+          mc
+        );
         // log sencillo (no vuelques raw)
         Logger.info(
           "callPredict returned statusCode: " + (predRes?.statusCode ?? "n/a")

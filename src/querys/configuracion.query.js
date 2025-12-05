@@ -59,3 +59,134 @@ export const cargarVariablesClimaticasxUCPDesdeFecha = `
 `;
 
 export const cargarPeriodosxUCPxUnaFechaxLimite = `SELECT * FROM actualizaciondatos ac WHERE ucp =$1 AND fecha<$2 ORDER BY fecha DESC LIMIT $3`;
+
+export const cargarTodosLosDiasPotencia =
+  "SELECT * FROM datos_potencias ORDER BY dia ASC";
+
+export const actualizarDiaPotencia = `
+  UPDATE datos_potencias
+  SET dia=$1,
+      potencia1=$2,
+      potencia2=$3,
+      potencia3=$4,
+      potencia4=$5,
+      potencia5=$6,
+      potencia6=$7,
+      potencia7=$8,
+      ucp=$9
+  WHERE codigo=$10
+  RETURNING *;
+`;
+
+export const crearDiaPotencia = `
+  INSERT INTO datos_potencias
+    (dia, potencia1, potencia2, potencia3, potencia4, potencia5, potencia6, potencia7, ucp)
+  VALUES
+    ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+  RETURNING *;
+`;
+
+// AGREGAR FUENTES
+export const agregarUCPMedida = `
+  INSERT INTO ucp
+    (nombre, factor, codigo_rpm, codpadre, estado, aux, aux2, aux3, aux4)
+  VALUES
+    ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+  RETURNING *;
+`;
+
+// CARGAR FUENTES
+export const cargarFuentes = `
+  SELECT *
+  FROM ucp
+  WHERE codigo_rpm IS NULL
+    AND codpadre = 0
+    AND estado = 1
+    AND aux IS NULL
+    AND aux2 = 'Fuente'
+    AND aux3 IS NULL
+  ORDER BY nombre ASC;
+`;
+
+// actualizar UCP (actualiza nombre, factor, y campos opcionales si quieres)
+export const actualizarUCPMedida = `
+  UPDATE ucp
+  SET nombre = $1,
+      factor = $2,
+      codigo_rpm = $3,
+      codpadre = $4,
+      estado = $5,
+      aux = $6,
+      aux2 = $7,
+      aux3 = $8,
+      aux4 = $9
+  WHERE codigo = $10
+  RETURNING *;
+`;
+
+// eliminar UCP por codigo
+export const eliminarUCPMedida = `
+  DELETE FROM ucp
+  WHERE codigo = $1
+  RETURNING *;
+`;
+
+export const cargarEquivalencias = `
+  SELECT
+    u.nombre AS nombrepadre,
+    u2.*,
+    (CASE u2.aux4 WHEN '1' THEN 'Aplica' ELSE 'No aplica' END) AS c_as
+  FROM ucp u
+  INNER JOIN ucp u2 ON u.codigo = u2.codpadre
+  WHERE u.estado = '1'
+    AND u2.estado = '1'
+    AND u.aux2 = 'Fuente'
+    AND u2.aux3 IS NOT NULL
+  ORDER BY u2.nombre, u.nombre;
+`;
+
+export const cargarUCP = `
+  SELECT DISTINCT(aux2) AS mc
+  FROM ucp
+  WHERE codpadre = $1
+    AND estado = $2
+    AND aux2 IS NOT NULL
+    AND aux2 <> ''
+  ORDER BY aux2 ASC;
+`;
+
+// Query para usar en la transacción de actualización en cascada.
+// Usaremos parámetros ($1 = mc, $2 = mcnuevo)
+export const editarMercadoCascadeQueries = {
+  // actualizar nombre en ucp (registro padre/hijo)
+  editarMercadoNombre: `UPDATE ucp SET nombre = $2 WHERE nombre = $1;`,
+  editarMercadoAux2: `UPDATE ucp SET aux2 = $2 WHERE aux2 = $1;`,
+  editarMercadoAux3: `UPDATE ucp SET aux3 = $2 WHERE aux3 = $1;`,
+  // tablas relacionadas
+  editarMercadoBarras: `UPDATE barras SET mc = $2 WHERE mc = $1;`,
+  editarMercadoDatosClima: `UPDATE datos_clima SET ucp = $2 WHERE ucp = $1;`,
+  editarMercadoDatosClimaLog: `UPDATE datos_climalog SET ucp = $2 WHERE ucp = $1;`,
+  editarMercadoDatosPotencias: `UPDATE datos_potencias SET ucp = $2 WHERE ucp = $1;`,
+  editarMercadoFechasIngresadas: `UPDATE fechas_ingresadas SET ucp = $2 WHERE ucp = $1;`,
+  editarMercadoFechasTipoPronosticos: `UPDATE fechas_tipopronostico SET ucp = $2 WHERE ucp = $1;`,
+  editarMercadoFestivos: `UPDATE festivos SET ucp = $2 WHERE ucp = $1;`,
+  editarMercadoObservaciones: `UPDATE observaciones_analisis SET ucp = $2 WHERE ucp = $1;`,
+  editarMercadoPronostico: `UPDATE pronosticos SET ucp = $2 WHERE ucp = $1;`,
+  editarMercadoSesiones: `UPDATE sesiones SET ucp = $2 WHERE ucp = $1;`,
+  editarMercadoActualizacionDatos: `UPDATE actualizaciondatos SET ucp = $2 WHERE ucp = $1;`,
+};
+
+export const cargarUmbral = `
+  SELECT *
+  FROM ucp
+  WHERE codpadre = $1
+    AND estado = $2
+  ORDER BY codigo ASC;
+`;
+
+// editarUmbral: $1 = aux2 (valor), $2 = codigo
+export const editarUmbral = `
+  UPDATE ucp
+  SET aux2 = $1
+  WHERE codigo = $2;
+`;
