@@ -576,4 +576,66 @@ export default class ConfiguracionModel {
       await client.end();
     }
   }
+
+  async cargarDiasFestivos(anio, ucp) {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const res = await client.query(querys.cargarDiasFestivos, [anio, ucp]);
+      return res.rows;
+    } catch (error) {
+      Logger.error(colors.red("Error FestivosModel cargarDiasFestivos"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  }
+
+  async buscarDiaFestivo(fechaIso, ucp) {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const res = await client.query(querys.buscarDiaFestivo, [fechaIso, ucp]);
+      return res.rows.length > 0 ? res.rows[0] : null;
+    } catch (error) {
+      Logger.error(colors.red("Error FestivosModel buscarDiaFestivo"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  }
+
+  async ingresarDiaFestivos(ucp, fechaIso) {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const res = await client.query(querys.ingresarDiaFestivos, [
+        ucp,
+        fechaIso,
+      ]);
+      return res.rows[0];
+    } catch (error) {
+      Logger.error(
+        colors.red("Error FestivosModel ingresarDiaFestivos"),
+        error
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  }
+
+  async borrarDiaFestivos(codigo) {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const res = await client.query(querys.borrarDiaFestivos, [codigo]);
+      return res.rows[0] || null;
+    } catch (error) {
+      Logger.error(colors.red("Error FestivosModel borrarDiaFestivos"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  }
 }
