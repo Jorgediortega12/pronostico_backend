@@ -586,4 +586,77 @@ export default class ConfiguracionService {
       };
     }
   };
+
+  cargarDiasFestivos = async (anio, ucp) => {
+    try {
+      const rows = await model.cargarDiasFestivos(anio, ucp);
+      return { success: true, data: rows, message: "Festivos cargados." };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error FestivosService cargarDiasFestivos"),
+        error
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al cargar festivos.",
+      };
+    }
+  };
+
+  buscarDiaFestivo = async (fechaIso, ucp) => {
+    try {
+      const row = await model.buscarDiaFestivo(fechaIso, ucp);
+      return { success: true, data: row, message: "Búsqueda completada." };
+    } catch (error) {
+      Logger.error(colors.red("Error FestivosService buscarDiaFestivo"), error);
+      return {
+        success: false,
+        data: null,
+        message: "Error al buscar festivo.",
+      };
+    }
+  };
+
+  ingresarDiaFestivos = async (ucp, fechaIso) => {
+    try {
+      const created = await model.ingresarDiaFestivos(ucp, fechaIso);
+      return { success: true, data: created, message: "Festivo ingresado." };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error FestivosService ingresarDiaFestivos"),
+        error
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al ingresar festivo.",
+      };
+    }
+  };
+
+  borrarDiaFestivos = async (codigo) => {
+    try {
+      const deleted = await model.borrarDiaFestivos(codigo);
+      if (deleted) {
+        return { success: true, data: deleted, message: "Festivo eliminado." };
+      } else {
+        return {
+          success: false,
+          data: null,
+          message: "No se encontró el registro.",
+        };
+      }
+    } catch (error) {
+      Logger.error(
+        colors.red("Error FestivosService borrarDiaFestivos"),
+        error
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al eliminar festivo.",
+      };
+    }
+  };
 }

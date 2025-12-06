@@ -656,6 +656,7 @@ export default class PronosticosService {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
     const port = 8001;
+    //puerto desarrollo
     // const port = 8000;
 
     // Calcular número de días entre inicio y fin

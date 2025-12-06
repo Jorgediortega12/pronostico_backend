@@ -168,4 +168,19 @@ export default {
       .try(Joi.string().allow(""), Joi.number())
       .required(),
   }),
+  cargarDiasFestivosSchema: Joi.object().keys({
+    anio: Joi.number().integer().min(1900).required(),
+    ucp: Joi.string().required(),
+  }),
+  ingresarDiaFestivosSchema: Joi.object().keys({
+    ucp: Joi.string().required(),
+    fecha: Joi.string().isoDate().required(), // recibir ISO yyyy-mm-dd
+  }),
+  borrarDiaFestivosSchema: Joi.object().keys({
+    codigo: Joi.number().integer().required(),
+  }),
+  buscarDiaFestivoSchema: Joi.object().keys({
+    fecha: Joi.string().isoDate().required(),
+    ucp: Joi.string().required(),
+  }),
 };

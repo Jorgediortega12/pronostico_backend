@@ -190,3 +190,24 @@ export const editarUmbral = `
   SET aux2 = $1
   WHERE codigo = $2;
 `;
+
+// querys/festivos.js
+export const cargarDiasFestivos = `
+  SELECT *
+  FROM festivos
+  WHERE EXTRACT(YEAR FROM fecha) = $1
+    AND ucp = $2
+  ORDER BY fecha ASC;
+`;
+
+export const ingresarDiaFestivos = `
+  INSERT INTO festivos (ucp, fecha)
+  VALUES ($1, $2)
+  RETURNING *;
+`;
+
+export const borrarDiaFestivos = `
+  DELETE FROM festivos
+  WHERE codigo = $1
+  RETURNING *;
+`;

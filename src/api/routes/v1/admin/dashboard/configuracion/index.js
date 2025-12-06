@@ -129,5 +129,25 @@ export default function () {
     validator(schema.editarUmbralSchema),
     controllers.editarUmbral
   );
+  router.get(
+    "/cargarDiasFestivos",
+    validator(schema.cargarDiasFestivosSchema),
+    controllers.cargarDiasFestivos
+  );
+  router.post(
+    "/buscarDiaFestivo",
+    validator(schema.buscarDiaFestivoSchema),
+    controllers.buscarDiaFestivo
+  );
+  router.post(
+    "/ingresarDiaFestivos",
+    validator(schema.ingresarDiaFestivosSchema),
+    controllers.ingresarDiaFestivos
+  );
+  router.post(
+    "/borrarDiaFestivos",
+    validator(schema.borrarDiaFestivosSchema),
+    controllers.borrarDiaFestivos
+  );
   return router;
 }

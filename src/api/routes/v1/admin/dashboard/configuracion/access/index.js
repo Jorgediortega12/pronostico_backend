@@ -101,33 +101,6 @@ export const agregarDatosPronosticoxSesion = async (req, res) => {
   }
 };
 
-export const buscarDiaFestivo = async (req, res) => {
-  try {
-    //tomamos el parametro
-    const { fecha, ucp } = req.params;
-
-    if (!fecha || !ucp) {
-      return responseError(
-        200,
-        "Parametro fecha o ucp no proporcionado",
-        400,
-        res
-      );
-    }
-
-    const result = await service.buscarDiaFestivo(fecha, ucp);
-
-    if (!result.success) {
-      return responseError(200, result.message, 404, res);
-    }
-
-    return SuccessResponse(res, result.data, result.message);
-  } catch (err) {
-    Logger.error(err);
-    return InternalError(res);
-  }
-};
-
 export const buscarPotenciaDia = async (req, res) => {
   try {
     const { ucp, dia } = req.params;
@@ -528,6 +501,75 @@ export const editarUmbral = async (req, res) => {
     return res.status(200).json({ success: true, message: result.message });
   } catch (err) {
     Logger.error(colors.red("Error controller editarUmbral"), err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  }
+};
+
+export const cargarDiasFestivos = async (req, res) => {
+  try {
+    const anio = Number(req.query.anio);
+    const ucp = req.query.ucp;
+    const result = await service.cargarDiasFestivos(anio, ucp);
+    if (!result.success)
+      return res.status(500).json({ success: false, message: result.message });
+    return res
+      .status(200)
+      .json({ success: true, data: result.data, message: result.message });
+  } catch (err) {
+    Logger.error(colors.red("Error controller cargarDiasFestivos"), err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  }
+};
+
+export const buscarDiaFestivo = async (req, res) => {
+  try {
+    const { fecha, ucp } = req.body;
+    const result = await service.buscarDiaFestivo(fecha, ucp);
+    if (!result.success)
+      return res.status(500).json({ success: false, message: result.message });
+    return res
+      .status(200)
+      .json({ success: true, data: result.data, message: result.message });
+  } catch (err) {
+    Logger.error(colors.red("Error controller buscarDiaFestivo"), err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  }
+};
+
+export const ingresarDiaFestivos = async (req, res) => {
+  try {
+    const { ucp, fecha } = req.body;
+    const result = await service.ingresarDiaFestivos(ucp, fecha);
+    if (!result.success)
+      return res.status(500).json({ success: false, message: result.message });
+    return res
+      .status(200)
+      .json({ success: true, data: result.data, message: result.message });
+  } catch (err) {
+    Logger.error(colors.red("Error controller ingresarDiaFestivos"), err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  }
+};
+
+export const borrarDiaFestivos = async (req, res) => {
+  try {
+    const { codigo } = req.body;
+    const result = await service.borrarDiaFestivos(codigo);
+    if (!result.success)
+      return res.status(400).json({ success: false, message: result.message });
+    return res
+      .status(200)
+      .json({ success: true, data: result.data, message: result.message });
+  } catch (err) {
+    Logger.error(colors.red("Error controller borrarDiaFestivos"), err);
     return res
       .status(500)
       .json({ success: false, message: "Internal server error" });
