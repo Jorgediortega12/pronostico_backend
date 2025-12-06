@@ -655,8 +655,9 @@ export default class PronosticosService {
   async callPredict(inicioIso, finIso, force_retrain = false, ucp) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    // const port = 8001;
-    const port = 8000;
+    const port = 8001;
+    //puerto desarrollo
+    // const port = 8000;
 
     // Calcular número de días entre inicio y fin
     const n_days = daysBetweenISO(inicioIso, finIso) + 1; // +1 para incluir ambos días
