@@ -652,12 +652,18 @@ export default class PronosticosService {
    *
    * Devuelve: { success: boolean, data: any, raw: any, statusCode: number }
    */
-  async callPredict(inicioIso, finIso, force_retrain = false, ucp) {
+  async callPredict(
+    inicioIso,
+    finIso,
+    force_retrain = false,
+    ucp,
+    timeoutMs = 120000
+  ) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    const port = 8001;
+    // const port = 8001;
     //puerto desarrollo
-    // const port = 8000;
+    const port = 8000;
 
     // Calcular número de días entre inicio y fin
     const n_days = daysBetweenISO(inicioIso, finIso) + 1; // +1 para incluir ambos días
@@ -665,6 +671,13 @@ export default class PronosticosService {
     for (const host of hostsToTry) {
       try {
         const url = `http://${host}:${port}/predict`;
+        const controller = new AbortController();
+        const signal = controller.signal;
+
+        // timer para abortar
+        const timer = setTimeout(() => {
+          controller.abort();
+        }, timeoutMs);
 
         const res = await fetch(url, {
           method: "POST",
@@ -678,7 +691,10 @@ export default class PronosticosService {
             force_retrain,
             ucp,
           }),
+          signal,
         });
+
+        clearTimeout(timer);
 
         const statusCode = res.status;
         const json = await res.json().catch(() => null);
@@ -699,11 +715,23 @@ export default class PronosticosService {
         );
         return { success: true, statusCode, data: json };
       } catch (err) {
-        Logger.warn(
-          colors.yellow(
-            `callPredict: error conectando a ${host}:${port} — ${err.message}`
-          )
-        );
+        clearTimeout(timer);
+        // diferenciar abort por timeout
+        if (err && err.name === "AbortError") {
+          Logger.warn(
+            colors.yellow(
+              `callPredict: request abortada por timeout (${timeoutMs}ms) hacia ${host}:${port}`
+            )
+          );
+        } else {
+          Logger.warn(
+            colors.yellow(
+              `callPredict: error conectando a ${host}:${port} — ${
+                err && err.message ? err.message : err
+              }`
+            )
+          );
+        }
       }
     }
 
@@ -829,7 +857,8 @@ export default class PronosticosService {
           inicioIso,
           finIso,
           !!force_retrain,
-          mc
+          mc,
+          360000
         );
         // log sencillo (no vuelques raw)
         Logger.info(
@@ -870,7 +899,7 @@ export default class PronosticosService {
           message: "Error conectando con la API de predicción",
         };
       }
-
+      console.log("predRes:", JSON.stringify(predRes, null, 5));
       // 4) Validar que existan los pronósticos generados
       // const validarPron = await sesionModel.cargarPeriodosPronosticosxUCPxFecha(
       //   mc,
@@ -976,43 +1005,6 @@ export default class PronosticosService {
         }
       }
 
-      // // 7) PeriodosPronosticos (tabla + grafica)
-      // const datosPRows = await sesionModel.cargarPeriodosPronosticosxUCPxFecha(
-      //   mc,
-      //   inicioIso,
-      //   finIso
-      // );
-      // const PeriodosPronosticos = Array.isArray(datosPRows)
-      //   ? datosPRows.map((r) => ({
-      //       fecha: toISODateString(r.fecha),
-      //       p1: toNumberSafe(r.p1),
-      //       p2: toNumberSafe(r.p2),
-      //       p3: toNumberSafe(r.p3),
-      //       p4: toNumberSafe(r.p4),
-      //       p5: toNumberSafe(r.p5),
-      //       p6: toNumberSafe(r.p6),
-      //       p7: toNumberSafe(r.p7),
-      //       p8: toNumberSafe(r.p8),
-      //       p9: toNumberSafe(r.p9),
-      //       p10: toNumberSafe(r.p10),
-      //       p11: toNumberSafe(r.p11),
-      //       p12: toNumberSafe(r.p12),
-      //       p13: toNumberSafe(r.p13),
-      //       p14: toNumberSafe(r.p14),
-      //       p15: toNumberSafe(r.p15),
-      //       p16: toNumberSafe(r.p16),
-      //       p17: toNumberSafe(r.p17),
-      //       p18: toNumberSafe(r.p18),
-      //       p19: toNumberSafe(r.p19),
-      //       p20: toNumberSafe(r.p20),
-      //       p21: toNumberSafe(r.p21),
-      //       p22: toNumberSafe(r.p22),
-      //       p23: toNumberSafe(r.p23),
-      //       p24: toNumberSafe(r.p24),
-      //       observacion: r.observacion || "",
-      //     }))
-      //   : [];
-
       // 7) PeriodosPronosticos desde el resultado de callPredict
 
       let PeriodosPronosticos = [];
@@ -1062,6 +1054,19 @@ export default class PronosticosService {
       } else {
         PeriodosPronosticos = [];
       }
+
+      const predData = predRes && predRes.data ? predRes.data : {};
+      const metadata = predData.metadata ?? null;
+      const should_retrain_flag =
+        typeof predData.should_retrain !== "undefined"
+          ? predData.should_retrain
+          : null;
+      const reason = predData.reason ?? null;
+      const events = predData.events ?? null;
+      const rawPredictions = Array.isArray(predData.predictions)
+        ? predData.predictions
+        : null;
+
       // 8) Armar respuesta
       const payload = {
         success: true,
@@ -1069,6 +1074,13 @@ export default class PronosticosService {
         pronosticosTabla: PeriodosPronosticos,
         pronosticosGrafica: PeriodosPronosticos,
         historicosGrafica: PeriodosHistoricosGrafica,
+
+        // ---> propiedades adicionales extraídas de la respuesta de la API de predicción
+        metadata, // información como fecha_generacion, modelo_usado, dias_predichos, etc.
+        should_retrain: should_retrain_flag,
+        reason, // texto explicativo (por ejemplo "Dos días consecutivos...")
+        events, // mapa de eventos (si vino en la respuesta)
+        rawPredictions, // el array original predRes.data.predictions (sin transformar), útil para debugging o trazabilidad
       };
 
       return {
