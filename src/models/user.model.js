@@ -111,31 +111,6 @@ export default class UserModel {
         }, 'agregarUsuario');
     }
 
-    agregarUsuarioBool = async (usuario, pass, identificacion, pnombre, snombre, papellido, sapellido, telefono, celular, email, dane = '') => {
-        return this.executeQuery(async (client) => {
-            const consulta = `
-                INSERT INTO usu_usuario
-                (usuario, pass, identificacion, pnombre, snombre, papellido, sapellido, email, telefono, celular, estado, dane)
-                VALUES ($1, MD5($2), $3, $4, $5, $6, $7, $8, $9, $10, 'On', $11)
-            `;
-            const values = [
-                usuario,
-                pass,
-                identificacion,
-                pnombre.toUpperCase(),
-                snombre.toUpperCase(),
-                papellido.toUpperCase(),
-                sapellido.toUpperCase(),
-                email.toLowerCase(),
-                telefono,
-                celular,
-                dane === '' ? '0' : dane
-            ];
-            const result = await client.query(consulta, values);
-            return result;
-        }, 'agregarUsuarioBool');
-    }
-
     agregarUsuarioPG = async (usuario, pass, identificacion, pnombre, snombre, papellido, sapellido, telefono, celular, email, codperfil) => {
         return this.executeQuery(async (client) => {
             const consulta = `
@@ -264,7 +239,7 @@ export default class UserModel {
 
     agregarPerfiles = async (nombreperfil) => {
         return this.executeQuery(async (client) => {
-            const consulta = 'INSERT INTO usu_usuarioperfil (nombre) VALUES ($1)';
+            const consulta = 'INSERT INTO usu_usuarioperfil (nombre) VALUES ($1) RETURNING *';
             const result = await client.query(consulta, [nombreperfil]);
             return result;
         }, 'agregarPerfiles');
@@ -300,6 +275,18 @@ export default class UserModel {
             const result = await client.query(consulta, [cod]);
             return result;
         }, 'borrarFotoPerfil');
+    }
+
+    editarPerfil = async (cod, nombre) => {
+        return this.executeQuery(async (client) => {
+            const consulta = `
+                UPDATE usu_usuarioperfil
+                SET nombre = $2
+                WHERE cod = $1
+            `;
+            const result = await client.query(consulta, [cod, nombre]);
+            return result;
+        }, 'editarPerfil');
     }
 
     eliminarPerfil = async (cod) => {
