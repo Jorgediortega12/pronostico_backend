@@ -365,21 +365,6 @@ class UserQuery {
     }
   }
 
-  async editarPerfil(cod, nombre) {
-    try {
-      const consulta = `
-        UPDATE usu_usuarioperfil
-        SET nombre = $2
-        WHERE cod = $1
-      `;
-      await this.pool.query(consulta, [cod, nombre]);
-      return true;
-    } catch (error) {
-      console.error('Error en editarPerfil:', error);
-      return false;
-    }
-  }
-
   async eliminarPerfil(cod) {
     try {
       const consulta = 'DELETE FROM usu_usuarioperfil WHERE cod = $1';
