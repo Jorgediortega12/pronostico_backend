@@ -14,5 +14,11 @@ export default function () {
   );
   router.post("/borrarPronosticos", controllers.borrarPronosticos); // puedes añadir schema si quieres
   router.post("/play", validator(schema.play), controllers.play);
+  // POST /retrainModel?ucp=Atlantico
+  router.post(
+    "/retrainModel",
+    validator(schema.retrainModel),
+    controllers.retrainModel
+  );
   return router;
 }
