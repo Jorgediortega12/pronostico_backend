@@ -18,7 +18,7 @@ const registerSchema = Joi.object({
     password: Joi.string()
         .max(50)
         .required(),
-
+       
     email: Joi.string()
         .email()
         .required(),
@@ -62,64 +62,6 @@ const registerSchema = Joi.object({
         .optional()
 });
 
-const agregarPerfilSchema = Joi.object({
-    nombrePerfil: Joi.string().required()
-});
-
-const editarUsuarioSchema = Joi.object({
-    usuario: Joi.string()
-        .min(3)
-        .max(50)
-        .optional(),
-
-    identificacion: Joi.string()
-        .max(20)
-        .allow('')
-        .optional(),
-
-    pnombre: Joi.string()
-        .max(50)
-        .allow('')
-        .optional(),
-
-    snombre: Joi.string()
-        .max(50)
-        .allow('')
-        .optional(),
-
-    papellido: Joi.string()
-        .max(50)
-        .allow('')
-        .optional(),
-
-    sapellido: Joi.string()
-        .max(50)
-        .allow('')
-        .optional(),
-
-    email: Joi.string()
-        .email()
-        .optional(),
-
-    telefono: Joi.string()
-        .max(20)
-        .allow('')
-        .optional(),
-
-    celular: Joi.string()
-        .max(20)
-        .allow('')
-        .optional(),
-
-    estado: Joi.string()
-        .valid('On', 'Off')
-        .optional(),
-
-    codperfil: Joi.number()
-        .integer()
-        .optional()
-});
-
 // Middleware de validación
 const validate = (schema) => {
     return (req, res, next) => {
@@ -142,4 +84,4 @@ const validate = (schema) => {
     };
 };
 
-export { loginSchema, registerSchema, agregarPerfilSchema, editarUsuarioSchema, validate };
+export { loginSchema, registerSchema, validate };
