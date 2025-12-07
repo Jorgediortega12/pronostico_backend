@@ -661,9 +661,9 @@ export default class PronosticosService {
   ) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    // const port = 8001;
+    const port = 8001;
     //puerto desarrollo
-    const port = 8000;
+    // const port = 8000;
 
     // Calcular número de días entre inicio y fin
     const n_days = daysBetweenISO(inicioIso, finIso) + 1; // +1 para incluir ambos días
@@ -1105,9 +1105,9 @@ export default class PronosticosService {
   retrainModel = async (ucp, timeoutMs = 120000) => {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    // const port = 8001;
+    const port = 8001;
     //puerto desarrollo
-    const port = 8000;
+    // const port = 8000;
     for (const host of hostsToTry) {
       const url = `http://${host}:${port}/retrain?ucp=${encodeURIComponent(
         String(ucp)
