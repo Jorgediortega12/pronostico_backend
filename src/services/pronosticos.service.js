@@ -858,7 +858,7 @@ export default class PronosticosService {
           finIso,
           !!force_retrain,
           mc,
-          360000
+          600000
         );
         // log sencillo (no vuelques raw)
         Logger.info(
@@ -899,6 +899,8 @@ export default class PronosticosService {
           message: "Error conectando con la API de predicción",
         };
       }
+
+      console.log("predRes:", JSON.stringify(predRes, null, 5));
       // 4) Validar que existan los pronósticos generados
       // const validarPron = await sesionModel.cargarPeriodosPronosticosxUCPxFecha(
       //   mc,
@@ -1081,7 +1083,7 @@ export default class PronosticosService {
         events, // mapa de eventos (si vino en la respuesta)
         rawPredictions, // el array original predRes.data.predictions (sin transformar), útil para debugging o trazabilidad
       };
-
+      console.log("payload:", payload);
       return {
         success: true,
         data: payload,
