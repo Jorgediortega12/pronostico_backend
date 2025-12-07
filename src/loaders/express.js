@@ -5,6 +5,7 @@ import colors from "colors";
 import Logger from "../helpers/logger.js";
 import authRoutes from "../api/routes/v1/auth/index.js";
 import adminRoutes from "../api/routes/v1/admin/index.js";
+import menuRoutes from "../api/routes/v1/menu/index.js";
 
 export default async (app) => {
   // Middlewares
@@ -33,6 +34,7 @@ export default async (app) => {
   // API Routes v1
   app.use("/api/v1/auth", authRoutes);
   app.use("/api/v1/admin", adminRoutes());
+  app.use("/api/v1/menu", menuRoutes);
 
   // Error handling middleware
   app.use((err, req, res, next) => {
