@@ -899,7 +899,6 @@ export default class PronosticosService {
           message: "Error conectando con la API de predicción",
         };
       }
-      console.log("predRes:", JSON.stringify(predRes, null, 5));
       // 4) Validar que existan los pronósticos generados
       // const validarPron = await sesionModel.cargarPeriodosPronosticosxUCPxFecha(
       //   mc,
@@ -1097,5 +1096,91 @@ export default class PronosticosService {
       );
       return { success: false, data: null, message: "Error al ejecutar play" };
     }
+  };
+
+  /**
+   * Llama al endpoint /retrain?ucp=... probando hostsToTry uno a uno y con timeout.
+   * Retorna { success: boolean, statusCode?, data?, host? }
+   */
+  retrainModel = async (ucp, timeoutMs = 120000) => {
+    const hostsToTry = ["127.0.0.1", "localhost"];
+    //puerto produccion
+    // const port = 8001;
+    //puerto desarrollo
+    const port = 8000;
+    for (const host of hostsToTry) {
+      const url = `http://${host}:${port}/retrain?ucp=${encodeURIComponent(
+        String(ucp)
+      )}`;
+      const controller = new AbortController();
+      const signal = controller.signal;
+      let timer;
+      try {
+        timer = setTimeout(() => {
+          controller.abort();
+        }, timeoutMs);
+
+        Logger.info(
+          colors.green(`PredictService.retrainModel: llamando ${url}`)
+        );
+
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          // body vacío (el endpoint /retrain según tu ejemplo no requiere body)
+          signal,
+        });
+
+        clearTimeout(timer);
+
+        const statusCode = res.status;
+        const json = await res.json().catch(() => null);
+
+        if (!res.ok) {
+          Logger.warn(
+            colors.yellow(
+              `PredictService.retrainModel: HTTP ${statusCode} desde ${host}:${port}`
+            )
+          );
+          // devolvemos info para que el controller decida
+          return { success: false, statusCode, data: json, host };
+        }
+
+        Logger.info(
+          colors.green(
+            `PredictService.retrainModel: éxito desde ${host}:${port} para ucp=${ucp}`
+          )
+        );
+        return { success: true, statusCode, data: json, host };
+      } catch (err) {
+        if (timer) clearTimeout(timer);
+        if (err && err.name === "AbortError") {
+          Logger.warn(
+            colors.yellow(
+              `PredictService.retrainModel: request abortada por timeout (${timeoutMs}ms) hacia ${host}:${port}`
+            )
+          );
+        } else {
+          Logger.warn(
+            colors.yellow(
+              `PredictService.retrainModel: error conectando a ${host}:${port} — ${
+                err && err.message ? err.message : err
+              }`
+            )
+          );
+        }
+        // probar siguiente host
+      }
+    }
+
+    Logger.error(
+      colors.red(
+        `PredictService.retrainModel: Falló en todos los hosts para ucp=${ucp}`
+      )
+    );
+    return { success: false, statusCode: 0, data: null };
   };
 }

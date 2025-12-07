@@ -65,3 +65,46 @@ export const play = async (req, res) => {
     return InternalError(res);
   }
 };
+
+export const retrainModel = async (req, res) => {
+  try {
+    // aceptar ucp por query o body (compatibilidad)
+    const ucp = req.query.ucp ?? req.body?.ucp;
+    const timeoutMsQuery = req.query.timeoutMs;
+    const timeoutMsBody = req.body?.timeoutMs;
+    const timeoutMs = timeoutMsQuery
+      ? Number(timeoutMsQuery)
+      : typeof timeoutMsBody !== "undefined"
+      ? Number(timeoutMsBody)
+      : undefined;
+
+    if (!ucp) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Parámetro 'ucp' es requerido" });
+    }
+
+    const result = await service.retrainModel(ucp, timeoutMs);
+
+    if (!result.success) {
+      return res.status(502).json({
+        success: false,
+        message: "No fue posible reentrenar el modelo. Ver logs del servidor.",
+        meta: { statusCode: result.statusCode ?? 0, host: result.host ?? null },
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Reentrenamiento ejecutado para ${ucp}`,
+      data: result.data,
+      host: result.host,
+    });
+  } catch (err) {
+    Logger.error(colors.red("Error predictController.retrainModel: "), err);
+    return res.status(500).json({
+      success: false,
+      message: "Error interno al solicitar reentrenamiento",
+    });
+  }
+};
