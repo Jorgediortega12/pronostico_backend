@@ -1,4 +1,4 @@
-import { menuService } from '../../../../../services/menu.service.js';
+import { menuService } from '../../../../../../../services/menu.service.js';
 
 class MenuController {
 

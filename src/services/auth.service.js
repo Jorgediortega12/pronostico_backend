@@ -299,6 +299,148 @@ class AuthService {
       throw error;
     }
   }
+
+    async getAllUsers() {
+    try {
+      const result = await this.userModel.cargarUsuarios();
+
+      if (!result || result.rows.length === 0) {
+        return [];
+      }
+
+      // Remover contraseñas de todos los usuarios
+      const usersWithoutPassword = result.rows.map(user => {
+        const { pass, ...userWithoutPassword } = user;
+        return userWithoutPassword;
+      });
+
+      return usersWithoutPassword;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async getPerfiles() {
+    try {
+      const result = await this.userModel.cargarPerfiles();
+
+      if (!result || result.rows.length === 0) {
+        return [];
+      }
+
+      return result.rows;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async agregarPerfile(nombrePerfil) {
+    try {
+      const response = await this.userModel.agregarPerfiles(nombrePerfil);
+      if (!nombrePerfil) {
+        throw new Error('Error al insertar un nuevo perfil');
+      }
+
+      return response.rows[0];
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async editarUsuario(userId, userData) {
+    try {
+      const {
+        usuario,
+        identificacion,
+        pnombre,
+        snombre,
+        papellido,
+        sapellido,
+        email,
+        telefono,
+        celular,
+        estado,
+        codperfil
+      } = userData;
+
+      // Verificar que el usuario existe
+      const existingUserResult = await this.userModel.buscarUsuario(userId);
+      if (!existingUserResult || existingUserResult.rows.length === 0) {
+        throw new Error('Usuario no encontrado');
+      }
+
+      const currentUser = existingUserResult.rows[0];
+
+      // Verificar si el nuevo nombre de usuario ya existe (si se está cambiando)
+      if (usuario && usuario !== currentUser.usuario) {
+        const userByUsername = await this.userModel.buscarUsuarioxNickname(usuario);
+        if (userByUsername && userByUsername.rows.length > 0) {
+          throw new Error('El nombre de usuario ya está registrado');
+        }
+      }
+
+      // Verificar si la nueva identificación ya existe (si se está cambiando)
+      if (identificacion && identificacion !== currentUser.identificacion) {
+        const userByIdentificacion = await this.userModel.buscarUsuarioxIdentificacion(identificacion);
+        if (userByIdentificacion && userByIdentificacion.rows.length > 0) {
+          throw new Error('La identificación ya está registrada');
+        }
+      }
+
+      // Actualizar usuario
+      const result = await this.userModel.editarUsuario(
+        usuario || currentUser.usuario,
+        identificacion || currentUser.identificacion,
+        pnombre || currentUser.pnombre,
+        snombre || currentUser.snombre,
+        papellido || currentUser.papellido,
+        sapellido || currentUser.sapellido,
+        email || currentUser.email,
+        telefono || currentUser.telefono,
+        celular || currentUser.celular,
+        estado || currentUser.estado,
+        codperfil || currentUser.codperfil,
+        userId
+      );
+
+      if (!result || result.rowCount === 0) {
+        throw new Error('Error al actualizar el usuario');
+      }
+
+      // Obtener usuario actualizado
+      const updatedUserResult = await this.userModel.buscarUsuario(userId);
+      const updatedUser = updatedUserResult.rows[0];
+      const { pass, ...userWithoutPassword } = updatedUser;
+
+      return userWithoutPassword;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async eliminarUsuario(userId) {
+    try {
+      // Verificar que el usuario existe
+      const existingUserResult = await this.userModel.buscarUsuario(userId);
+      if (!existingUserResult || existingUserResult.rows.length === 0) {
+        throw new Error('Usuario no encontrado');
+      }
+
+      // Eliminar usuario
+      const result = await this.userModel.eliminarUsuario(userId);
+
+      if (!result || result.rowCount === 0) {
+        throw new Error('Error al eliminar el usuario');
+      }
+
+      return {
+        success: true,
+        message: 'Usuario eliminado exitosamente'
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
 }
 
 export default new AuthService();
