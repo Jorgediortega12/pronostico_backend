@@ -180,6 +180,48 @@ export default class MenuService {
       throw err;
     }
   };
+
+  crearModulo = async (nombre, nivel = null, orden = null, link, imagen = null) => {
+    try {
+      if (!nombre || !link) {
+        throw new Error('Los campos nombre y link son obligatorios')
+      }
+      const result = await model.crearModulo(nombre, nivel, orden, link, imagen);
+      if (!result || result.rowCount === 0) {
+        throw new Error('Error al crear el modulo requerido')
+      }
+
+      return {
+        success: true,
+        message: 'El modulo fue creado con exito'
+      }
+    } catch (err) {
+      Logger.error(colors.red('Error MenuService crearModulo'));
+      throw err;
+    }
+  }
+
+  eliminarModulo = async (cod) => {
+    try {
+      if (!cod) {
+        throw new Error('No se pudo eliminar el modulo correctamente')
+      }
+
+      const result = await model.eliminarModulo(cod);
+
+      if (!result || result.rowCount === 0) {
+        throw new Error('No se pudo eliminar el modulo requerido');
+      }
+
+      return {
+        success: true,
+        message: 'Modulo eliminado correctamente'
+      }
+    } catch (err) {
+      Logger.error(colors.red('Error menuServices EliminarModulo'));
+      throw err;
+    }
+  }
 }
 
 // Exportar instancia singleton

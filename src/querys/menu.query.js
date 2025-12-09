@@ -49,3 +49,16 @@ export const REMOVER_MODULO_DE_PERFIL = `
   DELETE FROM usu_usuarioacceso
   WHERE codperfil = $1 AND codmenu = $2
 `;
+
+//insertar o crear un modulo
+export const CREAR_MODULO = `
+  INSERT INTO usu_menu (nombre, nivel, orden, codsuperior, link, imagen)
+  VALUES ($1, COALESCE($2, 1), COALESCE($3, 1), NULL, $4, $5)
+  RETURNING *
+`;
+
+//eliminar modulo 
+export const ELIMINARMODULO = `
+  DELETE FROM usu_menu
+  WHERE cod = $1
+`

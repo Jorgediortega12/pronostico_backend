@@ -10,8 +10,16 @@ const asignarModuloSchema = Joi.object({
 });
 
 const editarPerfilSchema = Joi.object({
-  nombre: Joi.string().required() 
+  nombre: Joi.string().required()
 });
+
+const crearModulo = Joi.object({
+  nombre: Joi.string().required(),
+  nivel: Joi.number().optional(),
+  orden: Joi.number().optional(),
+  link: Joi.string().required(),
+  imagen: Joi.string().optional()
+})
 
 // Middleware de validación
 const validate = (schema) => {
@@ -38,5 +46,6 @@ const validate = (schema) => {
 export {
   asignarModuloSchema,
   editarPerfilSchema,
+  crearModulo,
   validate
 };

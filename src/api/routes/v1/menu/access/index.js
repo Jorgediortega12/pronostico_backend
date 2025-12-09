@@ -184,6 +184,56 @@ class MenuController {
       });
     }
   }
+
+  async crearModulo(req, res) {
+    try {
+      const { nombre, nivel, orden, link, imagen } = req.body;
+      const result = await menuService.crearModulo(nombre, nivel, orden, link, imagen);
+
+      return res.status(200).json({
+        success: result.success,
+        message: result.message
+      });
+    } catch (error) {
+      if (error.message === 'Modulo no creado') {
+        return res.status(404).json({
+          success: false,
+          message: error.message
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        message: 'Error al crear el modulo requerido',
+        error: error.message
+      })
+    }
+  }
+
+  async eliminarModulo(req, res) {
+    try {
+      const { cod } = req.params;
+      const result = await menuService.eliminarModulo(cod);
+
+      return res.status(200).json({
+        success: result.success,
+        message: result.message
+      })
+    } catch (error) {
+      if (error.message === 'El modulo no fue eliminado correctamente') {
+        return res.status(404).json({
+          success: false,
+          message: error.message
+        })
+      }
+
+      return res.status(500).json({
+        success: false,
+        message: 'Error al eliminar el modulo requerido',
+        error: error.message
+      })
+    }
+  }
 }
 
 export default new MenuController();

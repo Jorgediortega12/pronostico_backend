@@ -4,6 +4,7 @@ import menuController from "./access/index.js";
 import {
   asignarModuloSchema,
   editarPerfilSchema,
+  crearModulo,
   validate
 } from "./access/schema.js";
 
@@ -25,5 +26,9 @@ router.get("/perfil/:codperfil", menuController.obtenerModulosPorPerfil);
 router.post("/asignar", validate(asignarModuloSchema), menuController.asignarModuloAPerfil);
 // Remover módulo de un perfil
 router.post("/remover", validate(asignarModuloSchema), menuController.removerModuloDePerfil);
+// Crear módulo
+router.post("/modulos", validate(crearModulo), menuController.crearModulo);
+//eliminar modulo
+router.delete("/modulos/:cod", menuController.eliminarModulo);
 
 export default router;
