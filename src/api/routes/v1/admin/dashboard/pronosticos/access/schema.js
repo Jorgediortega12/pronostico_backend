@@ -85,4 +85,9 @@ export default {
     ucp: Joi.string().trim().required(),
     timeoutMs: Joi.number().integer().min(1000).optional().default(120000),
   }),
+  getEvents: Joi.object().keys({
+    ucp: Joi.string().required(),
+    fecha_inicio: Joi.string().required(),
+    fecha_fin: Joi.string().required(),
+  }),
 };

@@ -657,7 +657,7 @@ export default class PronosticosService {
     finIso,
     force_retrain = false,
     ucp,
-    timeoutMs = 120000
+    timeoutMs = 600000
   ) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
@@ -1063,7 +1063,6 @@ export default class PronosticosService {
           ? predData.should_retrain
           : null;
       const reason = predData.reason ?? null;
-      const events = predData.events ?? null;
       const rawPredictions = Array.isArray(predData.predictions)
         ? predData.predictions
         : null;
@@ -1080,7 +1079,6 @@ export default class PronosticosService {
         metadata, // información como fecha_generacion, modelo_usado, dias_predichos, etc.
         should_retrain: should_retrain_flag,
         reason, // texto explicativo (por ejemplo "Dos días consecutivos...")
-        events, // mapa de eventos (si vino en la respuesta)
         rawPredictions, // el array original predRes.data.predictions (sin transformar), útil para debugging o trazabilidad
       };
       console.log("payload:", payload);
@@ -1104,7 +1102,7 @@ export default class PronosticosService {
    * Llama al endpoint /retrain?ucp=... probando hostsToTry uno a uno y con timeout.
    * Retorna { success: boolean, statusCode?, data?, host? }
    */
-  retrainModel = async (ucp, timeoutMs = 120000) => {
+  retrainModel = async (ucp, timeoutMs = 600000) => {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
     const port = 8001;
@@ -1185,4 +1183,98 @@ export default class PronosticosService {
     );
     return { success: false, statusCode: 0, data: null };
   };
+
+  // Método para obtener eventos
+  async getEvents(inicioIso, finIso, ucp, timeoutMs = 600000) {
+    const hostsToTry = ["127.0.0.1", "localhost"];
+    //puerto produccion
+    const port = 8001;
+    //puerto desarrollo
+    // const port = 8000;
+
+    for (const host of hostsToTry) {
+      let timer; // <-- declarar fuera del try para que catch/finally lo vean
+      try {
+        const url = `http://${host}:${port}/get_events`;
+        const controller = new AbortController();
+        const signal = controller.signal;
+
+        // timer para abortar
+        timer = setTimeout(() => {
+          controller.abort();
+        }, timeoutMs);
+
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ucp,
+            fecha_inicio: inicioIso,
+            fecha_fin: finIso,
+          }),
+          signal,
+        });
+
+        // Si llegó hasta aquí, cancelar timer
+        clearTimeout(timer);
+        timer = undefined;
+
+        const statusCode = res.status;
+        const json = await res.json().catch(() => null);
+
+        if (!res.ok) {
+          Logger.warn(
+            colors.yellow(`getEvents: HTTP ${statusCode} desde ${host}:${port}`)
+          );
+          return { success: false, statusCode, data: json };
+        }
+
+        Logger.info(
+          colors.green(
+            `getEvents: Eventos obtenidos exitosamente desde ${host}:${port} para ${inicioIso} a ${finIso}`
+          )
+        );
+        return { success: true, statusCode, data: json };
+      } catch (err) {
+        // Asegurarnos de limpiar el timer si existe
+        if (typeof timer !== "undefined") {
+          clearTimeout(timer);
+          timer = undefined;
+        }
+
+        if (err && err.name === "AbortError") {
+          Logger.warn(
+            colors.yellow(
+              `getEvents: request abortada por timeout (${timeoutMs}ms) hacia ${host}:${port}`
+            )
+          );
+        } else {
+          Logger.warn(
+            colors.yellow(
+              `getEvents: error conectando a ${host}:${port} — ${
+                err && err.message ? err.message : err
+              }`
+            )
+          );
+        }
+        // continuar al siguiente host
+      } finally {
+        // por seguridad, limpiar timer si quedó
+        if (typeof timer !== "undefined") {
+          clearTimeout(timer);
+          timer = undefined;
+        }
+      }
+    }
+
+    Logger.error(
+      colors.red(
+        `getEvents: Falló en todos los hosts para ${inicioIso} a ${finIso}`
+      )
+    );
+    return { success: false, statusCode: 0, data: null };
+  }
 }
