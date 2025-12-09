@@ -108,3 +108,35 @@ export const retrainModel = async (req, res) => {
     });
   }
 };
+
+export const getEvents = async (req, res) => {
+  const { ucp, fecha_inicio, fecha_fin } = req.body;
+
+  try {
+    const result = await service.getEvents(
+      fecha_inicio,
+      fecha_fin,
+      ucp,
+      600000
+    );
+
+    if (!result.success) {
+      return responseError(
+        200,
+        result.data?.message || "Error al obtener eventos",
+        404,
+        res
+      );
+    }
+
+    // Validar estructura de respuesta
+    if (!result.data || !result.data.events) {
+      return responseError(200, "La API no devolvió eventos válidos", 500, res);
+    }
+
+    return SuccessResponse(res, result.data, "Eventos obtenidos correctamente");
+  } catch (err) {
+    Logger.error("Error en getEvents controller:", err);
+    return InternalError(res);
+  }
+};

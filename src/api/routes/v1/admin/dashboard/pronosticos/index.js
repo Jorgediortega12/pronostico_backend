@@ -20,5 +20,10 @@ export default function () {
     validator(schema.retrainModel),
     controllers.retrainModel
   );
+  router.post(
+    "/get-events",
+    validator(schema.getEvents),
+    controllers.getEvents
+  );
   return router;
 }
