@@ -181,17 +181,18 @@ class AuthService {
     }
   }
 
-  async changePassword(userId, oldPassword, newPassword) {
+  async changePassword(email, newPassword) {
     try {
       // Verificar la contraseña actual
-      const verifyResult = await this.userModel.verificarUsuario2(userId, oldPassword);
+      const verifyResult = await this.userModel.verificarUsuario2(email);
+      console.log(verifyResult);
 
-      if (!verifyResult || verifyResult.rows.length === 0) {
-        throw new Error('Contraseña actual incorrecta');
+      if (!verifyResult || verifyResult.length === 0) {
+        throw new Error('No se pudo cambiar la contraseña');
       }
 
       // Actualizar la contraseña
-      const updateResult = await this.userModel.editarPass(userId, newPassword);
+      const updateResult = await this.userModel.editarPass(verifyResult, newPassword);
 
       if (!updateResult || updateResult.rowCount === 0) {
         throw new Error('Error al actualizar la contraseña');

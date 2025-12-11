@@ -376,13 +376,13 @@ class UserQuery {
     }
   }
 
-  async verificarUsuario2(codusuario, pass) {
+  async verificarUsuario2(email) {
     try {
       const consulta = `
         SELECT * FROM usu_usuario
-        WHERE cod = $1 AND pass = MD5($2)
+        WHERE email = $1 RETURNING cod; 
       `;
-      const result = await this.pool.query(consulta, [codusuario, pass]);
+      const result = await this.pool.query(consulta, [email]);
       return result.rows.length > 0 ? result.rows[0] : null;
     } catch (error) {
       console.error('Error en verificarUsuario2:', error);
