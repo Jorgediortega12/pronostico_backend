@@ -1,5 +1,6 @@
 import ConfiguracionService from "../../../../../../../services/configuracion.service.js";
 import Logger from "../../../../../../../helpers/logger.js";
+import colors from "colors";
 import {
   SuccessResponse,
   InternalError,
@@ -573,5 +574,264 @@ export const borrarDiaFestivos = async (req, res) => {
     return res
       .status(500)
       .json({ success: false, message: "Internal server error" });
+  }
+};
+
+export const buscarUltimaFechaHistorica = async (req, res) => {
+  try {
+    const { ucp } = req.params;
+    const result = await service.buscarUltimaFechaHistorica(ucp);
+    if (!result.success)
+      return res.status(500).json({ success: false, message: result.message });
+    return res
+      .status(200)
+      .json({ success: true, data: result.data, message: result.message });
+  } catch (err) {
+    Logger.error(
+      colors.red("Error controller buscarUltimaFechaHistorica"),
+      err
+    );
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  }
+};
+
+export const buscarUltimaFechaClimaLog = async (req, res) => {
+  try {
+    const result = await service.buscarUltimaFechaClimaLog();
+    if (!result.success)
+      return res.status(500).json({ success: false, message: result.message });
+    return res
+      .status(200)
+      .json({ success: true, data: result.data, message: result.message });
+  } catch (err) {
+    Logger.error(colors.red("Error controller buscarUltimaFechaClimaLog"), err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  }
+};
+
+export const buscarKey = async (req, res) => {
+  try {
+    const result = await service.buscarKey();
+    if (!result.success)
+      return res.status(500).json({ success: false, message: result.message });
+    return res
+      .status(200)
+      .json({ success: true, data: result.data, message: result.message });
+  } catch (err) {
+    Logger.error(colors.red("Error controller buscarKey"), err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  }
+};
+export const buscarUltimaFechaClima = async (req, res) => {
+  try {
+    const result = await service.buscarUltimaFechaClima();
+    if (!result.success)
+      return res.status(500).json({ success: false, message: result.message });
+    return res
+      .status(200)
+      .json({ success: true, data: result.data, message: result.message });
+  } catch (err) {
+    Logger.error(colors.red("Error controller buscarUltimaFechaClima"), err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  }
+};
+
+export const buscarFactor = async (req, res) => {
+  try {
+    const { codigo } = req.query;
+    const result = await service.buscarFactor(codigo);
+    if (!result.success)
+      return res.status(500).json({ success: false, message: result.message });
+    return res
+      .status(200)
+      .json({ success: true, data: result.data, message: result.message });
+  } catch (err) {
+    Logger.error(colors.red("Error controller buscarFactor"), err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  }
+};
+export const cargarCodigoRMPxUCP = async (req, res) => {
+  try {
+    const { codpadre } = req.query;
+    const result = await service.cargarCodigoRMPxUCP(codpadre);
+    if (!result.success)
+      return res.status(500).json({ success: false, message: result.message });
+    return res
+      .status(200)
+      .json({ success: true, data: result.data, message: result.message });
+  } catch (err) {
+    Logger.error(colors.red("Error controller cargarCodigoRMPxUCP"), err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  }
+};
+
+export const cargarTipoArchivos = async (req, res) => {
+  try {
+    const { estado, aux2 } = req.query;
+    const result = await service.cargarTipoArchivos(estado, aux2);
+    if (!result.success)
+      return res.status(500).json({ success: false, message: result.message });
+    return res
+      .status(200)
+      .json({ success: true, data: result.data, message: result.message });
+  } catch (err) {
+    Logger.error(colors.red("Error controller cargarTipoArchivos"), err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  }
+};
+
+export const cargarUCPxAux2 = async (req, res) => {
+  try {
+    const { aux2 } = req.query;
+    const result = await service.cargarUCPxAux2(aux2);
+    if (!result.success)
+      return res.status(500).json({ success: false, message: result.message });
+    return res
+      .status(200)
+      .json({ success: true, data: result.data, message: result.message });
+  } catch (err) {
+    Logger.error(colors.red("Error controller cargarUCPxAux2"), err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  }
+};
+
+export const buscarUCPActualizacionDatos = async (req, res) => {
+  try {
+    const { ucp, fecha } = req.params;
+    const result = await service.buscarUCPActualizacionDatos(ucp, fecha);
+    if (!result.success)
+      return res.status(500).json({ success: false, message: result.message });
+    return res
+      .status(200)
+      .json({ success: true, data: result.data, message: result.message });
+  } catch (err) {
+    Logger.error(
+      colors.red("Error controller buscarUCPActualizacionDatos"),
+      err
+    );
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  }
+};
+
+export const agregarUCPActualizacionDatos = async (req, res) => {
+  try {
+    const result = await service.agregarUCPActualizacionDatos();
+    if (!result.success) {
+      return responseError(200, result.message, 404, res);
+    }
+
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const actualizarUCPActualizacionDatos = async (req, res) => {
+  try {
+    const result = await service.actualizarUCPActualizacionDatos();
+    if (!result.success) {
+      return responseError(200, result.message, 404, res);
+    }
+
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const buscarClimaPeriodos = async (req, res) => {
+  const { ucp, fecha } = req.params;
+  try {
+    const result = await service.buscarClimaPeriodos(ucp, fecha);
+    if (!result.success) {
+      return responseError(200, result.message, 404, res);
+    }
+
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const agregarClimaPronosticoLog = async (req, res) => {
+  const { fecha, ucp } = req.params;
+  try {
+    const result = await service.agregarClimaPronosticoLog(fecha, ucp);
+    if (!result.success) return responseError(200, result.message, 400, res);
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const agregarClimaPeriodo = async (req, res) => {
+  const { fecha, ucp, indice, clima } = req.params;
+  const { valor } = req.body; // valor lo enviamos en body por ser potencialmente largo
+  try {
+    const result = await service.agregarClimaPeriodo(
+      fecha,
+      ucp,
+      indice,
+      clima,
+      valor
+    );
+    if (!result.success) return responseError(200, result.message, 400, res);
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const actualizarClimaPeriodos = async (req, res) => {
+  const { fecha, ucp, indice, clima } = req.params;
+  const { valor } = req.body;
+  try {
+    const result = await service.actualizarClimaPeriodos(
+      fecha,
+      ucp,
+      indice,
+      clima,
+      valor
+    );
+    if (!result.success) return responseError(200, result.message, 404, res);
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const buscarTipicidad = async (req, res) => {
+  const { ucp, fecha } = req.params;
+  try {
+    const result = await service.buscarTipicidad(ucp, fecha);
+    if (!result.success) return responseError(200, result.message, 404, res);
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
   }
 };

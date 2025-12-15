@@ -659,4 +659,336 @@ export default class ConfiguracionService {
       };
     }
   };
+
+  buscarUltimaFechaHistorica = async (ucp) => {
+    try {
+      const row = await model.buscarUltimaFechaHistorica(ucp);
+      return { success: true, data: row, message: "Búsqueda completada." };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ActualizacionService buscarUltimaFechaHistorica"),
+        error
+      );
+      return {
+        success: false,
+        data: null,
+        message: `Error al buscar la ultima fecha historica del ucp ${ucp}.`,
+      };
+    }
+  };
+
+  buscarUltimaFechaClimaLog = async () => {
+    try {
+      const row = await model.buscarUltimaFechaClimaLog();
+      return { success: true, data: row, message: "Búsqueda completada." };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ActualizacionService buscarUltimaFechaClimaLog"),
+        error
+      );
+      return {
+        success: false,
+        data: null,
+        message: `Error al buscar el ultimo log fecha clima.`,
+      };
+    }
+  };
+
+  buscarKey = async () => {
+    try {
+      const row = await model.buscarKey();
+      return { success: true, data: row, message: "Búsqueda completada." };
+    } catch (error) {
+      Logger.error(colors.red("Error ActualizacionService buscarKey"), error);
+      return {
+        success: false,
+        data: null,
+        message: `Error al buscar la Key del clima.`,
+      };
+    }
+  };
+
+  buscarUltimaFechaClima = async () => {
+    try {
+      const row = await model.buscarUltimaFechaClima();
+      return { success: true, data: row, message: "Búsqueda completada." };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ActualizacionService buscarUltimaFechaClima"),
+        error
+      );
+      return {
+        success: false,
+        data: null,
+        message: `Error al buscar la ultima fecha clima.`,
+      };
+    }
+  };
+
+  buscarFactor = async (codigo) => {
+    try {
+      const row = await model.buscarFactor(codigo);
+      return { success: true, data: row, message: "Búsqueda completada." };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ActualizacionService buscarFactor"),
+        error
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al buscar el factor.",
+      };
+    }
+  };
+  cargarCodigoRMPxUCP = async (codpadre) => {
+    try {
+      const row = await model.cargarCodigoRMPxUCP(codpadre);
+      return { success: true, data: row, message: "Búsqueda completada." };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ActualizacionService cargarCodigoRMPxUCP"),
+        error
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al buscar el codigo RPM.",
+      };
+    }
+  };
+  cargarTipoArchivos = async (estado, aux2) => {
+    try {
+      const rows = await model.cargarTipoArchivos(estado, aux2);
+      return { success: true, data: rows, message: "Búsqueda completada." };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ActualizacionService cargarTipoArchivos"),
+        error
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al buscar tipos de Archivos.",
+      };
+    }
+  };
+
+  cargarUCPxAux2 = async (aux2) => {
+    try {
+      const rows = await model.cargarUCPxAux2(aux2);
+      return { success: true, data: rows, message: "Búsqueda completada." };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ActualizacionService cargarUCPxAux2"),
+        error
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al buscar tipos de UCP x Aux2.",
+      };
+    }
+  };
+
+  buscarUCPActualizacionDatos = async (ucp, fecha) => {
+    try {
+      const rows = await model.buscarUCPActualizacionDatos(ucp, fecha);
+      return { success: true, data: rows, message: "Búsqueda completada." };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ActualizacionService buscarUCPActualizacionDatos"),
+        error
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al buscar UCP Actualizacion datos.",
+      };
+    }
+  };
+
+  agregarUCPActualizacionDatos = async (datos) => {
+    try {
+      const result = await model.agregarUCPActualizacionDatos(datos);
+      if (!result) {
+        return {
+          success: false,
+          data: null,
+          message: "No se pudieron agregar datos de actualizacion",
+        };
+      }
+
+      return {
+        success: true,
+        data: result,
+        message: "datos de actualizacion agregados exitosamente",
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error configuracionServices agregarUCPActualizacionDatos")
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al agregar datos de actualizacion",
+      };
+    }
+  };
+
+  actualizarUCPActualizacionDatos = async (datos) => {
+    try {
+      const result = await model.actualizarUCPActualizacionDatos(datos);
+      if (!result) {
+        return {
+          success: false,
+          data: null,
+          message: "No se pudo actualizar los datos",
+        };
+      }
+
+      return {
+        success: true,
+        data: result,
+        message: "datos actualizados exitosamente",
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red(
+          "Error configuracionServices actualizarUCPActualizacionDatos"
+        )
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al actualizar los datos",
+      };
+    }
+  };
+  buscarClimaPeriodos = async (ucp, fecha) => {
+    try {
+      const rows = await model.buscarClimaPeriodos(ucp, fecha);
+      return { success: true, data: rows, message: "Búsqueda completada." };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ActualizacionService buscarClimaPeriodos"),
+        error
+      );
+      return {
+        success: false,
+        data: null,
+        message: `Error al buscar climas periodos.`,
+      };
+    }
+  };
+
+  agregarClimaPronosticoLog = async (fecha, ucp) => {
+    try {
+      const row = await model.agregarClimaPronosticoLog(fecha, ucp);
+      if (!row)
+        return {
+          success: false,
+          data: null,
+          message: "No se insertó el registro.",
+        };
+      return {
+        success: true,
+        data: row,
+        message: "Registro agregado correctamente.",
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ActualizacionService agregarClimaPronosticoLog"),
+        error
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al agregar registro de log.",
+      };
+    }
+  };
+
+  agregarClimaPeriodo = async (fecha, ucp, indice, clima, valor) => {
+    try {
+      const row = await model.agregarClimaPeriodo(
+        fecha,
+        ucp,
+        indice,
+        clima,
+        valor
+      );
+      if (!row)
+        return {
+          success: false,
+          data: null,
+          message: "No se insertó el periodo.",
+        };
+      return {
+        success: true,
+        data: row,
+        message: "Periodo agregado correctamente.",
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ActualizacionService agregarClimaPeriodo"),
+        error
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al agregar periodo.",
+      };
+    }
+  };
+
+  actualizarClimaPeriodos = async (fecha, ucp, indice, clima, valor) => {
+    try {
+      const row = await model.actualizarClimaPeriodos(
+        fecha,
+        ucp,
+        indice,
+        clima,
+        valor
+      );
+      if (!row)
+        return {
+          success: false,
+          data: null,
+          message: "No se actualizó el periodo.",
+        };
+      return {
+        success: true,
+        data: row,
+        message: "Periodo actualizado correctamente.",
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ActualizacionService actualizarClimaPeriodos"),
+        error
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al actualizar periodo.",
+      };
+    }
+  };
+
+  buscarTipicidad = async (ucp, fecha) => {
+    try {
+      const row = await model.buscarTipicidad(ucp, fecha);
+      return { success: true, data: row, message: "Búsqueda completada." };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ActualizacionService buscarTipicidad"),
+        error
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al buscar tipicidad.",
+      };
+    }
+  };
 }

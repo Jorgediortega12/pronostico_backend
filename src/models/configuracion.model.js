@@ -138,7 +138,6 @@ export default class ConfiguracionModel {
 
   agregarDatosPronosticoxSesion = async (datos) => {
     const client = this.createClient();
-    console.log("datos en model agregarDatosPronosticoxSesion:", datos);
     try {
       await client.connect();
       const valores = [
@@ -633,6 +632,364 @@ export default class ConfiguracionModel {
       return res.rows[0] || null;
     } catch (error) {
       Logger.error(colors.red("Error FestivosModel borrarDiaFestivos"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  }
+
+  async buscarUltimaFechaHistorica(ucp) {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const res = await client.query(querys.buscarUltimaFechaHistorica, [ucp]);
+      return res.rows.length > 0 ? res.rows[0] : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ActualizacionModel buscarUltimaFechaHistorica"),
+        error
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  }
+
+  async buscarUltimaFechaClimaLog() {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const res = await client.query(querys.buscarUltimaFechaClimaLog);
+      return res.rows.length > 0 ? res.rows[0] : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ActualizacionModel buscarUltimaFechaClimaLog"),
+        error
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  }
+
+  async buscarUltimaFechaClima() {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const res = await client.query(querys.buscarUltimaFechaClima);
+      return res.rows.length > 0 ? res.rows[0] : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ActualizacionModel buscarUltimaFechaClima"),
+        error
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  }
+
+  async buscarKey() {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const res = await client.query(querys.buscarKey);
+      return res.rows.length > 0 ? res.rows[0].aux : null;
+    } catch (error) {
+      Logger.error(colors.red("Error ActualizacionModel buscarKey"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  }
+
+  async buscarFactor(codigo) {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const res = await client.query(querys.buscarFactor, [codigo]);
+      return res.rows.length > 0 ? res.rows[0] : null;
+    } catch (error) {
+      Logger.error(colors.red("Error ActualizacionModel buscarFactor"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  }
+
+  async cargarCodigoRMPxUCP(codpadre) {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const res = await client.query(querys.cargarCodigoRMPxUCP, [codpadre]);
+      return res.rows.length > 0 ? res.rows : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ActualizacionModel cargarCodigoRMPxUCP"),
+        error
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  }
+
+  async cargarTipoArchivos(estado, aux2) {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const res = await client.query(querys.cargarTipoArchivos, [estado, aux2]);
+      return res.rows.length > 0 ? res.rows : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ActualizacionModel cargarTipoArchivos"),
+        error
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  }
+
+  async cargarUCPxAux2(aux2) {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const res = await client.query(querys.cargarUCPxAux2, [aux2]);
+      return res.rows.length > 0 ? res.rows : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ActualizacionModel cargarUCPxAux2"),
+        error
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  }
+
+  async buscarUCPActualizacionDatos(ucp, fecha) {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const res = await client.query(querys.buscarUCPActualizacionDatos, [
+        ucp,
+        fecha,
+      ]);
+      return res.rows.length > 0 ? res.rows : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ActualizacionModel buscarUCPActualizacionDatos"),
+        error
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  }
+
+  agregarUCPActualizacionDatos = async (datos) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const valores = [
+        datos.ucp,
+        datos.fecha,
+        datos.observacion,
+        datos.p1,
+        datos.p2,
+        datos.p3,
+        datos.p4,
+        datos.p5,
+        datos.p6,
+        datos.p7,
+        datos.p8,
+        datos.p9,
+        datos.p10,
+        datos.p11,
+        datos.p12,
+        datos.p13,
+        datos.p14,
+        datos.p15,
+        datos.p16,
+        datos.p17,
+        datos.p18,
+        datos.p19,
+        datos.p20,
+        datos.p21,
+        datos.p22,
+        datos.p23,
+        datos.p24,
+        datos.estado,
+        datos.festivo,
+      ];
+      const result = await client.query(
+        querys.agregarUCPActualizacionDatos,
+        valores
+      );
+      return result.rows.length > 0 ? result.rows[0] : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error configuracionModel agregarUCPActualizacionDatos"),
+        error
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  actualizarUCPActualizacionDatos = async (datos) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const valores = [
+        datos.p1,
+        datos.p2,
+        datos.p3,
+        datos.p4,
+        datos.p5,
+        datos.p6,
+        datos.p7,
+        datos.p8,
+        datos.p9,
+        datos.p10,
+        datos.p11,
+        datos.p12,
+        datos.p13,
+        datos.p14,
+        datos.p15,
+        datos.p16,
+        datos.p17,
+        datos.p18,
+        datos.p19,
+        datos.p20,
+        datos.p21,
+        datos.p22,
+        datos.p23,
+        datos.p24,
+        datos.estado,
+        datos.observacion,
+        datos.ucp,
+        datos.fecha,
+      ];
+      const result = await client.query(
+        querys.actualizarUCPActualizacionDatos,
+        valores
+      );
+      return result.rows.length > 0 ? result.rows[0] : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error configuracionModel actualizarUCPActualizacionDatos"),
+        error
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  async buscarClimaPeriodos(ucp, fecha) {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const res = await client.query(querys.buscarClimaPeriodos, [ucp, fecha]);
+      return res.rows.length > 0 ? res.rows : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ActualizacionModel buscarClimaPeriodos"),
+        error
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  }
+
+  async agregarClimaPronosticoLog(fecha, ucp) {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const res = await client.query(querys.agregarClimaPronosticoLog, [
+        fecha,
+        ucp,
+      ]);
+      // Si quieres sólo true/false podrías devolver res.rowCount > 0
+      return res.rows.length > 0 ? res.rows[0] : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ActualizacionModel agregarClimaPronosticoLog"),
+        error
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  }
+
+  async agregarClimaPeriodo(fecha, ucp, indice, clima, valor) {
+    const client = this.createClient();
+    try {
+      await client.connect();
+
+      // VALIDAR antes de construir la columna:
+      // - indice es integer y está en rango permitido (ej: 1..10)
+      // - clima pertenece a lista blanca (ej: ['temp','precip','viento',...])
+      // Si no validas, corres riesgo de SQL injection.
+      const column = `p${parseInt(indice, 10)}_${clima}`;
+
+      const sql = `INSERT INTO datos_clima (fecha, ucp, ${column})
+                 VALUES ($1, $2, $3)
+                 RETURNING *;`;
+
+      const res = await client.query(sql, [fecha, ucp, valor]);
+      return res.rows.length > 0 ? res.rows[0] : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ActualizacionModel agregarClimaPeriodo"),
+        error
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  }
+
+  async actualizarClimaPeriodos(fecha, ucp, indice, clima, valor) {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const column = `p${parseInt(indice, 10)}_${clima}`;
+
+      const sql = `UPDATE datos_clima
+                 SET ${column} = $1
+                 WHERE fecha = $2 AND ucp = $3
+                 RETURNING *;`;
+
+      const res = await client.query(sql, [valor, fecha, ucp]);
+      return res.rows.length > 0 ? res.rows[0] : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ActualizacionModel actualizarClimaPeriodos"),
+        error
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  }
+
+  async buscarTipicidad(ucp, fecha) {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const res = await client.query(querys.buscarTipicidad, [ucp, fecha]);
+      return res.rows.length > 0 ? res.rows[0] : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ActualizacionModel buscarTipicidad"),
+        error
+      );
       throw error;
     } finally {
       await client.end();
