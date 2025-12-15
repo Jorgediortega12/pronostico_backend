@@ -149,5 +149,81 @@ export default function () {
     validator(schema.borrarDiaFestivosSchema),
     controllers.borrarDiaFestivos
   );
+  router.get(
+    "/buscarUltimaFechaHistorica/:ucp",
+    validator(schema.buscarUltimaFechaHistorica),
+    controllers.buscarUltimaFechaHistorica
+  );
+  router.get(
+    "/buscarUltimaFechaClimaLog",
+    controllers.buscarUltimaFechaClimaLog
+  );
+  router.get("/buscarUltimaFechaClima", controllers.buscarUltimaFechaClima);
+  router.get("/buscarKey", controllers.buscarKey);
+  router.get(
+    "/buscarFactor",
+    validator(schema.buscarFactor),
+    controllers.buscarFactor
+  );
+  router.get(
+    "/cargarCodigoRMPxUCP",
+    validator(schema.cargarCodigoRMPxUCP),
+    controllers.cargarCodigoRMPxUCP
+  );
+  router.get(
+    "/cargarTipoArchivos",
+    validator(schema.cargarTipoArchivos),
+    controllers.cargarTipoArchivos
+  );
+  router.get(
+    "/cargarUCPxAux2/",
+    validator(schema.cargarUCPxAux2),
+    controllers.cargarUCPxAux2
+  );
+  router.get(
+    "/buscarUCPActualizacionDatos/:ucp/:fecha",
+    validator(schema.buscarUCPActualizacionDatos),
+    controllers.buscarUCPActualizacionDatos
+  );
+  router.post(
+    "/agregarUCPActualizacionDatos",
+    validator(schema.agregarUCPActualizacionDatos),
+    controllers.agregarUCPActualizacionDatos
+  );
+  router.put(
+    "/actualizarUCPActualizacionDatos",
+    validator(schema.actualizarUCPActualizacionDatos),
+    controllers.actualizarUCPActualizacionDatos
+  );
+  router.get(
+    "/buscarClimaPeriodos/:ucp/:fecha",
+    validator(schema.buscarClimaPeriodos),
+    controllers.buscarClimaPeriodos
+  );
+
+  router.post(
+    "/agregarClimaPronosticoLog/:fecha/:ucp",
+    validator(schema.agregarClimaPronosticoLog),
+    controllers.agregarClimaPronosticoLog
+  );
+
+  router.post(
+    "/agregarClimaPeriodo/:fecha/:ucp/:indice/:clima",
+    validator(schema.agregarClimaPeriodo),
+    controllers.agregarClimaPeriodo
+  );
+
+  router.put(
+    "/actualizarClimaPeriodos/:fecha/:ucp/:indice/:clima",
+    validator(schema.actualizarClimaPeriodos),
+    controllers.actualizarClimaPeriodos
+  );
+
+  router.get(
+    "/buscarTipicidad/:ucp/:fecha",
+    validator(schema.buscarTipicidad),
+    controllers.buscarTipicidad
+  );
+
   return router;
 }
