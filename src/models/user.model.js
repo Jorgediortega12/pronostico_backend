@@ -297,14 +297,15 @@ export default class UserModel {
         }, 'eliminarPerfil');
     }
 
-    verificarUsuario2 = async (codusuario, pass) => {
+    verificarUsuario2 = async (email) => {
         return this.executeQuery(async (client) => {
             const consulta = `
-                SELECT * FROM usu_usuario
-                WHERE cod = $1 AND pass = MD5($2)
+                SELECT cod FROM usu_usuario
+                WHERE email = $1; 
             `;
-            const result = await client.query(consulta, [codusuario, pass]);
-            return result;
+            const result = await client.query(consulta, [email]);
+            console.log(result)
+            return result.rows.length > 0 ? result.rows[0].cod : null;
         }, 'verificarUsuario2');
     }
 

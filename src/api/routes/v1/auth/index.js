@@ -9,12 +9,12 @@ const router = express.Router();
 router.post("/login", validate(loginSchema), authController.login);
 router.post("/register", validate(registerSchema), authController.register);
 router.post("/refresh-token", authController.refreshToken);
+router.put("/change-password", authController.changePassword);
 
 // Rutas protegidas (requieren autenticación)
 router.get("/profile", authMiddleware, authController.getProfile);
 router.get("/verify", authMiddleware, authController.verifyToken);
 router.put("/profile", authMiddleware, authController.updateProfile);
-router.put("/change-password", authMiddleware, authController.changePassword);
 router.get("/users", authMiddleware, authController.getAllUsers);
 router.post("/perfil", authMiddleware, validate(agregarPerfilSchema), authController.agregarPerfile);
 router.get("/perfiles", authMiddleware, authController.getPerfiles);
