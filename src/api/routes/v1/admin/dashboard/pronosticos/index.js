@@ -25,5 +25,11 @@ export default function () {
     validator(schema.getEvents),
     controllers.getEvents
   );
+  router.post(
+    "/error-feedback",
+    validator(schema.errorFeedback),
+    controllers.errorFeedback
+  );
+
   return router;
 }

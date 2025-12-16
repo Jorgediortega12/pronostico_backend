@@ -90,4 +90,9 @@ export default {
     fecha_inicio: Joi.string().required(),
     fecha_fin: Joi.string().required(),
   }),
+  errorFeedback: Joi.object().keys({
+    ucp: Joi.string().required(),
+    end_date: Joi.string().required(),
+    force_retrain: Joi.boolean().required(),
+  }),
 };
