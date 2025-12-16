@@ -140,3 +140,29 @@ export const getEvents = async (req, res) => {
     return InternalError(res);
   }
 };
+
+export const errorFeedback = async (req, res) => {
+  const { ucp, end_date, force_retrain } = req.body;
+
+  try {
+    const result = await service.errorFeedback(end_date, force_retrain, ucp);
+
+    if (!result.success) {
+      return responseError(
+        200,
+        "No fue posible obtener el feedback de error",
+        404,
+        res
+      );
+    }
+
+    return SuccessResponse(
+      res,
+      result.data, // { reason }
+      "Feedback obtenido correctamente"
+    );
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};

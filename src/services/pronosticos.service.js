@@ -1062,7 +1062,6 @@ export default class PronosticosService {
         typeof predData.should_retrain !== "undefined"
           ? predData.should_retrain
           : null;
-      const reason = predData.reason ?? null;
       const rawPredictions = Array.isArray(predData.predictions)
         ? predData.predictions
         : null;
@@ -1078,7 +1077,6 @@ export default class PronosticosService {
         // ---> propiedades adicionales extraídas de la respuesta de la API de predicción
         metadata, // información como fecha_generacion, modelo_usado, dias_predichos, etc.
         should_retrain: should_retrain_flag,
-        reason, // texto explicativo (por ejemplo "Dos días consecutivos...")
         rawPredictions, // el array original predRes.data.predictions (sin transformar), útil para debugging o trazabilidad
       };
       console.log("payload:", payload);
@@ -1275,6 +1273,87 @@ export default class PronosticosService {
         `getEvents: Falló en todos los hosts para ${inicioIso} a ${finIso}`
       )
     );
+    return { success: false, statusCode: 0, data: null };
+  }
+
+  async errorFeedback(
+    end_date,
+    force_retrain = false,
+    ucp,
+    timeoutMs = 600000
+  ) {
+    const hostsToTry = ["127.0.0.1", "localhost"];
+    //puerto produccion
+    const port = 8001;
+    //puerto desarrollo
+    // const port = 8000;
+
+    for (const host of hostsToTry) {
+      let timer;
+      try {
+        const url = `http://${host}:${port}/Error-feedback`;
+        const controller = new AbortController();
+        const signal = controller.signal;
+
+        timer = setTimeout(() => {
+          controller.abort();
+        }, timeoutMs);
+
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ucp,
+            end_date,
+            force_retrain,
+          }),
+          signal,
+        });
+
+        clearTimeout(timer);
+
+        const statusCode = res.status;
+        const json = await res.json().catch(() => null);
+
+        if (!res.ok) {
+          Logger.warn(
+            colors.yellow(
+              `errorFeedback: HTTP ${statusCode} desde ${host}:${port}`
+            )
+          );
+          return { success: false, statusCode, data: json };
+        }
+
+        return {
+          success: true,
+          statusCode,
+          data: json, // { reason: "..." }
+        };
+      } catch (err) {
+        clearTimeout(timer);
+        if (err?.name === "AbortError") {
+          Logger.warn(
+            colors.yellow(
+              `errorFeedback: timeout (${timeoutMs}ms) hacia ${host}:${port}`
+            )
+          );
+        } else {
+          Logger.warn(
+            colors.yellow(
+              `errorFeedback: error conectando a ${host}:${port} — ${
+                err?.message || err
+              }`
+            )
+          );
+        }
+      }
+    }
+
+    Logger.error(colors.red(`errorFeedback: Falló en todos los hosts`));
+
     return { success: false, statusCode: 0, data: null };
   }
 }
