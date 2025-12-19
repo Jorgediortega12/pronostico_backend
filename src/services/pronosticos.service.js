@@ -410,8 +410,7 @@ export default class PronosticosService {
       const mm = reportMoment.format("MM");
       const yyyy = reportMoment.format("YYYY");
 
-      // const fileBaseName = `MC${ucp}AGTE${dd}${mm}`;
-      const fileBaseName = `${ucp}AGTE${dd}${mm}`;
+      const fileBaseName = `MC${ucp}AGTE${dd}${mm}`;
 
       // 3) Obtener/crear carpeta en BD y carpeta física
       const reportDirPhysicalRoot =

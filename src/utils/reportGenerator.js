@@ -382,7 +382,7 @@ export async function generateXlsxToFolder({
 
   // crear workbook
   const wb = new ExcelJS.Workbook();
-  const ws = wb.addWorksheet("Pronostico");
+  const ws = wb.addWorksheet("VECTORIAL");
 
   // header row
   ws.addRow([
@@ -394,8 +394,17 @@ export async function generateXlsxToFolder({
   ]);
   const headerRow = ws.getRow(1);
   headerRow.eachCell((cell) => {
-    cell.font = { bold: true };
-    cell.alignment = { vertical: "middle", horizontal: "center" };
+    cell.alignment = { vertical: "middle" };
+
+    cell.font = {
+      color: { argb: "FFFFFFFF" }, // letras blancas
+    };
+
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF7A7A7A" }, // fondo #7A7A7A
+    };
   });
 
   // === PROENCNDHMC (para cada fecha válida en listDateMoment)
