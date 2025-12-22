@@ -166,3 +166,23 @@ export const errorFeedback = async (req, res) => {
     return InternalError(res);
   }
 };
+
+export const traerDatosClimaticos = async (req, res) => {
+  try {
+    const { ucp, fechainicio, fechafin } = req.params;
+
+    const result = await service.traerDatosClimaticos(
+      ucp,
+      fechainicio,
+      fechafin
+    );
+
+    if (!result.success) {
+      return responseError(200, result.message, 400, res);
+    }
+
+    return SuccessResponse(res, result.data, result.message);
+  } catch (error) {
+    return InternalError(res);
+  }
+};
