@@ -248,3 +248,30 @@ export const buscarTipicidad = `
   WHERE ucp = $1 AND fecha = $2
   LIMIT 1;
 `;
+
+// 🔹 Traer datos climáticos por rango
+export const cargarVariablesClimaticasxFechaPeriodos = `
+  SELECT *
+  FROM datos_clima
+  WHERE ucp = $1
+    AND fecha BETWEEN $2 AND $3
+  ORDER BY fecha ASC;
+`;
+
+// 🔹 Buscar icono (MISMA lógica que .NET)
+export const buscarIcono = `
+  SELECT icon_dia, icon_noche
+  FROM datos_climaicons
+  WHERE id = $1
+    AND dia = $2
+    AND noche = $3
+  LIMIT 1;
+`;
+
+// 🔹 Fallback EXACTO (.NET)
+export const buscarIcono2 = `
+  SELECT icon_dia, icon_noche
+  FROM datos_climaicons
+  WHERE id = $1
+  LIMIT 1;
+`;

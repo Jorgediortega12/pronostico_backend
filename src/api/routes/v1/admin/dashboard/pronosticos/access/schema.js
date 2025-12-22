@@ -95,4 +95,9 @@ export default {
     end_date: Joi.string().required(),
     force_retrain: Joi.boolean().required(),
   }),
+  traerDatosClimaticos: Joi.object({
+    ucp: Joi.string().required(),
+    fechainicio: Joi.string().required(),
+    fechafin: Joi.string().required(),
+  }),
 };

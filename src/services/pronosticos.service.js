@@ -660,9 +660,9 @@ export default class PronosticosService {
   ) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    const port = 8001;
+    // const port = 8001;
     //puerto desarrollo
-    // const port = 8000;
+    const port = 8000;
 
     // Calcular número de días entre inicio y fin
     const n_days = daysBetweenISO(inicioIso, finIso) + 1; // +1 para incluir ambos días
@@ -1102,9 +1102,9 @@ export default class PronosticosService {
   retrainModel = async (ucp, timeoutMs = 600000) => {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    const port = 8001;
+    // const port = 8001;
     //puerto desarrollo
-    // const port = 8000;
+    const port = 8000;
     for (const host of hostsToTry) {
       const url = `http://${host}:${port}/retrain?ucp=${encodeURIComponent(
         String(ucp)
@@ -1185,9 +1185,9 @@ export default class PronosticosService {
   async getEvents(inicioIso, finIso, ucp, timeoutMs = 600000) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    const port = 8001;
+    // const port = 8001;
     //puerto desarrollo
-    // const port = 8000;
+    const port = 8000;
 
     for (const host of hostsToTry) {
       let timer; // <-- declarar fuera del try para que catch/finally lo vean
@@ -1283,9 +1283,9 @@ export default class PronosticosService {
   ) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    const port = 8001;
+    // const port = 8001;
     //puerto desarrollo
-    // const port = 8000;
+    const port = 8000;
 
     for (const host of hostsToTry) {
       let timer;
@@ -1355,4 +1355,75 @@ export default class PronosticosService {
 
     return { success: false, statusCode: 0, data: null };
   }
+
+  traerDatosClimaticos = async (ucp, fechainicio, fechafin) => {
+    try {
+      const rows =
+        await configuracionModel.cargarVariablesClimaticasxFechaPeriodos(
+          ucp,
+          fechainicio,
+          fechafin
+        );
+
+      const resultado = [];
+
+      for (const row of rows) {
+        const periodos = [];
+
+        for (let i = 1; i <= 24; i++) {
+          const iconId = row[`p${i}_i`];
+          const esDia = i >= 7 && i <= 18;
+          let icono = null;
+
+          if (iconId && iconId !== "0") {
+            // 🔹 intento exacto como .NET
+            const iconRow = await configuracionModel.buscarIcono(
+              iconId,
+              esDia ? "si" : "no",
+              esDia ? "no" : "si"
+            );
+
+            if (iconRow) {
+              // 🔥 REGLA REAL DE TU DB
+              icono = iconRow.icon_dia ?? iconRow.icon_noche ?? null;
+            }
+
+            // 🔁 fallback (.NET buscarIcono2)
+            if (!icono) {
+              const fallback = await configuracionModel.buscarIcono2(iconId);
+              if (fallback) {
+                icono = fallback.icon_dia ?? fallback.icon_noche ?? null;
+              }
+            }
+          }
+
+          periodos.push({
+            periodo: i,
+            temperatura: Number(row[`p${i}_t`] ?? 0),
+            humedad: Number(row[`p${i}_h`] ?? 0),
+            viento: Number(row[`p${i}_v`] ?? 0),
+            icono,
+          });
+        }
+
+        resultado.push({
+          fecha: row.fecha,
+          periodos,
+        });
+      }
+
+      return {
+        success: true,
+        data: resultado,
+        message: "Datos climáticos obtenidos correctamente",
+      };
+    } catch (error) {
+      Logger.error(colors.red("Error traerDatosClimaticos"), error);
+      return {
+        success: false,
+        data: null,
+        message: "Error al obtener datos climáticos",
+      };
+    }
+  };
 }

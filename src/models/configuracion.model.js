@@ -995,4 +995,40 @@ export default class ConfiguracionModel {
       await client.end();
     }
   }
+
+  async cargarVariablesClimaticasxFechaPeriodos(ucp, fechainicio, fechafin) {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const res = await client.query(
+        querys.cargarVariablesClimaticasxFechaPeriodos,
+        [ucp, fechainicio, fechafin]
+      );
+      return res.rows.length ? res.rows : [];
+    } finally {
+      await client.end();
+    }
+  }
+
+  async buscarIcono(id, dia, noche) {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const res = await client.query(querys.buscarIcono, [id, dia, noche]);
+      return res.rows[0] || null;
+    } finally {
+      await client.end();
+    }
+  }
+
+  async buscarIcono2(id) {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const res = await client.query(querys.buscarIcono2, [id]);
+      return res.rows[0] || null;
+    } finally {
+      await client.end();
+    }
+  }
 }

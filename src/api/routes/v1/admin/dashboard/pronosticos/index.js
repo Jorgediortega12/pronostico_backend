@@ -30,6 +30,10 @@ export default function () {
     validator(schema.errorFeedback),
     controllers.errorFeedback
   );
-
+  router.get(
+    "/traerDatosClimaticos/:ucp/:fechainicio/:fechafin",
+    validator(schema.traerDatosClimaticos),
+    controllers.traerDatosClimaticos
+  );
   return router;
 }
