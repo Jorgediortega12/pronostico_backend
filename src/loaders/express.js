@@ -1,10 +1,17 @@
 import express from "express";
 import cors from "cors";
 import morgan from "morgan";
+import path from "path";
 import colors from "colors";
 import Logger from "../helpers/logger.js";
 import authRoutes from "../api/routes/v1/auth/index.js";
 import adminRoutes from "../api/routes/v1/admin/index.js";
+
+import { fileURLToPath } from "url";
+
+// Obtener __dirname en ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export default async (app) => {
   // Middlewares
@@ -12,6 +19,12 @@ export default async (app) => {
   app.use(morgan("dev"));
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
+
+  // SERVIR IMAGENES - DEBE IR ANTES DE LAS RUTAS
+  // Subir dos niveles desde src/loaders/ hasta la raíz
+  const imagenesPath = path.join(__dirname, "../../Imagenes");
+  app.use("/Imagenes", express.static(imagenesPath));
+  Logger.info(colors.cyan(`📁 Sirviendo imágenes desde: ${imagenesPath}`));
 
   // Health check
   app.get("/", (req, res) => {
