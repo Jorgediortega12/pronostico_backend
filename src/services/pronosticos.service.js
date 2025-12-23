@@ -806,23 +806,23 @@ export default class PronosticosService {
       }
 
       // 2) Validar que la fecha final esté dentro de la fecha del clima
-      // const vFechainicialClimaRows = await sesionModel.verificarFechaClima(mc);
-      // if (!vFechainicialClimaRows || vFechainicialClimaRows.length === 0) {
-      //   return {
-      //     success: false,
-      //     data: null,
-      //     message:
-      //       "No existe fecha registrada para el clima en este mercado comercializador",
-      //   };
-      // }
-      // const fechaClimaIso = toISODateString(vFechainicialClimaRows[0].fecha);
-      // if (new Date(finIso) > new Date(fechaClimaIso)) {
-      //   return {
-      //     success: false,
-      //     data: null,
-      //     message: "La fecha final es mayor a la fecha del clima",
-      //   };
-      // }
+      const vFechainicialClimaRows = await sesionModel.verificarFechaClima(mc);
+      if (!vFechainicialClimaRows || vFechainicialClimaRows.length === 0) {
+        return {
+          success: false,
+          data: null,
+          message:
+            "No existe fecha registrada para el clima en este mercado comercializador",
+        };
+      }
+      const fechaClimaIso = toISODateString(vFechainicialClimaRows[0].fecha);
+      if (new Date(finIso) > new Date(fechaClimaIso)) {
+        return {
+          success: false,
+          data: null,
+          message: "La fecha final es mayor a la fecha del clima",
+        };
+      }
 
       // 3) Inicializar proceso:borrar datos, etc.
 
