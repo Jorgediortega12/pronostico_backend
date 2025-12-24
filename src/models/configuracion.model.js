@@ -790,6 +790,7 @@ export default class ConfiguracionModel {
 
   agregarUCPActualizacionDatos = async (datos) => {
     const client = this.createClient();
+    console.log("datos:", datos)
     try {
       await client.connect();
       const valores = [

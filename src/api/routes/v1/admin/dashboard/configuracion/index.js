@@ -176,7 +176,7 @@ export default function () {
     controllers.cargarTipoArchivos
   );
   router.get(
-    "/cargarUCPxAux2/",
+    "/cargarUCPxAux2",
     validator(schema.cargarUCPxAux2),
     controllers.cargarUCPxAux2
   );

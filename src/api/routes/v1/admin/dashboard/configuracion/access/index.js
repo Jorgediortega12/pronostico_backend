@@ -733,7 +733,7 @@ export const buscarUCPActualizacionDatos = async (req, res) => {
 
 export const agregarUCPActualizacionDatos = async (req, res) => {
   try {
-    const result = await service.agregarUCPActualizacionDatos();
+    const result = await service.agregarUCPActualizacionDatos(req.body);
     if (!result.success) {
       return responseError(200, result.message, 404, res);
     }
