@@ -678,6 +678,7 @@ export default class PronosticosService {
           controller.abort();
         }, timeoutMs);
 
+        const endDateForApi = addDaysISO(inicioIso, -1);
         const res = await fetch(url, {
           method: "POST",
           headers: {
@@ -685,7 +686,7 @@ export default class PronosticosService {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            end_date: inicioIso, // La fecha de inicio es el end_date
+            end_date: endDateForApi, // La fecha de inicio es el end_date
             n_days: n_days, // Días calculados entre inicio y fin
             force_retrain,
             ucp,
