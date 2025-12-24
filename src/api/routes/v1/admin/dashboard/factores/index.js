@@ -3,6 +3,8 @@ import validator from "../../../../../middleware/validator.js";
 import schema from "./access/schema.js";
 import * as controllers from "./access/index.js";
 
+import { uploadExcel } from "../../../../../../middleware/uploadExcel.js";
+
 const router = Router();
 
 export default function () {
@@ -54,6 +56,30 @@ export default function () {
     "/eliminarAgrupacion/:id",
     validator(schema.eliminarAgrupacion),
     controllers.eliminarAgrupacion
+  );
+
+  router.post(
+    "/eliminarMedidasRapido",
+    validator(schema.eliminarRapido),
+    controllers.eliminarMedidasRapido
+  );
+
+  router.post(
+    "/actualizarMedidasRapido",
+    validator(schema.actualizarRapido),
+    controllers.actualizarMedidasRapido
+  );
+
+  router.post(
+    "/insertarMedidasRapido",
+    validator(schema.insertarRapido),
+    controllers.insertarMedidasRapido
+  );
+
+  router.post(
+    "/cargarDesdeExcel",
+    uploadExcel.single("archivo"),
+    controllers.cargarMedidasDesdeExcel
   );
 
   return router;

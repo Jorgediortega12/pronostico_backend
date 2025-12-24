@@ -56,3 +56,36 @@ UPDATE agrupaciones
 SET estado = 0
 WHERE id = $1
 `;
+
+// DELETE
+export const eliminarMedida = `
+DELETE FROM medidas
+WHERE flujo = $1
+  AND fecha = $2
+  AND codigo_rpm = $3
+`;
+
+// UPDATE
+export const actualizarMedida = `
+UPDATE medidas SET
+  p1=$4,  p2=$5,  p3=$6,  p4=$7,  p5=$8,  p6=$9,
+  p7=$10, p8=$11, p9=$12, p10=$13, p11=$14, p12=$15,
+  p13=$16, p14=$17, p15=$18, p16=$19, p17=$20, p18=$21,
+  p19=$22, p20=$23, p21=$24, p22=$25, p23=$26, p24=$27
+WHERE flujo=$1 AND fecha=$2 AND codigo_rpm=$3
+`;
+
+// INSERT
+export const insertarMedida = `
+INSERT INTO medidas (
+  flujo, fecha, codigo_rpm,
+  p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,
+  p13,p14,p15,p16,p17,p18,p19,p20,p21,p22,p23,p24,
+  marcado
+) VALUES (
+  $1,$2,$3,
+  $4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,
+  $16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,
+  0
+)
+`;

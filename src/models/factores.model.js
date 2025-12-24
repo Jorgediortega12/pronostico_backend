@@ -175,4 +175,136 @@ export default class FactoresModel {
       await client.end();
     }
   };
+
+  eliminarMedidasRapido = async (medidas) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      await client.query("BEGIN");
+
+      for (const m of medidas) {
+        await client.query(querys.eliminarMedida, [
+          m.flujo,
+          m.fecha,
+          m.codigo_rpm,
+        ]);
+      }
+
+      await client.query("COMMIT");
+      return true;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      Logger.error(
+        colors.red("Error MedidasModel eliminarMedidasRapido"),
+        error
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  actualizarMedidasRapido = async (medidas) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      await client.query("BEGIN");
+
+      for (const m of medidas) {
+        await client.query(querys.actualizarMedida, [
+          m.flujo,
+          m.fecha,
+          m.codigo_rpm,
+          m.p1,
+          m.p2,
+          m.p3,
+          m.p4,
+          m.p5,
+          m.p6,
+          m.p7,
+          m.p8,
+          m.p9,
+          m.p10,
+          m.p11,
+          m.p12,
+          m.p13,
+          m.p14,
+          m.p15,
+          m.p16,
+          m.p17,
+          m.p18,
+          m.p19,
+          m.p20,
+          m.p21,
+          m.p22,
+          m.p23,
+          m.p24,
+        ]);
+      }
+
+      await client.query("COMMIT");
+      return true;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      Logger.error(
+        colors.red("Error MedidasModel actualizarMedidasRapido"),
+        error
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  insertarMedidasRapido = async (medidas) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      await client.query("BEGIN");
+
+      for (const m of medidas) {
+        await client.query(querys.insertarMedida, [
+          m.flujo,
+          m.fecha,
+          m.codigo_rpm,
+          m.p1,
+          m.p2,
+          m.p3,
+          m.p4,
+          m.p5,
+          m.p6,
+          m.p7,
+          m.p8,
+          m.p9,
+          m.p10,
+          m.p11,
+          m.p12,
+          m.p13,
+          m.p14,
+          m.p15,
+          m.p16,
+          m.p17,
+          m.p18,
+          m.p19,
+          m.p20,
+          m.p21,
+          m.p22,
+          m.p23,
+          m.p24,
+        ]);
+      }
+
+      await client.query("COMMIT");
+      return true;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      Logger.error(
+        colors.red("Error MedidasModel insertarMedidasRapido"),
+        error
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
 }
