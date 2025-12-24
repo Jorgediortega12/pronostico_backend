@@ -314,11 +314,10 @@ export async function generateXlsxToFolder({
     return ma.valueOf() - mb.valueOf();
   });
 
-  // primeros 7 (igual que TXT)
+  // ultimos 7
   const daysToUse = 7;
-  const first7 = ordered.slice(0, daysToUse);
-  // Si quieres mantener tamaño constante, podrías rellenar con nulls; para Excel usamos solo los válidos
-  const listDateMoment = first7
+  const last7 = ordered.slice(-daysToUse); // ← Cambia aquí: slice(-7) toma los últimos 7
+  const listDateMoment = last7
     .map((r) => (r ? parseMoment(r.fecha) : null))
     .filter((m) => m && m.isValid());
 
