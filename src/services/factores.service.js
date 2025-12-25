@@ -172,4 +172,31 @@ export default class FactoresService {
       };
     }
   };
+
+  eliminarRapido = async (data) => {
+    try {
+      await model.eliminarMedidasRapido(data);
+      return { success: true, message: "Medidas eliminadas correctamente" };
+    } catch {
+      return { success: false, message: "Error al eliminar medidas" };
+    }
+  };
+
+  actualizarRapido = async (data) => {
+    try {
+      await model.actualizarMedidasRapido(data);
+      return { success: true, message: "Medidas actualizadas correctamente" };
+    } catch {
+      return { success: false, message: "Error al actualizar medidas" };
+    }
+  };
+
+  insertarRapido = async (data) => {
+    try {
+      await model.insertarMedidasRapido(data);
+      return { success: true, message: "Medidas insertadas correctamente" };
+    } catch {
+      return { success: false, message: "Error al insertar medidas" };
+    }
+  };
 }

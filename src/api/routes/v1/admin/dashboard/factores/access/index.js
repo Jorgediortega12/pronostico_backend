@@ -5,6 +5,7 @@ import {
   InternalError,
   responseError,
 } from "../../../../../../../helpers/api.response.js";
+import xlsx from "xlsx";
 
 const service = FactoresService.getInstance();
 
@@ -163,6 +164,78 @@ export const eliminarAgrupacion = async (req, res) => {
 
     return SuccessResponse(res, null, result.message);
   } catch (err) {
+    return InternalError(res);
+  }
+};
+
+export const eliminarMedidasRapido = async (req, res) => {
+  const result = await service.eliminarRapido(req.body.medidas);
+  if (!result.success) return responseError(200, result.message, 500, res);
+  return SuccessResponse(res, null, result.message);
+};
+
+export const actualizarMedidasRapido = async (req, res) => {
+  const result = await service.actualizarRapido(req.body.medidas);
+  if (!result.success) return responseError(200, result.message, 500, res);
+  return SuccessResponse(res, null, result.message);
+};
+
+export const insertarMedidasRapido = async (req, res) => {
+  const result = await service.insertarRapido(req.body.medidas);
+  if (!result.success) return responseError(200, result.message, 500, res);
+  return SuccessResponse(res, null, result.message);
+};
+
+export const cargarMedidasDesdeExcel = async (req, res) => {
+  try {
+    const { ucp } = req.body;
+
+    if (!ucp) {
+      return responseError(200, "UCP no proporcionado", 400, res);
+    }
+
+    if (!req.file) {
+      return responseError(200, "Archivo no proporcionado", 400, res);
+    }
+
+    const filePath = req.file.path;
+
+    const workbook = xlsx.readFile(filePath);
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = xlsx.utils.sheet_to_json(sheet, { header: 1 });
+
+    const medidas = [];
+
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || row.length < 27) continue;
+
+      const [mes, dia, año] = row[1].split("/");
+      const fecha = `${año}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`;
+
+      const medida = {
+        flujo: row[0],
+        fecha,
+        codigo_rpm: row[2],
+      };
+
+      for (let p = 1; p <= 24; p++) {
+        const val = row[p + 2];
+        medida[`p${p}`] =
+          val !== undefined && val !== ""
+            ? Number(String(val).replace(",", "."))
+            : null;
+      }
+
+      medidas.push(medida);
+    }
+
+    await service.eliminarRapido(medidas);
+    await service.insertarRapido(medidas);
+
+    return SuccessResponse(res, null, "Datos cargados correctamente");
+  } catch (error) {
+    console.error(error);
     return InternalError(res);
   }
 };
