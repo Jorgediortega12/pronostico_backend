@@ -71,7 +71,7 @@ export default {
   }),
 
   actualizarAgrupacion: Joi.object({
-    id: Joi.number().required(),
+    id: Joi.number().optional(),
     barra_id: Joi.number().required(),
     codigo_rpm: Joi.string().required(),
     flujo: Joi.string().required(),

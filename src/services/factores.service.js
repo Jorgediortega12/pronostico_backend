@@ -1,6 +1,8 @@
 import FactoresModel from "../models/factores.model.js";
 import Logger from "../helpers/logger.js";
 import colors from "colors";
+import path from "path";
+import fs from "fs";
 
 const model = FactoresModel.getInstance();
 
@@ -198,5 +200,28 @@ export default class FactoresService {
     } catch {
       return { success: false, message: "Error al insertar medidas" };
     }
+  };
+
+  descargarPlantillaMedidas = async () => {
+    const filePath = path.join(
+      process.cwd(),
+      "Plantillas",
+      "CargarMedidasPrimeGridt.xlsx"
+    );
+
+    if (!fs.existsSync(filePath)) {
+      return {
+        success: false,
+        filePath: null,
+        message: "La plantilla no existe en el servidor",
+      };
+    }
+
+    return {
+      success: true,
+      filePath,
+      filename: "CargarMedidasPrimeGridt.xlsx",
+      message: "Plantilla obtenida correctamente",
+    };
   };
 }

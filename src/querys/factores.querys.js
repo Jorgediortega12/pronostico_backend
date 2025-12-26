@@ -2,7 +2,7 @@ export const guardarBarra = `
 INSERT INTO barras
 (barra, descripcion, nivel_tension, observaciones, habilitar, estado, mc)
 VALUES ($1, $2, $3, $4, $5, 1, $6)
-RETURNING id
+RETURNING *
 `;
 
 export const consultarBarrasIndex_xMC = `SELECT id, barra, descripcion, nivel_tension, observaciones, habilitar, estado, mc FROM barras WHERE mc = $1 AND estado = 1 ORDER BY id`;
@@ -22,7 +22,7 @@ export const guardarAgrupacion = `
 INSERT INTO agrupaciones
 (barra_id, codigo_rpm, flujo, habilitar, revision, estado, factor)
 VALUES ($1, $2, $3, $4, $5, 1, $6)
-RETURNING id
+RETURNING *
 `;
 
 export const consultarAgrupacionesIndex_xBarraId = `SELECT id, barra_id, codigo_rpm, flujo, habilitar, revision, estado, factor FROM agrupaciones WHERE barra_id = $1 AND estado = 1 ORDER BY id`;

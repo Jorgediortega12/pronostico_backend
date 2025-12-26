@@ -82,5 +82,11 @@ export default function () {
     controllers.cargarMedidasDesdeExcel
   );
 
+  // Descargar plantilla Excel
+  router.get(
+    "/descargarPlantillaMedidas",
+    controllers.descargarPlantillaMedidas
+  );
+
   return router;
 }

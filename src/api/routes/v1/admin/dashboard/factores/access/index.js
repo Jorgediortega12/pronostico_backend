@@ -68,7 +68,7 @@ export const actualizarBarra = async (req, res) => {
 
 export const guardarAgrupacion = async (req, res) => {
   try {
-    const result = await service.insertarAgrupacion(req.body);
+    const result = await service.guardarAgrupacion(req.body);
 
     if (!result.success) {
       return responseError(200, result.message, 500, res);
@@ -237,5 +237,23 @@ export const cargarMedidasDesdeExcel = async (req, res) => {
   } catch (error) {
     console.error(error);
     return InternalError(res);
+  }
+};
+
+export const descargarPlantillaMedidas = async (req, res) => {
+  try {
+    const result = await service.descargarPlantillaMedidas();
+
+    if (!result.success) {
+      return responseError(200, result.message, 404, res);
+    }
+
+    return res.download(result.filePath, result.filename);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Error al descargar la plantilla",
+    });
   }
 };

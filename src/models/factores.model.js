@@ -88,6 +88,7 @@ export default class FactoresModel {
 
   guardarAgrupacion = async (data) => {
     const client = this.createClient();
+    console.log("DATA EN MODEL:", data);
     try {
       await client.connect();
       const result = await client.query(querys.guardarAgrupacion, [
