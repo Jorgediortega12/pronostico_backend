@@ -185,6 +185,11 @@ export default function () {
     validator(schema.buscarUCPActualizacionDatos),
     controllers.buscarUCPActualizacionDatos
   );
+  router.get(
+    "/verificarExisteActualizacionDatos/:ucp/:fecha",
+    validator(schema.verificarExisteActualizacionDatos),
+    controllers.verificarExisteActualizacionDatos
+  );
   router.post(
     "/agregarUCPActualizacionDatos",
     validator(schema.agregarUCPActualizacionDatos),
