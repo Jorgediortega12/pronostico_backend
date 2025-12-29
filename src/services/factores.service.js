@@ -224,4 +224,89 @@ export default class FactoresService {
       message: "Plantilla obtenida correctamente",
     };
   };
+
+  eliminarFechasIngresadasTodos = async (ucp) => {
+    try {
+      await model.eliminarFechasIngresadasTodos(ucp);
+      return { success: true, message: "Fechas eliminadas correctamente" };
+    } catch {
+      return { success: false, message: "Error al eliminar fechas" };
+    }
+  };
+
+  guardarRangoFecha = async (data) => {
+    try {
+      await model.guardarRangoFecha(data);
+      return { success: true, message: "Rango de fecha guardado" };
+    } catch {
+      return { success: false, message: "Error al guardar rango" };
+    }
+  };
+
+  reiniciarMedidas = async () => {
+    try {
+      await model.reiniciarMedidas();
+      return { success: true, message: "Medidas reiniciadas" };
+    } catch {
+      return { success: false, message: "Error al reiniciar medidas" };
+    }
+  };
+
+  consultarBarraNombre = async (barra) => {
+    try {
+      const data = await model.consultarBarraNombre(barra);
+      return { success: true, data };
+    } catch {
+      return { success: false, message: "Error al consultar barras" };
+    }
+  };
+
+  consultarBarraFlujoNombreInicial = async (barra, tipo) => {
+    try {
+      const data = await model.consultarBarraFlujoNombreInicial(barra, tipo);
+      return { success: true, data };
+    } catch {
+      return { success: false, message: "Error al consultar flujos" };
+    }
+  };
+
+  consultarBarraFactorNombre = async (barra, tipo, codigosRPM) => {
+    try {
+      const data = await model.consultarBarraFactorNombre(
+        barra,
+        tipo,
+        codigosRPM
+      );
+
+      return {
+        success: true,
+        data,
+        message: "Factores obtenidos correctamente",
+      };
+    } catch (error) {
+      return {
+        success: false,
+        data: null,
+        message: "Error al consultar factores",
+      };
+    }
+  };
+
+  consultarMedidasCalcularCompleto = async (params) => {
+    try {
+      const data = await model.consultarMedidasCalcularCompleto(params);
+
+      return {
+        success: true,
+        data,
+        message: "Medidas calculadas correctamente",
+      };
+    } catch (error) {
+      return {
+        success: false,
+        data: null,
+        message: "Error al calcular medidas",
+      };
+    }
+  };
 }

@@ -89,3 +89,120 @@ INSERT INTO medidas (
   0
 )
 `;
+
+/* =========================
+   FECHAS INGRESADAS
+   ========================= */
+
+export const eliminarFechasIngresadasTodos = `
+DELETE FROM fechas_ingresadas
+WHERE ucp = $1
+  AND barra IS NOT NULL
+  AND tipo_dia IS NOT NULL
+  AND nro_dias IS NOT NULL
+`;
+
+export const guardarRangoFecha = `
+INSERT INTO fechas_ingresadas
+(fechainicio, fechafin, ucp, barra, tipo_dia, nro_dias)
+VALUES ($1, $2, $3, $4, $5, $6)
+`;
+
+/* =========================
+   MEDIDAS
+   ========================= */
+
+export const reiniciarMedidas = `
+UPDATE medidas
+SET marcado = 0
+`;
+
+/* =========================
+   CONSULTAS BARRAS
+   ========================= */
+
+export const consultarBarraNombre = `
+SELECT a.codigo_rpm
+FROM barras b
+INNER JOIN agrupaciones a ON b.id = a.barra_id
+WHERE b.barra = $1
+  AND b.estado = 1
+  AND a.estado = 1
+GROUP BY a.codigo_rpm
+`;
+
+export const consultarBarraFlujoNombreInicial = `
+SELECT a.flujo
+FROM barras b
+INNER JOIN agrupaciones a ON b.id = a.barra_id
+WHERE b.barra = $1
+  AND substring(a.flujo from 1 for 1) = $2
+  AND b.estado = 1
+  AND a.estado = 1
+GROUP BY a.flujo
+`;
+
+export const consultarBarraFactorNombre = `
+SELECT
+  a.factor,
+  a.codigo_rpm,
+  a.flujo
+FROM barras b
+INNER JOIN agrupaciones a ON b.id = a.barra_id
+WHERE b.barra = $1
+  AND a.codigo_rpm = ANY($2)
+  AND substring(a.flujo from 1 for 1) = $3
+  AND b.estado = 1
+  AND a.estado = 1
+`;
+
+export const consultarMedidasCalcularCompleto = `
+SELECT
+  $7 AS BAbarra,
+  ME.flujo AS MEflujo,
+  TO_CHAR(ME.fecha, 'DD-MM-YYYY') AS MEfecha,
+  ME.codigo_rpm AS MEcodigo_rpm,
+  (
+    ME.p1 + ME.p2 + ME.p3 + ME.p4 + ME.p5 + ME.p6 +
+    ME.p7 + ME.p8 + ME.p9 + ME.p10 + ME.p11 + ME.p12 +
+    ME.p13 + ME.p14 + ME.p15 + ME.p16 + ME.p17 + ME.p18 +
+    ME.p19 + ME.p20 + ME.p21 + ME.p22 + ME.p23 + ME.p24
+  ) AS MEtotal,
+  ME.p1 AS MEp1, ME.p2 AS MEp2, ME.p3 AS MEp3, ME.p4 AS MEp4,
+  ME.p5 AS MEp5, ME.p6 AS MEp6, ME.p7 AS MEp7, ME.p8 AS MEp8,
+  ME.p9 AS MEp9, ME.p10 AS MEp10, ME.p11 AS MEp11, ME.p12 AS MEp12,
+  ME.p13 AS MEp13, ME.p14 AS MEp14, ME.p15 AS MEp15, ME.p16 AS MEp16,
+  ME.p17 AS MEp17, ME.p18 AS MEp18, ME.p19 AS MEp19, ME.p20 AS MEp20,
+  ME.p21 AS MEp21, ME.p22 AS MEp22, ME.p23 AS MEp23, ME.p24 AS MEp24,
+  ME.marcado AS MEMarcado
+FROM medidas ME
+WHERE ME.fecha BETWEEN $1 AND $2
+    AND ME.codigo_rpm = ANY($3::varchar[])
+    AND ME.flujo = ANY($4::varchar[])
+  AND (
+    ($5 = 'ORDINARIO' AND
+      date_part('dow', ME.fecha) IN (1,2,3,4,5)
+      AND ME.fecha NOT IN (
+        SELECT fecha FROM festivos
+        WHERE ucp = $6 AND fecha BETWEEN $1 AND $2
+      )
+    )
+    OR ($5 = 'SABADO' AND date_part('dow', ME.fecha) = 6)
+    OR ($5 = 'FESTIVO' AND (
+        date_part('dow', ME.fecha) = 0
+        OR ME.fecha IN (
+          SELECT fecha FROM festivos
+          WHERE ucp = $6 AND fecha BETWEEN $1 AND $2
+        )
+    ))
+  )
+  AND ($8 = false OR ME.marcado = '1')
+GROUP BY
+  ME.flujo, ME.fecha, ME.codigo_rpm,
+  ME.p1, ME.p2, ME.p3, ME.p4, ME.p5, ME.p6,
+  ME.p7, ME.p8, ME.p9, ME.p10, ME.p11, ME.p12,
+  ME.p13, ME.p14, ME.p15, ME.p16, ME.p17, ME.p18,
+  ME.p19, ME.p20, ME.p21, ME.p22, ME.p23, ME.p24,
+  ME.marcado
+ORDER BY ME.fecha ASC
+`;
