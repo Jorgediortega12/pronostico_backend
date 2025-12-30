@@ -50,13 +50,20 @@ export const borrarPronosticos = async (req, res) => {
 };
 
 export const play = async (req, res) => {
-  const { ucp, fecha_inicio, fecha_fin, force_retrain } = req.body;
+  const {
+    ucp,
+    fecha_inicio,
+    fecha_fin,
+    force_retrain,
+    modelo = false,
+  } = req.body;
   try {
     const result = await service.play(
       ucp,
       fecha_inicio,
       fecha_fin,
-      force_retrain
+      force_retrain,
+      modelo
     );
     if (!result.success) return responseError(200, result.message, 404, res);
     return SuccessResponse(res, result.data, result.message);

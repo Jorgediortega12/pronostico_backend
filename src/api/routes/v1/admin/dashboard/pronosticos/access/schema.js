@@ -80,6 +80,7 @@ export default {
     fecha_inicio: Joi.string().required(),
     fecha_fin: Joi.string().required(),
     force_retrain: Joi.boolean().required(),
+    modelo: Joi.boolean().required(),
   }),
   retrainModel: Joi.object().keys({
     ucp: Joi.string().trim().required(),
