@@ -68,7 +68,7 @@ export const actualizarBarra = async (req, res) => {
 
 export const guardarAgrupacion = async (req, res) => {
   try {
-    const result = await service.insertarAgrupacion(req.body);
+    const result = await service.guardarAgrupacion(req.body);
 
     if (!result.success) {
       return responseError(200, result.message, 500, res);
@@ -236,6 +236,101 @@ export const cargarMedidasDesdeExcel = async (req, res) => {
     return SuccessResponse(res, null, "Datos cargados correctamente");
   } catch (error) {
     console.error(error);
+    return InternalError(res);
+  }
+};
+
+export const descargarPlantillaMedidas = async (req, res) => {
+  try {
+    const result = await service.descargarPlantillaMedidas();
+
+    if (!result.success) {
+      return responseError(200, result.message, 404, res);
+    }
+
+    return res.download(result.filePath, result.filename);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Error al descargar la plantilla",
+    });
+  }
+};
+
+export const eliminarFechasIngresadasTodos = async (req, res) => {
+  const { ucp } = req.params;
+  const result = await service.eliminarFechasIngresadasTodos(ucp);
+  return result.success
+    ? SuccessResponse(res, null, result.message)
+    : responseError(200, result.message, 500, res);
+};
+
+export const guardarRangoFecha = async (req, res) => {
+  const result = await service.guardarRangoFecha(req.body);
+  return result.success
+    ? SuccessResponse(res, null, result.message)
+    : responseError(200, result.message, 500, res);
+};
+
+export const reiniciarMedidas = async (req, res) => {
+  const result = await service.reiniciarMedidas();
+  return result.success
+    ? SuccessResponse(res, null, result.message)
+    : responseError(200, result.message, 500, res);
+};
+
+export const consultarBarraNombre = async (req, res) => {
+  const { barra } = req.params;
+  const result = await service.consultarBarraNombre(barra);
+  return result.success
+    ? SuccessResponse(res, result.data, "Consulta exitosa")
+    : responseError(200, result.message, 500, res);
+};
+
+export const consultarBarraFlujoNombreInicial = async (req, res) => {
+  const { barra, tipo } = req.params;
+  const result = await service.consultarBarraFlujoNombreInicial(barra, tipo);
+  return result.success
+    ? SuccessResponse(res, result.data, "Consulta exitosa")
+    : responseError(200, result.message, 500, res);
+};
+
+export const consultarBarraFactorNombre = async (req, res) => {
+  try {
+    const { barra, tipo } = req.params;
+    const { codigo_rpm } = req.body;
+
+    if (!Array.isArray(codigo_rpm) || codigo_rpm.length === 0) {
+      return responseError(200, "codigo_rpm debe ser un arreglo", 400, res);
+    }
+
+    const result = await service.consultarBarraFactorNombre(
+      barra,
+      tipo,
+      codigo_rpm
+    );
+
+    if (!result.success) {
+      return responseError(200, result.message, 500, res);
+    }
+
+    return SuccessResponse(res, result.data, result.message);
+  } catch (error) {
+    return InternalError(res);
+  }
+};
+
+export const consultarMedidasCalcularCompleto = async (req, res) => {
+  try {
+    const result = await service.consultarMedidasCalcularCompleto(req.body);
+
+    if (!result.success) {
+      return responseError(200, result.message, 500, res);
+    }
+
+    return SuccessResponse(res, result.data, result.message);
+  } catch (error) {
     return InternalError(res);
   }
 };

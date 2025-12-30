@@ -71,7 +71,7 @@ export default {
   }),
 
   actualizarAgrupacion: Joi.object({
-    id: Joi.number().required(),
+    id: Joi.number().optional(),
     barra_id: Joi.number().required(),
     codigo_rpm: Joi.string().required(),
     flujo: Joi.string().required(),
@@ -125,5 +125,41 @@ export default {
   }),
   actualizarMedidasRapido: Joi.object({
     medidas: Joi.array().items(medidaSchema).min(1).required(),
+  }),
+  eliminarFechasIngresadasTodos: Joi.object({
+    ucp: Joi.string().required(),
+  }),
+
+  guardarRangoFecha: Joi.object({
+    fechaInicio: Joi.string().required(),
+    fechaFinal: Joi.string().required(),
+    ucp: Joi.string().required(),
+    barra: Joi.string().required(),
+    tipo_dia: Joi.string().required(),
+    nro_dias: Joi.number().required(),
+  }),
+
+  consultarBarraNombre: Joi.object({
+    barra: Joi.string().required(),
+  }),
+
+  consultarBarraFlujoNombreInicial: Joi.object({
+    barra: Joi.string().required(),
+    tipo: Joi.string().length(1).required(),
+  }),
+  consultarBarraFactorNombre: Joi.object({
+    barra: Joi.string().required(),
+    tipo: Joi.string().length(1).required(),
+    codigo_rpm: Joi.array().items(Joi.string()).min(1).required(),
+  }),
+  consultarMedidasCalcularCompleto: Joi.object({
+    fecha_inicial: Joi.string().required(),
+    fecha_final: Joi.string().required(),
+    mc: Joi.string().required(),
+    barra: Joi.string().required(),
+    tipo_dia: Joi.string().valid("ORDINARIO", "SABADO", "FESTIVO").required(),
+    codigo_rpm: Joi.array().items(Joi.string()).min(1).required(),
+    flujo: Joi.array().items(Joi.string()).min(1).required(),
+    marcado: Joi.boolean().optional().default(false),
   }),
 };

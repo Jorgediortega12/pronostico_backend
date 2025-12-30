@@ -82,5 +82,49 @@ export default function () {
     controllers.cargarMedidasDesdeExcel
   );
 
+  // Descargar plantilla Excel
+  router.get(
+    "/descargarPlantillaMedidas",
+    controllers.descargarPlantillaMedidas
+  );
+
+  router.delete(
+    "/eliminarFechasIngresadasTodos/:ucp",
+    validator(schema.eliminarFechasIngresadasTodos),
+    controllers.eliminarFechasIngresadasTodos
+  );
+
+  router.post(
+    "/guardarRangoFecha",
+    validator(schema.guardarRangoFecha),
+    controllers.guardarRangoFecha
+  );
+
+  router.put("/reiniciarMedidas", controllers.reiniciarMedidas);
+
+  router.get(
+    "/consultarBarraNombre/:barra",
+    validator(schema.consultarBarraNombre),
+    controllers.consultarBarraNombre
+  );
+
+  router.get(
+    "/consultarBarraFlujoNombreInicial/:barra/:tipo",
+    validator(schema.consultarBarraFlujoNombreInicial),
+    controllers.consultarBarraFlujoNombreInicial
+  );
+
+  router.post(
+    "/consultarBarraFactorNombre/:barra/:tipo",
+    validator(schema.consultarBarraFactorNombre),
+    controllers.consultarBarraFactorNombre
+  );
+
+  router.post(
+    "/consultarMedidasCalcularCompleto",
+    validator(schema.consultarMedidasCalcularCompleto),
+    controllers.consultarMedidasCalcularCompleto
+  );
+
   return router;
 }

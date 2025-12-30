@@ -88,6 +88,7 @@ export default class FactoresModel {
 
   guardarAgrupacion = async (data) => {
     const client = this.createClient();
+    console.log("DATA EN MODEL:", data);
     try {
       await client.connect();
       const result = await client.query(querys.guardarAgrupacion, [
@@ -302,6 +303,159 @@ export default class FactoresModel {
         colors.red("Error MedidasModel insertarMedidasRapido"),
         error
       );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  /* =========================
+     FECHAS INGRESADAS
+     ========================= */
+
+  eliminarFechasIngresadasTodos = async (ucp) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      await client.query(querys.eliminarFechasIngresadasTodos, [ucp]);
+      return true;
+    } catch (error) {
+      Logger.error(colors.red("Error eliminarFechasIngresadasTodos"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  guardarRangoFecha = async (data) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      await client.query(querys.guardarRangoFecha, [
+        data.fechaInicio,
+        data.fechaFinal,
+        data.ucp,
+        data.barra,
+        data.tipo_dia,
+        data.nro_dias,
+      ]);
+      return true;
+    } catch (error) {
+      Logger.error(colors.red("Error guardarRangoFecha"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  /* =========================
+     MEDIDAS
+     ========================= */
+
+  reiniciarMedidas = async () => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      await client.query(querys.reiniciarMedidas);
+      return true;
+    } catch (error) {
+      Logger.error(colors.red("Error reiniciarMedidas"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  /* =========================
+     CONSULTAS
+     ========================= */
+
+  consultarBarraNombre = async (barra) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const result = await client.query(querys.consultarBarraNombre, [barra]);
+      return result.rows;
+    } catch (error) {
+      Logger.error(colors.red("Error consultarBarraNombre"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  consultarBarraFlujoNombreInicial = async (barra, tipo) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const result = await client.query(
+        querys.consultarBarraFlujoNombreInicial,
+        [barra, tipo]
+      );
+      return result.rows;
+    } catch (error) {
+      Logger.error(colors.red("Error consultarBarraFlujoNombreInicial"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  consultarBarraFactorNombre = async (barra, tipo, codigosRPM) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+
+      const result = await client.query(querys.consultarBarraFactorNombre, [
+        barra,
+        codigosRPM,
+        tipo,
+      ]);
+
+      return result.rows;
+    } catch (error) {
+      Logger.error(colors.red("Error consultarBarraFactorNombre"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  consultarMedidasCalcularCompleto = async (params) => {
+    const client = this.createClient();
+
+    const {
+      fecha_inicial,
+      fecha_final,
+      codigo_rpm,
+      flujo,
+      tipo_dia,
+      mc,
+      barra,
+      marcado = false,
+    } = params;
+
+    const marcadoBool = Boolean(marcado);
+
+    try {
+      await client.connect();
+      const result = await client.query(
+        querys.consultarMedidasCalcularCompleto,
+        [
+          fecha_inicial,
+          fecha_final,
+          codigo_rpm, // array
+          flujo, // array
+          tipo_dia,
+          mc,
+          barra,
+          marcadoBool,
+        ]
+      );
+
+      return result.rows;
+    } catch (error) {
+      Logger.error(colors.red("Error consultarMedidasCalcularCompleto"), error);
       throw error;
     } finally {
       await client.end();
