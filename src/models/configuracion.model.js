@@ -788,9 +788,29 @@ export default class ConfiguracionModel {
     }
   }
 
+  async verificarExisteActualizacionDatos(ucp, fecha) {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const res = await client.query(querys.verificarExisteActualizacionDatos, [
+        ucp,
+        fecha,
+      ]);
+      const count = parseInt(res.rows[0]?.count || 0, 10);
+      return count > 0;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ActualizacionModel verificarExisteActualizacionDatos"),
+        error
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  }
+
   agregarUCPActualizacionDatos = async (datos) => {
     const client = this.createClient();
-    console.log("datos:", datos)
     try {
       await client.connect();
       const valores = [
@@ -844,6 +864,12 @@ export default class ConfiguracionModel {
     const client = this.createClient();
     try {
       await client.connect();
+
+      // Convertir festivo a número si viene como string
+      const festivoNumero = typeof datos.festivo === 'string'
+        ? parseInt(datos.festivo, 10)
+        : datos.festivo;
+
       const valores = [
         datos.p1,
         datos.p2,
@@ -871,6 +897,7 @@ export default class ConfiguracionModel {
         datos.p24,
         datos.estado,
         datos.observacion,
+        festivoNumero,
         datos.ucp,
         datos.fecha,
       ];

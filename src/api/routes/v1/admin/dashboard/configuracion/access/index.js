@@ -731,6 +731,26 @@ export const buscarUCPActualizacionDatos = async (req, res) => {
   }
 };
 
+export const verificarExisteActualizacionDatos = async (req, res) => {
+  try {
+    const { ucp, fecha } = req.params;
+    const result = await service.verificarExisteActualizacionDatos(ucp, fecha);
+    if (!result.success)
+      return res.status(500).json({ success: false, message: result.message });
+    return res
+      .status(200)
+      .json({ success: true, data: result.data, message: result.message });
+  } catch (err) {
+    Logger.error(
+      colors.red("Error controller verificarExisteActualizacionDatos"),
+      err
+    );
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  }
+};
+
 export const agregarUCPActualizacionDatos = async (req, res) => {
   try {
     const result = await service.agregarUCPActualizacionDatos(req.body);
@@ -747,7 +767,7 @@ export const agregarUCPActualizacionDatos = async (req, res) => {
 
 export const actualizarUCPActualizacionDatos = async (req, res) => {
   try {
-    const result = await service.actualizarUCPActualizacionDatos();
+    const result = await service.actualizarUCPActualizacionDatos(req.body);
     if (!result.success) {
       return responseError(200, result.message, 404, res);
     }

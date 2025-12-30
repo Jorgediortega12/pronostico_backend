@@ -808,6 +808,27 @@ export default class ConfiguracionService {
     }
   };
 
+  verificarExisteActualizacionDatos = async (ucp, fecha) => {
+    try {
+      const existe = await model.verificarExisteActualizacionDatos(ucp, fecha);
+      return {
+        success: true,
+        data: { existe },
+        message: existe ? "Registro existe." : "Registro no existe."
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ActualizacionService verificarExisteActualizacionDatos"),
+        error
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al verificar existencia de datos de actualizacion.",
+      };
+    }
+  };
+
   agregarUCPActualizacionDatos = async (datos) => {
     try {
       const result = await model.agregarUCPActualizacionDatos(datos);
