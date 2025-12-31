@@ -618,6 +618,31 @@ export default class ConfiguracionService {
     }
   };
 
+  listarFestivosPorRango = async (fechaInicio, fechaFin, ucp) => {
+    try {
+      const rows = await model.listarFestivosPorRango(
+        fechaInicio,
+        fechaFin,
+        ucp
+      );
+      return {
+        success: true,
+        data: rows,
+        message: "Listado de festivos obtenido correctamente.",
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error FestivosService listarFestivosPorRango"),
+        error
+      );
+      return {
+        success: false,
+        data: [],
+        message: "Error al listar festivos.",
+      };
+    }
+  };
+
   ingresarDiaFestivos = async (ucp, fechaIso) => {
     try {
       const created = await model.ingresarDiaFestivos(ucp, fechaIso);
@@ -814,11 +839,13 @@ export default class ConfiguracionService {
       return {
         success: true,
         data: { existe },
-        message: existe ? "Registro existe." : "Registro no existe."
+        message: existe ? "Registro existe." : "Registro no existe.",
       };
     } catch (error) {
       Logger.error(
-        colors.red("Error ActualizacionService verificarExisteActualizacionDatos"),
+        colors.red(
+          "Error ActualizacionService verificarExisteActualizacionDatos"
+        ),
         error
       );
       return {
@@ -1009,6 +1036,31 @@ export default class ConfiguracionService {
         success: false,
         data: null,
         message: "Error al buscar tipicidad.",
+      };
+    }
+  };
+
+  listarTipoModeloPorRango = async (fechaInicio, fechaFin, ucp) => {
+    try {
+      const rows = await model.listarTipoModeloPorRango(
+        fechaInicio,
+        fechaFin,
+        ucp
+      );
+      return {
+        success: true,
+        data: rows,
+        message: "Listado de fechas tipo modelos obtenidos correctamente.",
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error FestivosService listarTipoModeloPorRango"),
+        error
+      );
+      return {
+        success: false,
+        data: [],
+        message: "Error al listar fechas tipos modelos.",
       };
     }
   };

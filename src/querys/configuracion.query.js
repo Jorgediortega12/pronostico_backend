@@ -35,6 +35,14 @@ export const agregarDatosPronosticoxSesion = `
 //verificar si un dia es festivo
 export const buscarDiaFestivo = `SELECT * FROM festivos WHERE fecha=$1 AND ucp=$2;`;
 
+export const listarFestivosPorRango = `
+  SELECT *
+  FROM festivos
+  WHERE fecha BETWEEN $1 AND $2
+    AND ucp = $3
+  ORDER BY fecha ASC;
+`;
+
 //buscar dias potencia
 export const buscarPotenciaDia = `SELECT * FROM datos_potencias WHERE ucp = $1 AND dia=$2`;
 
@@ -276,4 +284,12 @@ export const buscarIcono2 = `
   FROM datos_climaicons
   WHERE id = $1
   LIMIT 1;
+`;
+
+export const listarTipoModeloPorRango = `
+  SELECT *
+  FROM fechas_tipopronostico
+  WHERE fecha BETWEEN $1 AND $2
+    AND ucp = $3
+  ORDER BY fecha ASC;
 `;

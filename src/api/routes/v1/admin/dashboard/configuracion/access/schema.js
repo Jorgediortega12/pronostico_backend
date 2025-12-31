@@ -88,6 +88,11 @@ export default {
     fecha: Joi.string().required(),
     ucp: Joi.string().required(),
   }),
+  listarFestivosPorRango: Joi.object({
+    fechaInicio: Joi.string().isoDate().required(),
+    fechaFin: Joi.string().isoDate().required(),
+    ucp: Joi.number().integer().required(),
+  }),
   buscarPotenciaDia: Joi.object().keys({
     ucp: Joi.string().required(),
     dia: Joi.number().required(),
@@ -267,7 +272,7 @@ export default {
     observacion: Joi.string().optional().allow(""),
     ucp: Joi.string().required(),
     fecha: Joi.string().required(),
-    festivo: Joi.number().required()
+    festivo: Joi.number().required(),
   }),
   buscarClimaPeriodos: Joi.object().keys({
     ucp: Joi.string().required(),
@@ -298,5 +303,11 @@ export default {
   buscarTipicidad: Joi.object().keys({
     ucp: Joi.string().required(),
     fecha: Joi.string().isoDate().required(),
+  }),
+
+  listarTipoModeloPorRango: Joi.object({
+    fechaInicio: Joi.string().isoDate().required(),
+    fechaFin: Joi.string().isoDate().required(),
+    ucp: Joi.number().integer().required(),
   }),
 };

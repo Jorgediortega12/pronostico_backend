@@ -543,6 +543,32 @@ export const buscarDiaFestivo = async (req, res) => {
   }
 };
 
+export const listarFestivosPorRango = async (req, res) => {
+  try {
+    const { fechaInicio, fechaFin, ucp } = req.params;
+
+    const result = await service.listarFestivosPorRango(
+      fechaInicio,
+      fechaFin,
+      ucp
+    );
+
+    if (!result.success)
+      return res.status(500).json({ success: false, message: result.message });
+
+    return res.status(200).json({
+      success: true,
+      data: result.data,
+      message: result.message,
+    });
+  } catch (err) {
+    Logger.error(colors.red("Error controller listarFestivosPorRango"), err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  }
+};
+
 export const ingresarDiaFestivos = async (req, res) => {
   try {
     const { ucp, fecha } = req.body;
@@ -853,5 +879,31 @@ export const buscarTipicidad = async (req, res) => {
   } catch (err) {
     Logger.error(err);
     return InternalError(res);
+  }
+};
+
+export const listarTipoModeloPorRango = async (req, res) => {
+  try {
+    const { fechaInicio, fechaFin, ucp } = req.params;
+
+    const result = await service.listarTipoModeloPorRango(
+      fechaInicio,
+      fechaFin,
+      ucp
+    );
+
+    if (!result.success)
+      return res.status(500).json({ success: false, message: result.message });
+
+    return res.status(200).json({
+      success: true,
+      data: result.data,
+      message: result.message,
+    });
+  } catch (err) {
+    Logger.error(colors.red("Error controller listarTipoModeloPorRango"), err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
   }
 };
