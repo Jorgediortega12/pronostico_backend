@@ -34,6 +34,13 @@ export default function () {
     controllers.buscarDiaFestivo
   );
 
+  // routes/festivos.ts
+  router.get(
+    "/listarFestivos/:fechaInicio/:fechaFin/:ucp",
+    validator(schema.listarFestivosPorRango),
+    controllers.listarFestivosPorRango
+  );
+
   //cargar dias potencias
   router.get(
     "/buscarPotenciaDia/:ucp/:dia",
@@ -230,5 +237,11 @@ export default function () {
     controllers.buscarTipicidad
   );
 
+  // routes/festivos.ts
+  router.get(
+    "/listarTipoModelo/:fechaInicio/:fechaFin/:ucp",
+    validator(schema.listarTipoModeloPorRango),
+    controllers.listarTipoModeloPorRango
+  );
   return router;
 }

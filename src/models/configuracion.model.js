@@ -202,6 +202,28 @@ export default class ConfiguracionModel {
       await client.end();
     }
   };
+
+  listarFestivosPorRango = async (fechaInicio, fechaFin, ucp) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const result = await client.query(querys.listarFestivosPorRango, [
+        fechaInicio,
+        fechaFin,
+        ucp,
+      ]);
+      return result.rows;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ConfiguracionModel listarFestivosPorRango"),
+        error
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
   buscarPotenciaDia = async (ucp, dia) => {
     const client = this.createClient();
     try {
@@ -800,7 +822,9 @@ export default class ConfiguracionModel {
       return count > 0;
     } catch (error) {
       Logger.error(
-        colors.red("Error ActualizacionModel verificarExisteActualizacionDatos"),
+        colors.red(
+          "Error ActualizacionModel verificarExisteActualizacionDatos"
+        ),
         error
       );
       throw error;
@@ -866,9 +890,10 @@ export default class ConfiguracionModel {
       await client.connect();
 
       // Convertir festivo a número si viene como string
-      const festivoNumero = typeof datos.festivo === 'string'
-        ? parseInt(datos.festivo, 10)
-        : datos.festivo;
+      const festivoNumero =
+        typeof datos.festivo === "string"
+          ? parseInt(datos.festivo, 10)
+          : datos.festivo;
 
       const valores = [
         datos.p1,
@@ -1059,4 +1084,25 @@ export default class ConfiguracionModel {
       await client.end();
     }
   }
+
+  listarTipoModeloPorRango = async (fechaInicio, fechaFin, ucp) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const result = await client.query(querys.listarTipoModeloPorRango, [
+        fechaInicio,
+        fechaFin,
+        ucp,
+      ]);
+      return result.rows;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ConfiguracionModel listarTipoModeloPorRango"),
+        error
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
 }
