@@ -302,3 +302,12 @@ WHERE fecha BETWEEN $1 AND $2
 ORDER BY fecha ASC;
 
 `;
+
+export const upsertTipoPronostico = `
+  INSERT INTO fechas_tipopronostico (ucp, fecha, tipopronostico)
+  VALUES ($1, $2, $3)
+  ON CONFLICT (ucp, fecha)
+  DO UPDATE SET
+    tipopronostico = EXCLUDED.tipopronostico
+  RETURNING *;
+`;

@@ -1105,4 +1105,27 @@ export default class ConfiguracionModel {
       await client.end();
     }
   };
+
+  insertarTipoPronostico = async (ucp, fecha, tipopronostico) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+
+      const result = await client.query(querys.upsertTipoPronostico, [
+        ucp,
+        fecha,
+        tipopronostico,
+      ]);
+
+      return result.rows[0]; // registro insertado
+    } catch (error) {
+      Logger.error(
+        colors.red("Error FechasTipoPronosticoModel insertarTipoPronostico"),
+        error
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
 }
