@@ -907,3 +907,29 @@ export const listarTipoModeloPorRango = async (req, res) => {
       .json({ success: false, message: "Internal server error" });
   }
 };
+
+export const insertarTipoPronostico = async (req, res) => {
+  try {
+    const { ucp, fecha, tipopronostico } = req.body;
+
+    const result = await service.insertarTipoPronostico(
+      ucp,
+      fecha,
+      tipopronostico
+    );
+
+    if (!result.success)
+      return res.status(500).json({ success: false, message: result.message });
+
+    return res.status(201).json({
+      success: true,
+      data: result.data,
+      message: result.message,
+    });
+  } catch (err) {
+    Logger.error(colors.red("Error controller insertarTipoPronostico"), err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  }
+};

@@ -310,4 +310,10 @@ export default {
     fechaFin: Joi.string().isoDate().required(),
     ucp: Joi.number().integer().required(),
   }),
+
+  insertarTipoPronostico: Joi.object({
+    ucp: Joi.string().required(),
+    fecha: Joi.string().isoDate().required(),
+    tipopronostico: Joi.string().required(),
+  }),
 };

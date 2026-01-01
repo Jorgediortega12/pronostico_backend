@@ -36,11 +36,15 @@ export const agregarDatosPronosticoxSesion = `
 export const buscarDiaFestivo = `SELECT * FROM festivos WHERE fecha=$1 AND ucp=$2;`;
 
 export const listarFestivosPorRango = `
-  SELECT *
-  FROM festivos
-  WHERE fecha BETWEEN $1 AND $2
-    AND ucp = $3
-  ORDER BY fecha ASC;
+SELECT
+  codigo,
+  ucp,
+  TO_CHAR(fecha::date, 'YYYY-MM-DD') AS fecha
+FROM festivos
+WHERE fecha BETWEEN $1 AND $2
+  AND ucp = $3
+ORDER BY fecha ASC;
+
 `;
 
 //buscar dias potencia
@@ -287,9 +291,23 @@ export const buscarIcono2 = `
 `;
 
 export const listarTipoModeloPorRango = `
-  SELECT *
-  FROM fechas_tipopronostico
-  WHERE fecha BETWEEN $1 AND $2
-    AND ucp = $3
-  ORDER BY fecha ASC;
+SELECT
+  codigo,
+  ucp,
+  TO_CHAR(fecha::date, 'YYYY-MM-DD') AS fecha,
+  tipopronostico
+FROM fechas_tipopronostico
+WHERE fecha BETWEEN $1 AND $2
+  AND ucp = $3
+ORDER BY fecha ASC;
+
+`;
+
+export const upsertTipoPronostico = `
+  INSERT INTO fechas_tipopronostico (ucp, fecha, tipopronostico)
+  VALUES ($1, $2, $3)
+  ON CONFLICT (ucp, fecha)
+  DO UPDATE SET
+    tipopronostico = EXCLUDED.tipopronostico
+  RETURNING *;
 `;

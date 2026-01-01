@@ -1064,4 +1064,30 @@ export default class ConfiguracionService {
       };
     }
   };
+
+  insertarTipoPronostico = async (ucp, fecha, tipopronostico) => {
+    try {
+      const row = await model.insertarTipoPronostico(
+        ucp,
+        fecha,
+        tipopronostico
+      );
+
+      return {
+        success: true,
+        data: row,
+        message: "Tipo de pronóstico ingresado correctamente.",
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error FechasTipoPronosticoService insertarTipoPronostico"),
+        error
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al ingresar tipo de pronóstico.",
+      };
+    }
+  };
 }

@@ -243,5 +243,11 @@ export default function () {
     validator(schema.listarTipoModeloPorRango),
     controllers.listarTipoModeloPorRango
   );
+
+  router.post(
+    "/insertarTipoPronostico",
+    validator(schema.insertarTipoPronostico),
+    controllers.insertarTipoPronostico
+  );
   return router;
 }
