@@ -204,6 +204,44 @@ class AuthService {
     }
   }
 
+  async changePasswordAuthenticated(userId, currentPassword, newPassword) {
+    try {
+      // Obtener el usuario por ID
+      const userResult = await this.userModel.buscarUsuario(userId);
+
+      if (!userResult || userResult.rows.length === 0) {
+        throw new Error('Usuario no encontrado');
+      }
+
+      const user = userResult.rows[0];
+
+      // Verificar que la contraseña actual sea correcta
+      const verifyResult = await this.userModel.verificarUsuario(user.usuario, currentPassword);
+
+      if (!verifyResult || verifyResult.rows.length === 0) {
+        throw new Error('Contraseña actual incorrecta');
+      }
+
+      // buscamos el email del usuario para poder confirmar el cambio de contraseña
+      const verifyUserId = await this.userModel.verificarUsuario2(user.email);
+
+      if (!verifyUserId || verifyUserId.length === 0) {
+        throw new Error('No se pudo cambiar la contraseña');
+      }
+
+      // Actualizar la contraseña
+      const updateResult = await this.userModel.editarPass(verifyUserId, newPassword);
+
+      if (!updateResult || updateResult.rowCount === 0) {
+        throw new Error('Error al actualizar la contraseña');
+      }
+
+      return true;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   async updateProfile(userId, userData) {
     try {
       const {

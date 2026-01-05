@@ -120,6 +120,18 @@ const editarUsuarioSchema = Joi.object({
         .optional()
 });
 
+const changePasswordAuthSchema = Joi.object({
+    currentPassword: Joi.string().required(),
+    newPassword: Joi.string()
+        .min(6)
+        .max(50)
+        .required(),
+
+    confirmPassword: Joi.string()
+        .valid(Joi.ref('newPassword'))
+        .required()
+});
+
 // Middleware de validación
 const validate = (schema) => {
     return (req, res, next) => {
@@ -142,4 +154,4 @@ const validate = (schema) => {
     };
 };
 
-export { loginSchema, registerSchema, agregarPerfilSchema, editarUsuarioSchema, validate };
+export { loginSchema, registerSchema, agregarPerfilSchema, editarUsuarioSchema, changePasswordAuthSchema, validate };
