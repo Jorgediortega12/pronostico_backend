@@ -1,7 +1,7 @@
 import express from "express";
 import authMiddleware from "../../../../middleware/auth.middleware.js";
 import authController from "./access/index.js";
-import { loginSchema, registerSchema, agregarPerfilSchema, editarUsuarioSchema, validate } from "./access/schema.js";
+import { loginSchema, registerSchema, agregarPerfilSchema, editarUsuarioSchema, changePasswordAuthSchema, validate } from "./access/schema.js";
 
 const router = express.Router();
 
@@ -15,6 +15,7 @@ router.put("/change-password", authController.changePassword);
 router.get("/profile", authMiddleware, authController.getProfile);
 router.get("/verify", authMiddleware, authController.verifyToken);
 router.put("/profile", authMiddleware, authController.updateProfile);
+router.put("/change-password-auth", authMiddleware, validate(changePasswordAuthSchema), authController.changePasswordAuth);
 router.get("/users", authMiddleware, authController.getAllUsers);
 router.post("/perfil", authMiddleware, validate(agregarPerfilSchema), authController.agregarPerfile);
 router.get("/perfiles", authMiddleware, authController.getPerfiles);

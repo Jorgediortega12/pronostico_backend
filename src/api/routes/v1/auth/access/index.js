@@ -133,6 +133,42 @@ class AuthController {
     }
   }
 
+  async changePasswordAuth(req, res) {
+    try {
+      //esto seria para obtener el codigo del usuario en cuestion
+      const userId = req.user.cod;
+      //extraemos parametros
+      const { currentPassword, newPassword } = req.body;
+
+      await authService.changePasswordAuthenticated(userId, currentPassword, newPassword);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Contraseña actualizada exitosamente'
+      });
+    } catch (error) {
+      if (error.message === 'Contraseña actual incorrecta') {
+        return res.status(400).json({
+          success: false,
+          message: 'La contraseña actual es incorrecta'
+        });
+      }
+
+      if (error.message === 'Usuario no encontrado') {
+        return res.status(404).json({
+          success: false,
+          message: error.message
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        message: 'Error al cambiar contraseña',
+        error: error.message
+      });
+    }
+  }
+
   async updateProfile(req, res) {
     try {
       const userId = req.user.cod;
