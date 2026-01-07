@@ -129,10 +129,10 @@ export default class PronosticosService {
         true
       ).isValid()
         ? moment(
-            f,
-            ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", "YYYY/MM/DD"],
-            true
-          )
+          f,
+          ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", "YYYY/MM/DD"],
+          true
+        )
         : moment(f);
 
     const convertFechaAño = (f) => {
@@ -143,10 +143,10 @@ export default class PronosticosService {
     // Determinar stopDate y startDate
     const ordered = Array.isArray(pronosticoList)
       ? [...pronosticoList].sort((a, b) => {
-          const ma = parseMoment(a.fecha);
-          const mb = parseMoment(b.fecha);
-          return ma && mb ? ma.valueOf() - mb.valueOf() : 0;
-        })
+        const ma = parseMoment(a.fecha);
+        const mb = parseMoment(b.fecha);
+        return ma && mb ? ma.valueOf() - mb.valueOf() : 0;
+      })
       : [];
 
     const lastDateStr =
@@ -179,9 +179,9 @@ export default class PronosticosService {
       const key = `cuadroperiodo${i}`;
       cuadro[key] =
         datos &&
-        typeof datos[key] !== "undefined" &&
-        datos[key] !== null &&
-        datos[key] !== ""
+          typeof datos[key] !== "undefined" &&
+          datos[key] !== null &&
+          datos[key] !== ""
           ? String(datos[key])
           : "0";
     }
@@ -383,6 +383,10 @@ export default class PronosticosService {
     datos = {} // <-- opcional: pasa aquí los cuadroperiodoX y metadatos si vienen
   ) => {
     try {
+      // Extraer códigos de colección desde datos (con valores por defecto)
+      const codigoColeccionEnergia = datos?.codigo_coleccion_energia || "PROENCNDHMC";
+      const codigoColeccionPotencia = datos?.codigo_coleccion_potencia || "PROPOTCNDHMC";
+
       // 1) Generar archivos
       const normalizeDate = (f) => {
         if (!f) return new Date(0);
@@ -391,8 +395,8 @@ export default class PronosticosService {
 
       const ordered = Array.isArray(pronosticoList)
         ? [...pronosticoList].sort(
-            (a, b) => normalizeDate(a.fecha) - normalizeDate(b.fecha)
-          )
+          (a, b) => normalizeDate(a.fecha) - normalizeDate(b.fecha)
+        )
         : [];
 
       // 2) Determinar fecha de reporte: ultima fecha - 6 dias
@@ -463,6 +467,8 @@ export default class PronosticosService {
         folderPhysical: folderPathPhysical,
         fileBaseName,
         configuracionModel,
+        codigoColeccionEnergia,
+        codigoColeccionPotencia,
       });
 
       const rutaBD_xlsx = `${folderPathLogical}/${xlsxResult.xlsxName}`;
@@ -535,9 +541,8 @@ export default class PronosticosService {
         success: true,
         message: `Se insertaron ${
           /* si tuvieras insertResult original, podrías usarlo; fallback: */ pronosticoList.length
-        } pronósticos. Archivos generados: ${txtResult.txtName}, ${
-          xlsxResult.xlsxName
-        }`,
+          } pronósticos. Archivos generados: ${txtResult.txtName}, ${xlsxResult.xlsxName
+          }`,
         files: { txt: txtResult, xlsx: xlsxResult, insertIds },
       };
     } catch (err) {
@@ -632,7 +637,7 @@ export default class PronosticosService {
       Logger.error(
         colors.red(
           "Error PronosticosService.cargarTipoPronosticoxFechas: " +
-            (error && error.message ? error.message : error)
+          (error && error.message ? error.message : error)
         )
       );
       return {
@@ -742,8 +747,7 @@ export default class PronosticosService {
         } else {
           Logger.warn(
             colors.yellow(
-              `callPredict: error conectando a ${host}:${port} — ${
-                err && err.message ? err.message : err
+              `callPredict: error conectando a ${host}:${port} — ${err && err.message ? err.message : err
               }`
             )
           );
@@ -851,7 +855,7 @@ export default class PronosticosService {
       await sesionModel.guardarFechasPronosticas(inicioIso, finIso, mc);
 
       // Borrar datos por tipo de pronostico (si aplica)
-      await sesionModel.borrarDatosTipoPronostico(mc).catch(() => {}); // no-fatal
+      await sesionModel.borrarDatosTipoPronostico(mc).catch(() => { }); // no-fatal
 
       // Cargar tipo pronóstico por fechas (en .NET mp.cargarTipoPronosticoxFechas)
       if (
@@ -902,7 +906,7 @@ export default class PronosticosService {
           Logger.error(
             colors.red(
               "callPredict falló o devolvió payload inesperado: " +
-                JSON.stringify(predRes?.data || {}).slice(0, 2000)
+              JSON.stringify(predRes?.data || {}).slice(0, 2000)
             )
           );
           return {
@@ -916,7 +920,7 @@ export default class PronosticosService {
         Logger.error(
           colors.red(
             "Error llamando a la API de predicción: " +
-              (err && err.message ? err.message : err)
+            (err && err.message ? err.message : err)
           )
         );
         return {
@@ -950,33 +954,33 @@ export default class PronosticosService {
       ); // tu modelo definido arriba
       const PeriodosHistoricos = Array.isArray(datosHistRows)
         ? datosHistRows.map((r) => ({
-            fecha: toISODateString(r.fecha),
-            p1: r.p1 == null ? null : r.p1,
-            p2: r.p2 == null ? null : r.p2,
-            p3: r.p3 == null ? null : r.p3,
-            p4: r.p4 == null ? null : r.p4,
-            p5: r.p5 == null ? null : r.p5,
-            p6: r.p6 == null ? null : r.p6,
-            p7: r.p7 == null ? null : r.p7,
-            p8: r.p8 == null ? null : r.p8,
-            p9: r.p9 == null ? null : r.p9,
-            p10: r.p10 == null ? null : r.p10,
-            p11: r.p11 == null ? null : r.p11,
-            p12: r.p12 == null ? null : r.p12,
-            p13: r.p13 == null ? null : r.p13,
-            p14: r.p14 == null ? null : r.p14,
-            p15: r.p15 == null ? null : r.p15,
-            p16: r.p16 == null ? null : r.p16,
-            p17: r.p17 == null ? null : r.p17,
-            p18: r.p18 == null ? null : r.p18,
-            p19: r.p19 == null ? null : r.p19,
-            p20: r.p20 == null ? null : r.p20,
-            p21: r.p21 == null ? null : r.p21,
-            p22: r.p22 == null ? null : r.p22,
-            p23: r.p23 == null ? null : r.p23,
-            p24: r.p24 == null ? null : r.p24,
-            observacion: r.observacion || "",
-          }))
+          fecha: toISODateString(r.fecha),
+          p1: r.p1 == null ? null : r.p1,
+          p2: r.p2 == null ? null : r.p2,
+          p3: r.p3 == null ? null : r.p3,
+          p4: r.p4 == null ? null : r.p4,
+          p5: r.p5 == null ? null : r.p5,
+          p6: r.p6 == null ? null : r.p6,
+          p7: r.p7 == null ? null : r.p7,
+          p8: r.p8 == null ? null : r.p8,
+          p9: r.p9 == null ? null : r.p9,
+          p10: r.p10 == null ? null : r.p10,
+          p11: r.p11 == null ? null : r.p11,
+          p12: r.p12 == null ? null : r.p12,
+          p13: r.p13 == null ? null : r.p13,
+          p14: r.p14 == null ? null : r.p14,
+          p15: r.p15 == null ? null : r.p15,
+          p16: r.p16 == null ? null : r.p16,
+          p17: r.p17 == null ? null : r.p17,
+          p18: r.p18 == null ? null : r.p18,
+          p19: r.p19 == null ? null : r.p19,
+          p20: r.p20 == null ? null : r.p20,
+          p21: r.p21 == null ? null : r.p21,
+          p22: r.p22 == null ? null : r.p22,
+          p23: r.p23 == null ? null : r.p23,
+          p24: r.p24 == null ? null : r.p24,
+          observacion: r.observacion || "",
+        }))
         : [];
 
       // 6) Construir PeriodosHistoricosGrafica iterando dia a dia entre inicio-fin
@@ -1164,7 +1168,7 @@ export default class PronosticosService {
       Logger.error(
         colors.red(
           "Error PronosticosService.play: " +
-            (error && error.message ? error.message : error)
+          (error && error.message ? error.message : error)
         )
       );
       return { success: false, data: null, message: "Error al ejecutar play" };
@@ -1239,8 +1243,7 @@ export default class PronosticosService {
         } else {
           Logger.warn(
             colors.yellow(
-              `PredictService.retrainModel: error conectando a ${host}:${port} — ${
-                err && err.message ? err.message : err
+              `PredictService.retrainModel: error conectando a ${host}:${port} — ${err && err.message ? err.message : err
               }`
             )
           );
@@ -1327,8 +1330,7 @@ export default class PronosticosService {
         } else {
           Logger.warn(
             colors.yellow(
-              `getEvents: error conectando a ${host}:${port} — ${
-                err && err.message ? err.message : err
+              `getEvents: error conectando a ${host}:${port} — ${err && err.message ? err.message : err
               }`
             )
           );
@@ -1418,8 +1420,7 @@ export default class PronosticosService {
         } else {
           Logger.warn(
             colors.yellow(
-              `errorFeedback: error conectando a ${host}:${port} — ${
-                err?.message || err
+              `errorFeedback: error conectando a ${host}:${port} — ${err?.message || err
               }`
             )
           );

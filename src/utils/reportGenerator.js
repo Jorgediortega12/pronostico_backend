@@ -216,11 +216,15 @@ export async function generateTxtToFolder({
             );
             if (ff) isFestivo = true;
           }
-          // determinar columna potenciaX a usar según día de la semana (igual a .NET: Monday->1 ... Sunday->7)
+          // determinar columna potenciaX a usar según día de la semana
+          // isoWeekday: 1=Lun, 2=Mar, 3=Mie, 4=Jue, 5=Vie, 6=Sab, 7=Dom
+          // Tabla BD:   potencia1=Dom, potencia2=Lun, potencia3=Mar, potencia4=Mie, potencia5=Jue, potencia6=Vie, potencia7=Sab
           const diaSemanaIndex = mdate.isoWeekday(); // 1..7 (Mon..Sun)
           const potenciaColName = isFestivo
             ? `potencia1`
-            : `potencia${diaSemanaIndex}`;
+            : diaSemanaIndex === 7
+              ? `potencia1`
+              : `potencia${diaSemanaIndex + 1}`;
           // obtener valor vPotencia
           let vPotencia = 0;
           if (prow && prow[potenciaColName] != null) {
@@ -273,6 +277,8 @@ export async function generateXlsxToFolder({
   fileBaseName,
   configuracionModel,
   options = { truncate: true, keepDecimals: true },
+  codigoColeccionEnergia = "PROENCNDHMC",
+  codigoColeccionPotencia = "PROPOTCNDHMC",
 }) {
   if (!Array.isArray(pronosticoList)) pronosticoList = [];
   if (!fs.existsSync(folderPhysical))
@@ -425,10 +431,10 @@ export async function generateXlsxToFolder({
           toExcelDate(mDate),
           p,
           rounded,
-          "PROENCNDHMC",
+          codigoColeccionEnergia,
         ]);
       } else {
-        ws.addRow([codAbrevValue, toExcelDate(mDate), p, 0.0, "PROENCNDHMC"]);
+        ws.addRow([codAbrevValue, toExcelDate(mDate), p, 0.0, codigoColeccionEnergia]);
       }
     }
   }
@@ -446,7 +452,7 @@ export async function generateXlsxToFolder({
 
       if (!potenciaRow) {
         // no configurada -> escribir 0
-        ws.addRow([codAbrevValue, toExcelDate(mDate), p, 0.0, "PROPOTCNDHMC"]);
+        ws.addRow([codAbrevValue, toExcelDate(mDate), p, 0.0, codigoColeccionPotencia]);
         continue;
       }
 
@@ -475,8 +481,14 @@ export async function generateXlsxToFolder({
       }
 
       // dia de la semana ISO (1=Mon..7=Sun)
+      // isoWeekday: 1=Lun, 2=Mar, 3=Mie, 4=Jue, 5=Vie, 6=Sab, 7=Dom
+      // Tabla BD:   potencia1=Dom, potencia2=Lun, potencia3=Mar, potencia4=Mie, potencia5=Jue, potencia6=Vie, potencia7=Sab
       const diaNumero = mDate.isoWeekday();
-      const potenciaColName = isFestivo ? "potencia1" : `potencia${diaNumero}`;
+      const potenciaColName = isFestivo
+        ? "potencia1"
+        : diaNumero === 7
+          ? "potencia1"
+          : `potencia${diaNumero + 1}`;
 
       // buscar potencia en potenciaRow (case-insensitive)
       let vPotencia = 0;
@@ -501,7 +513,7 @@ export async function generateXlsxToFolder({
         toExcelDate(mDate),
         p,
         roundedTP,
-        "PROPOTCNDHMC",
+        codigoColeccionPotencia,
       ]);
     }
   }
