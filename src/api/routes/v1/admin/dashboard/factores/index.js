@@ -126,5 +126,11 @@ export default function () {
     controllers.consultarMedidasCalcularCompleto
   );
 
+  router.post(
+    "/exportarMedidasExcel",
+    validator(schema.exportarMedidasExcel),
+    controllers.exportarMedidasExcel
+  );
+
   return router;
 }
