@@ -162,4 +162,12 @@ export default {
     flujo: Joi.array().items(Joi.string()).min(1).required(),
     marcado: Joi.boolean().optional().default(false),
   }),
+  exportarMedidasExcel: Joi.object({
+    fecha_inicial: Joi.string().required(),
+    fecha_final: Joi.string().required(),
+    mc: Joi.string().required(),
+    tipo_dia: Joi.string().valid("ORDINARIO", "SABADO", "FESTIVO").required(),
+    tipo_energia: Joi.string().length(1).valid("A", "R").required(),
+    marcado: Joi.boolean().optional().default(false),
+  }),
 };

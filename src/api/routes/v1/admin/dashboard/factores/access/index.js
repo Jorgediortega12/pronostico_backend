@@ -6,6 +6,7 @@ import {
   responseError,
 } from "../../../../../../../helpers/api.response.js";
 import xlsx from "xlsx";
+import ExcelJS from "exceljs";
 
 const service = FactoresService.getInstance();
 
@@ -331,6 +332,234 @@ export const consultarMedidasCalcularCompleto = async (req, res) => {
 
     return SuccessResponse(res, result.data, result.message);
   } catch (error) {
+    return InternalError(res);
+  }
+};
+
+// export const exportarMedidasExcel = async (req, res) => {
+//   try {
+//     const { fecha_inicial, fecha_final, mc, tipo_dia, tipo_energia } = req.body;
+
+//     if (!fecha_inicial || !fecha_final || !mc || !tipo_dia || !tipo_energia) {
+//       return responseError(200, "Parámetros incompletos", 400, res);
+//     }
+
+//     // 1️⃣ Obtener barras
+//     const barrasRes = await service.consultarBarrasIndex_xMC(mc);
+//     if (!barrasRes.success || !barrasRes.data?.length) {
+//       return responseError(200, "No hay barras", 400, res);
+//     }
+
+//     const workbook = new ExcelJS.Workbook();
+
+//     // 2️⃣ Procesar barra por barra
+//     for (const barra of barrasRes.data) {
+//       const barraNombre = barra.barra;
+
+//       // códigos RPM
+//       const rpmRes = await service.consultarBarraNombre(barraNombre);
+//       if (!rpmRes.success || !rpmRes.data?.length) continue;
+
+//       const codigosRPM = rpmRes.data.map((r) => r.codigo_rpm);
+
+//       // flujos
+//       const flujosRes = await service.consultarBarraFlujoNombreInicial(
+//         barraNombre,
+//         tipo_energia
+//       );
+//       if (!flujosRes.success || !flujosRes.data?.length) continue;
+
+//       const flujos = flujosRes.data.map((f) => f.flujo);
+
+//       // medidas
+//       const medidasRes = await service.consultarMedidasCalcularCompleto({
+//         fecha_inicial,
+//         fecha_final,
+//         mc,
+//         tipo_dia,
+//         barra: barraNombre,
+//         codigo_rpm: codigosRPM,
+//         flujo: flujos,
+//         marcado: false,
+//       });
+
+//       if (!medidasRes.success || !medidasRes.data?.length) continue;
+
+//       // 3️⃣ Crear hoja
+//       const sheet = workbook.addWorksheet(barraNombre);
+
+//       sheet.columns = [
+//         { header: "Flujo", key: "flujo", width: 10 },
+//         { header: "Fecha", key: "fecha", width: 14 },
+//         { header: "Cod. RPM", key: "codigo_rpm", width: 15 },
+//         ...Array.from({ length: 24 }, (_, i) => ({
+//           header: `P${i + 1}`,
+//           key: `p${i + 1}`,
+//           width: 10,
+//         })),
+//       ];
+
+//       sheet.getRow(1).font = { bold: true };
+//       sheet.views = [{ state: "frozen", ySplit: 1 }];
+
+//       // 4️⃣ Llenar filas
+//       for (const m of medidasRes.data) {
+//         sheet.addRow({
+//           flujo: m.meflujo,
+//           fecha: m.mefecha,
+//           codigo_rpm: m.mecodigo_rpm,
+//           ...Object.fromEntries(
+//             Array.from({ length: 24 }, (_, i) => [
+//               `p${i + 1}`,
+//               Number(m[`mep${i + 1}`]),
+//             ])
+//           ),
+//         });
+//       }
+//     }
+
+//     // 5️⃣ Descargar
+//     res.setHeader(
+//       "Content-Type",
+//       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+//     );
+//     res.setHeader(
+//       "Content-Disposition",
+//       "attachment; filename=Medidas_por_Barra.xlsx"
+//     );
+
+//     await workbook.xlsx.write(res);
+//     res.end();
+//   } catch (error) {
+//     console.error(error);
+//     return InternalError(res);
+//   }
+// };
+export const exportarMedidasExcel = async (req, res) => {
+  try {
+    const { fecha_inicial, fecha_final, mc, tipo_dia, tipo_energia } = req.body;
+
+    if (!fecha_inicial || !fecha_final || !mc || !tipo_dia || !tipo_energia) {
+      return responseError(200, "Parámetros incompletos", 400, res);
+    }
+
+    // 1️⃣ Obtener barras
+    const barrasRes = await service.consultarBarrasIndex_xMC(mc);
+    if (!barrasRes.success || !barrasRes.data?.length) {
+      return responseError(200, "No hay barras", 400, res);
+    }
+
+    const workbook = new ExcelJS.Workbook();
+
+    // 2️⃣ Procesar barra por barra
+    for (const barra of barrasRes.data) {
+      const barraNombre = barra.barra;
+
+      // códigos RPM
+      const rpmRes = await service.consultarBarraNombre(barraNombre);
+      if (!rpmRes.success || !rpmRes.data?.length) continue;
+      const codigosRPM = rpmRes.data.map((r) => r.codigo_rpm);
+
+      // flujos
+      const flujosRes = await service.consultarBarraFlujoNombreInicial(
+        barraNombre,
+        tipo_energia
+      );
+      if (!flujosRes.success || !flujosRes.data?.length) continue;
+      const flujos = flujosRes.data.map((f) => f.flujo);
+
+      // factores (RPM + flujo)
+      const factoresRes = await service.consultarBarraFactorNombre(
+        barraNombre,
+        tipo_energia,
+        codigosRPM
+      );
+      console.log("Factores Res:", factoresRes);
+      if (!factoresRes.success) continue;
+
+      const factorMap = {};
+      for (const f of factoresRes.data) {
+        factorMap[`${f.codigo_rpm}|${f.flujo}`] = Number(f.factor);
+      }
+
+      // medidas crudas
+      const medidasRes = await service.consultarMedidasCalcularCompleto({
+        fecha_inicial,
+        fecha_final,
+        mc,
+        tipo_dia,
+        barra: barraNombre,
+        codigo_rpm: codigosRPM,
+        flujo: flujos,
+        marcado: false,
+      });
+
+      if (!medidasRes.success || !medidasRes.data?.length) continue;
+
+      // 3️⃣ AGRUPAR por FECHA (como el .NET)
+      const agrupado = {};
+
+      for (const m of medidasRes.data) {
+        const fecha = m.mefecha;
+        const key = `${barraNombre}|${fecha}`;
+
+        if (!agrupado[key]) {
+          agrupado[key] = {
+            fecha,
+            total: 0,
+            periodos: Array(24).fill(0),
+          };
+        }
+
+        const factor = factorMap[`${m.mecodigo_rpm}|${m.meflujo}`] ?? 1;
+
+        agrupado[key].total += Number(m.metotal) * factor;
+
+        for (let i = 0; i < 24; i++) {
+          agrupado[key].periodos[i] += Number(m[`mep${i + 1}`]) * factor;
+        }
+      }
+
+      // 4️⃣ Crear hoja (YA SIN RPM)
+      const sheet = workbook.addWorksheet(barraNombre);
+
+      sheet.columns = [
+        { header: "Fecha", key: "fecha", width: 14 },
+        { header: "Total", key: "total", width: 14 },
+        ...Array.from({ length: 24 }, (_, i) => ({
+          header: `P${i + 1}`,
+          key: `p${i + 1}`,
+          width: 10,
+        })),
+      ];
+
+      sheet.getRow(1).font = { bold: true };
+      sheet.views = [{ state: "frozen", ySplit: 1 }];
+
+      // 5️⃣ Llenar Excel (1 fila = 1 fecha)
+      Object.values(agrupado).forEach((row) => {
+        sheet.addRow({
+          fecha: row.fecha,
+          total: row.total,
+          ...Object.fromEntries(row.periodos.map((v, i) => [`p${i + 1}`, v])),
+        });
+      });
+    }
+
+    // 6️⃣ Descargar Excel
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=Medidas_por_Barra.xlsx"
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error(error);
     return InternalError(res);
   }
 };
