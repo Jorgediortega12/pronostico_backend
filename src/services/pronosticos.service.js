@@ -383,10 +383,6 @@ export default class PronosticosService {
     datos = {} // <-- opcional: pasa aquí los cuadroperiodoX y metadatos si vienen
   ) => {
     try {
-      // Extraer códigos de colección desde datos (con valores por defecto)
-      const codigoColeccionEnergia = datos?.codigo_coleccion_energia || "PROENCNDHMC";
-      const codigoColeccionPotencia = datos?.codigo_coleccion_potencia || "PROPOTCNDHMC";
-
       // 1) Generar archivos
       const normalizeDate = (f) => {
         if (!f) return new Date(0);
@@ -467,8 +463,6 @@ export default class PronosticosService {
         folderPhysical: folderPathPhysical,
         fileBaseName,
         configuracionModel,
-        codigoColeccionEnergia,
-        codigoColeccionPotencia,
       });
 
       const rutaBD_xlsx = `${folderPathLogical}/${xlsxResult.xlsxName}`;
