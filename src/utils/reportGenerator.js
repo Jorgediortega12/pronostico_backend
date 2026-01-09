@@ -305,11 +305,18 @@ export async function generateXlsxToFolder({
     return Number(n.toFixed(1));
   };
 
-  const toExcelDate = (m) => {
+  // Convertir fecha a número serial de Excel (solo fecha, sin hora)
+  // Excel cuenta días desde el 1 de enero de 1900 (día 1)
+  const toExcelDateSerial = (m) => {
     if (!m) return null;
-    if (moment.isMoment(m)) return m.toDate();
-    const mm = parseMoment(m);
-    return mm && mm.isValid() ? mm.toDate() : null;
+    let mom = moment.isMoment(m) ? m : parseMoment(m);
+    if (!mom || !mom.isValid()) return null;
+
+    // Fecha base de Excel: 1 de enero de 1900
+    // Excel tiene un bug donde considera 1900 como año bisiesto, así que ajustamos
+    const excelEpoch = moment.utc("1899-12-30", "YYYY-MM-DD");
+    const days = mom.startOf("day").diff(excelEpoch.startOf("day"), "days");
+    return days;
   };
 
   // ordenar pronostico por fecha asc
@@ -428,13 +435,13 @@ export async function generateXlsxToFolder({
         const rounded = roundDotNet(raw);
         ws.addRow([
           codAbrevValue,
-          toExcelDate(mDate),
+          toExcelDateSerial(mDate),
           p,
           rounded,
           codigoColeccionEnergia,
         ]);
       } else {
-        ws.addRow([codAbrevValue, toExcelDate(mDate), p, 0.0, codigoColeccionEnergia]);
+        ws.addRow([codAbrevValue, toExcelDateSerial(mDate), p, 0.0, codigoColeccionEnergia]);
       }
     }
   }
@@ -452,7 +459,7 @@ export async function generateXlsxToFolder({
 
       if (!potenciaRow) {
         // no configurada -> escribir 0
-        ws.addRow([codAbrevValue, toExcelDate(mDate), p, 0.0, codigoColeccionPotencia]);
+        ws.addRow([codAbrevValue, toExcelDateSerial(mDate), p, 0.0, codigoColeccionPotencia]);
         continue;
       }
 
@@ -510,7 +517,7 @@ export async function generateXlsxToFolder({
       const roundedTP = roundDotNet(tPotencia);
       ws.addRow([
         codAbrevValue,
-        toExcelDate(mDate),
+        toExcelDateSerial(mDate),
         p,
         roundedTP,
         codigoColeccionPotencia,
