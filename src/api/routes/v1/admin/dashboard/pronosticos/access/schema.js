@@ -102,4 +102,9 @@ export default {
     fechainicio: Joi.string().required(),
     fechafin: Joi.string().required(),
   }),
+  predictDay: Joi.object().keys({
+    ucp: Joi.string().required(),
+    fecha: Joi.string().required(),
+    fecha_referencia: Joi.string().required(),
+  }),
 };

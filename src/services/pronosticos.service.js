@@ -86,6 +86,59 @@ function toNumberSafe(v) {
   return isNaN(n) ? 0 : n;
 }
 
+const mapHourlyObject = (obj) =>
+  Object.entries(obj)
+    .filter(([k]) => /^P\d+$/.test(k))
+    .map(([k, v]) => ({
+      hora: Number(k.replace("P", "")),
+      valor: Number(v.toFixed(2)),
+    }))
+    .sort((a, b) => a.hora - b.hora);
+
+const formatPredictDayResponse = (apiData) => {
+  const prediction = apiData.prediction.predictions[0];
+  const referencia = apiData.history.referencia;
+  const comparisons = apiData.comparisons.referencia;
+  const adjustments = apiData.adjustments.referencia;
+
+  return {
+    resumen: {
+      fecha: prediction.fecha,
+      diaSemana: prediction.dia_semana,
+      demandaTotal: prediction.demanda_total,
+      esFestivo: prediction.is_festivo,
+      esFinDeSemana: prediction.is_weekend,
+      modelo: apiData.prediction.metadata.modelo_usado,
+      shouldRetrain: apiData.prediction.should_retrain,
+      reason: apiData.prediction.reason,
+    },
+
+    horas: mapHourlyObject(prediction),
+
+    referencia: mapHourlyObject(referencia.valores),
+
+    comparaciones: Object.entries(comparisons)
+      .filter(([k]) => /^P\d+$/.test(k))
+      .map(([k, v]) => ({
+        hora: Number(k.replace("P", "")),
+        delta: Number(v.delta.toFixed(2)),
+        deltaPct: Number((v.delta_pct * 100).toFixed(2)),
+        relacion: v.relacion,
+      }))
+      .sort((a, b) => a.hora - b.hora),
+
+    ajustes: {
+      scaleFactor: Number(adjustments.scale_factor.toFixed(4)),
+      perfilAjustado: mapHourlyObject(adjustments.profile),
+    },
+
+    flags: {
+      metodoDesagregacion: prediction.metodo_desagregacion,
+      clusterId: prediction.cluster_id,
+    },
+  };
+};
+
 export default class PronosticosService {
   static instance;
   static getInstance() {
@@ -665,9 +718,9 @@ export default class PronosticosService {
   ) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    const port = 8001;
+    // const port = 8001;
     //puerto desarrollo
-    // const port = 8000;
+    const port = 8000;
 
     // Solo calcular n_days si es el modelo /predict-with-base-curve
     const n_days = daysBetweenISO(inicioIso, finIso) + 1;
@@ -1191,9 +1244,9 @@ export default class PronosticosService {
   retrainModel = async (ucp, timeoutMs = 600000) => {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    const port = 8001;
+    // const port = 8001;
     //puerto desarrollo
-    // const port = 8000;
+    const port = 8000;
     for (const host of hostsToTry) {
       const url = `http://${host}:${port}/retrain?ucp=${encodeURIComponent(
         String(ucp)
@@ -1274,9 +1327,9 @@ export default class PronosticosService {
   async getEvents(inicioIso, finIso, ucp, timeoutMs = 600000) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    const port = 8001;
+    // const port = 8001;
     //puerto desarrollo
-    // const port = 8000;
+    const port = 8000;
 
     for (const host of hostsToTry) {
       let timer; // <-- declarar fuera del try para que catch/finally lo vean
@@ -1372,9 +1425,9 @@ export default class PronosticosService {
   ) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    const port = 8001;
+    // const port = 8001;
     //puerto desarrollo
-    // const port = 8000;
+    const port = 8000;
 
     for (const host of hostsToTry) {
       let timer;
@@ -1515,4 +1568,113 @@ export default class PronosticosService {
       };
     }
   };
+
+  async predictDay({
+    ucp,
+    fecha,
+    fecha_referencia,
+    force_retrain = false,
+    offset_scalar = 1,
+    timeoutMs = 120000,
+  }) {
+    const hostsToTry = ["127.0.0.1", "localhost"];
+    //puerto produccion
+    // const port = 8001;
+    //puerto desarrollo
+    const port = 8000;
+    const endpoint = "/predict-day";
+
+    // Normalizar fechas
+    const fechaIso = toISODateString(fecha);
+    const fechaRefIso = toISODateString(fecha_referencia);
+
+    if (!ucp || !fechaIso || !fechaRefIso) {
+      return {
+        success: false,
+        statusCode: 0,
+        data: null,
+        message: "Parámetros inválidos para predictDay",
+      };
+    }
+
+    for (const host of hostsToTry) {
+      try {
+        const url = `http://${host}:${port}${endpoint}`;
+
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+        const body = {
+          ucp,
+          fecha: fechaIso,
+          fecha_referencia: fechaRefIso,
+          force_retrain: !!force_retrain,
+          offset_scalar,
+        };
+
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timer);
+
+        const statusCode = res.status;
+        const json = await res.json().catch(() => null);
+
+        Logger.info("Respuesta predictDay:", JSON.stringify(json, null, 2));
+
+        if (!res.ok) {
+          Logger.warn(
+            colors.yellow(
+              `predictDay: HTTP ${statusCode} desde ${host}:${port}`
+            )
+          );
+          return { success: false, statusCode, data: json };
+        }
+
+        // Validación mínima del payload
+        if (!json?.prediction || !Array.isArray(json.prediction.predictions)) {
+          return {
+            success: false,
+            statusCode,
+            data: json,
+            message: "Payload inesperado en predictDay",
+          };
+        }
+
+        const formatted = formatPredictDayResponse(json);
+
+        return {
+          success: true,
+          statusCode,
+          data: formatted,
+        };
+      } catch (err) {
+        if (err?.name === "AbortError") {
+          Logger.warn(
+            colors.yellow(
+              `predictDay: timeout (${timeoutMs}ms) hacia ${host}:${port}`
+            )
+          );
+        } else {
+          Logger.warn(
+            colors.yellow(
+              `predictDay: error conectando a ${host}:${port} — ${
+                err?.message || err
+              }`
+            )
+          );
+        }
+      }
+    }
+
+    Logger.error(colors.red("predictDay: falló en todos los hosts"));
+    return { success: false, statusCode: 0, data: null };
+  }
 }

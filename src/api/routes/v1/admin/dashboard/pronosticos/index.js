@@ -35,5 +35,10 @@ export default function () {
     validator(schema.traerDatosClimaticos),
     controllers.traerDatosClimaticos
   );
+  router.post(
+    "/predictDay",
+    validator(schema.predictDay),
+    controllers.predictDay
+  );
   return router;
 }
