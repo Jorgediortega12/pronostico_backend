@@ -195,3 +195,36 @@ export const traerDatosClimaticos = async (req, res) => {
     return InternalError(res);
   }
 };
+
+export const predictDay = async (req, res) => {
+  try {
+    const { ucp, fecha, fecha_referencia } = req.body;
+
+    const result = await service.predictDay({
+      ucp,
+      fecha,
+      fecha_referencia,
+      force_retrain: false,
+      offset_scalar: 1,
+      timeoutMs: 120000,
+    });
+
+    if (!result.success) {
+      return responseError(
+        200,
+        result.message || "Error en predictDay",
+        404,
+        res
+      );
+    }
+
+    return SuccessResponse(
+      res,
+      result.data,
+      "Predicción diaria generada correctamente"
+    );
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
