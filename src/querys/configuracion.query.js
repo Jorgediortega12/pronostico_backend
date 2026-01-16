@@ -310,3 +310,28 @@ export const upsertTipoPronostico = `
     tipopronostico = EXCLUDED.tipopronostico
   RETURNING *;
 `;
+
+export const cargarHistoricosPronosticosDinamico = `
+WITH ultima_sesion AS (
+  SELECT s.codigo
+  FROM sesiones s
+  WHERE s.ucp = $1
+    AND s.fechainicio <= $3
+    AND s.fechafin >= $2
+  ORDER BY s.version DESC
+  LIMIT 1
+)
+SELECT
+  sp.*,
+  CASE
+    WHEN f.fecha IS NOT NULL THEN 1
+    ELSE 0
+  END AS es_festivo
+FROM sesiones_periodos sp
+JOIN ultima_sesion us ON us.codigo = sp.codsesion
+LEFT JOIN festivos f
+  ON f.ucp = $1
+ AND f.fecha = sp.fecha
+WHERE sp.tipo = 'P'
+  AND sp.fecha BETWEEN $2 AND $3
+`;

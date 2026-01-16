@@ -933,3 +933,35 @@ export const insertarTipoPronostico = async (req, res) => {
       .json({ success: false, message: "Internal server error" });
   }
 };
+
+export const cargarPeriodosDinamico = async (req, res) => {
+  try {
+    const filters = req.body;
+
+    const result = await service.cargarPeriodosDinamico(filters);
+
+    if (!result.success) {
+      return responseError(200, result.message, 404, res);
+    }
+
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(err);
+  }
+};
+
+export const cargarHistoricosPronosticosDinamico = async (req, res) => {
+  try {
+    const result = await service.cargarHistoricosPronosticosDinamico(req.body);
+
+    if (!result.success) {
+      return responseError(200, result.message, 404, res);
+    }
+
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(err);
+  }
+};

@@ -1128,4 +1128,130 @@ export default class ConfiguracionModel {
       await client.end();
     }
   };
+
+  cargarPeriodosDinamico = async ({
+    ucp,
+    fechaInicio,
+    fechaFin,
+    diasSemana,
+    festivo,
+  }) => {
+    const client = this.createClient();
+
+    try {
+      await client.connect();
+
+      let query = `
+      SELECT
+        ad.*,
+        CASE
+          WHEN f.fecha IS NOT NULL THEN 1
+          ELSE 0
+        END AS es_festivo
+      FROM actualizaciondatos ad
+      LEFT JOIN festivos f
+        ON f.ucp = ad.ucp
+       AND f.fecha = ad.fecha
+      WHERE ad.ucp = $1
+        AND ad.fecha BETWEEN $2 AND $3
+    `;
+
+      const values = [ucp, fechaInicio, fechaFin];
+      let index = values.length;
+
+      // filtro por días de la semana
+      if (diasSemana && diasSemana.length > 0) {
+        index++;
+        query += ` AND EXTRACT(DOW FROM ad.fecha) = ANY($${index})`;
+        values.push(diasSemana);
+      }
+
+      // filtro por festivo usando tabla festivos
+      if (festivo !== undefined) {
+        if (festivo === true) {
+          query += ` AND f.fecha IS NOT NULL`;
+        } else {
+          query += ` AND f.fecha IS NULL`;
+        }
+      }
+
+      query += ` ORDER BY ad.fecha ASC`;
+
+      const result = await client.query(query, values);
+      return result.rows.length ? result.rows : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error configuracionModel cargarPeriodosDinamico")
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  cargarHistoricosPronosticosDinamico = async ({
+    ucp,
+    fechaInicio,
+    fechaFin,
+    diasSemana,
+    festivo,
+  }) => {
+    const client = this.createClient();
+
+    try {
+      await client.connect();
+
+      let query = `
+      WITH ultima_sesion AS (
+        SELECT s.codigo
+        FROM sesiones s
+        WHERE s.ucp = $1
+          AND s.fechainicio <= $3
+          AND s.fechafin >= $2
+        ORDER BY s.version DESC
+        LIMIT 1
+      )
+      SELECT
+        sp.*,
+        CASE
+          WHEN f.fecha IS NOT NULL THEN 1
+          ELSE 0
+        END AS es_festivo
+      FROM sesiones_periodos sp
+      JOIN ultima_sesion us ON us.codigo = sp.codsesion
+      LEFT JOIN festivos f
+        ON f.ucp = $1
+       AND f.fecha = sp.fecha
+      WHERE sp.tipo = 'P'
+        AND sp.fecha BETWEEN $2 AND $3
+    `;
+
+      const values = [ucp, fechaInicio, fechaFin];
+      let index = values.length;
+
+      // días de la semana
+      if (diasSemana?.length) {
+        index++;
+        query += ` AND EXTRACT(DOW FROM sp.fecha) = ANY($${index})`;
+        values.push(diasSemana);
+      }
+
+      // festivos
+      if (festivo !== undefined) {
+        query += festivo ? ` AND f.fecha IS NOT NULL` : ` AND f.fecha IS NULL`;
+      }
+
+      query += ` ORDER BY sp.fecha ASC`;
+
+      const result = await client.query(query, values);
+      return result.rows.length ? result.rows : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error model cargarHistoricosPronosticosDinamico")
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
 }

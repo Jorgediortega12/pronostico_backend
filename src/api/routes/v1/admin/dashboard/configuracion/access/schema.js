@@ -316,4 +316,20 @@ export default {
     fecha: Joi.string().isoDate().required(),
     tipopronostico: Joi.string().required(),
   }),
+
+  cargarPeriodosDinamico: Joi.object({
+    ucp: Joi.string().required(),
+    fechaInicio: Joi.string().required(),
+    fechaFin: Joi.string().required(),
+    diasSemana: Joi.array().items(Joi.number().min(0).max(6)).optional(),
+    festivo: Joi.boolean().optional(),
+  }),
+
+  cargarHistoricosPronosticosDinamico: Joi.object({
+    ucp: Joi.string().required(),
+    fechaInicio: Joi.string().required(),
+    fechaFin: Joi.string().required(),
+    diasSemana: Joi.array().items(Joi.number().min(0).max(6)).optional(),
+    festivo: Joi.boolean().optional(),
+  }),
 };

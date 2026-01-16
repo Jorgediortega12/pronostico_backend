@@ -1090,4 +1090,62 @@ export default class ConfiguracionService {
       };
     }
   };
+
+  cargarPeriodosDinamico = async (filters) => {
+    try {
+      const res = await model.cargarPeriodosDinamico(filters);
+
+      if (!res) {
+        return {
+          success: false,
+          data: null,
+          message: "No se encontraron históricos",
+        };
+      }
+
+      return {
+        success: true,
+        data: res,
+        message: "Históricos encontrados",
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error configuracionServices cargarPeriodosDinamico")
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al obtener históricos",
+      };
+    }
+  };
+
+  cargarHistoricosPronosticosDinamico = async (filters) => {
+    try {
+      const res = await model.cargarHistoricosPronosticosDinamico(filters);
+
+      if (!res) {
+        return {
+          success: false,
+          data: null,
+          message: "No se encontraron pronósticos históricos",
+        };
+      }
+
+      return {
+        success: true,
+        data: res,
+        message: "Pronósticos históricos encontrados",
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error service cargarHistoricosPronosticosDinamico")
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al cargar pronósticos históricos",
+      };
+    }
+  };
 }

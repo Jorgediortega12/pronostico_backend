@@ -248,5 +248,17 @@ export default function () {
     validator(schema.insertarTipoPronostico),
     controllers.insertarTipoPronostico
   );
+  router.post(
+    "/cargarPeriodosDinamico",
+    validator(schema.cargarPeriodosDinamico),
+    controllers.cargarPeriodosDinamico
+  );
+
+  router.post(
+    "/cargarHistoricosPronosticosDinamico",
+    validator(schema.cargarHistoricosPronosticosDinamico),
+    controllers.cargarHistoricosPronosticosDinamico
+  );
+
   return router;
 }
