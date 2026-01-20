@@ -228,3 +228,38 @@ export const predictDay = async (req, res) => {
     return InternalError(res);
   }
 };
+
+// controllers/validateHourlyAdjustments.controller.ts
+export const validateHourlyAdjustments = async (req, res) => {
+  try {
+    const { ucp, fecha, tipo_dia, predicciones_actuales, ajustes_solicitados } =
+      req.body;
+
+    const result = await service.validateHourlyAdjustments({
+      ucp,
+      fecha,
+      tipo_dia,
+      predicciones_actuales,
+      ajustes_solicitados,
+      timeoutMs: 120000,
+    });
+
+    if (!result.success) {
+      return responseError(
+        200,
+        result.message || "Error en validateHourlyAdjustments",
+        404,
+        res
+      );
+    }
+
+    return SuccessResponse(
+      res,
+      result.data,
+      "Ajustes horarios validados correctamente"
+    );
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};

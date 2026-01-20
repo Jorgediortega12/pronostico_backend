@@ -1677,4 +1677,121 @@ export default class PronosticosService {
     Logger.error(colors.red("predictDay: falló en todos los hosts"));
     return { success: false, statusCode: 0, data: null };
   }
+
+  // services/validateHourlyAdjustments.service.ts
+  async validateHourlyAdjustments({
+    ucp,
+    fecha,
+    tipo_dia,
+    predicciones_actuales,
+    ajustes_solicitados,
+    timeoutMs = 120000,
+  }) {
+    const hostsToTry = ["127.0.0.1", "localhost"];
+    //puerto produccion
+    const port = 8001;
+    //puerto desarrollo
+    // const port = 8000;
+    const endpoint = "/validate-hourly-adjustments";
+
+    const fechaIso = toISODateString(fecha);
+
+    if (
+      !ucp ||
+      !fechaIso ||
+      !tipo_dia ||
+      !Array.isArray(predicciones_actuales) ||
+      !Array.isArray(ajustes_solicitados)
+    ) {
+      return {
+        success: false,
+        statusCode: 0,
+        data: null,
+        message: "Parámetros inválidos para validateHourlyAdjustments",
+      };
+    }
+
+    for (const host of hostsToTry) {
+      try {
+        const url = `http://${host}:${port}${endpoint}`;
+
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+        const body = {
+          ucp,
+          fecha: fechaIso,
+          tipo_dia,
+          predicciones_actuales,
+          ajustes_solicitados,
+        };
+
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timer);
+
+        const statusCode = res.status;
+        const json = await res.json().catch(() => null);
+
+        Logger.info(
+          "Respuesta validateHourlyAdjustments:",
+          JSON.stringify(json, null, 2)
+        );
+
+        if (!res.ok) {
+          Logger.warn(
+            colors.yellow(
+              `validateHourlyAdjustments: HTTP ${statusCode} desde ${host}:${port}`
+            )
+          );
+          return { success: false, statusCode, data: json };
+        }
+
+        // Validación mínima de payload esperado
+        if (!json?.valores_ajustados || !json?.comparacion) {
+          return {
+            success: false,
+            statusCode,
+            data: json,
+            message: "Payload inesperado en validateHourlyAdjustments",
+          };
+        }
+
+        return {
+          success: true,
+          statusCode,
+          data: json,
+        };
+      } catch (err) {
+        if (err?.name === "AbortError") {
+          Logger.warn(
+            colors.yellow(
+              `validateHourlyAdjustments: timeout (${timeoutMs}ms) hacia ${host}:${port}`
+            )
+          );
+        } else {
+          Logger.warn(
+            colors.yellow(
+              `validateHourlyAdjustments: error conectando a ${host}:${port} — ${
+                err?.message || err
+              }`
+            )
+          );
+        }
+      }
+    }
+
+    Logger.error(
+      colors.red("validateHourlyAdjustments: falló en todos los hosts")
+    );
+    return { success: false, statusCode: 0, data: null };
+  }
 }
