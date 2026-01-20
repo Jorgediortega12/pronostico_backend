@@ -40,5 +40,12 @@ export default function () {
     validator(schema.predictDay),
     controllers.predictDay
   );
+  // routes/pronosticos.routes.ts
+  router.post(
+    "/validateHourlyAdjustments",
+    validator(schema.validateHourlyAdjustments),
+    controllers.validateHourlyAdjustments
+  );
+
   return router;
 }

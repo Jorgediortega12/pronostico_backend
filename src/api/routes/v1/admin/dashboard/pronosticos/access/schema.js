@@ -107,4 +107,20 @@ export default {
     fecha: Joi.string().required(),
     fecha_referencia: Joi.string().required(),
   }),
+  // schemas/pronosticos.schema.ts
+  validateHourlyAdjustments: Joi.object().keys({
+    ucp: Joi.string().required(),
+    fecha: Joi.string().required(),
+    tipo_dia: Joi.string().required(),
+
+    predicciones_actuales: Joi.array()
+      .items(Joi.number().required())
+      .length(24)
+      .required(),
+
+    ajustes_solicitados: Joi.array()
+      .items(Joi.number().required())
+      .length(24)
+      .required(),
+  }),
 };
