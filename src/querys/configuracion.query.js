@@ -14,11 +14,11 @@ export const agregarVersionSesion = `
     p7_diario, p8_diario, p9_diario, p10_diario, p11_diario, p12_diario,
     p13_diario, p14_diario, p15_diario, p16_diario, p17_diario, p18_diario,
     p19_diario, p20_diario, p21_diario, p22_diario, p23_diario, p24_diario,
-    nombrearchivo, cargaindustrial
+    nombrearchivo, cargaindustrial, observacion
   ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
     $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28,
-    $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41
+    $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42
   ) RETURNING *
 `;
 //agregar datos pronostico por sesion
@@ -335,3 +335,8 @@ LEFT JOIN festivos f
 WHERE sp.tipo = 'P'
   AND sp.fecha BETWEEN $2 AND $3
 `;
+
+export const listarTodosLosFestivos = `
+  SELECT *
+  FROM festivos WHERE ucp = $1 ORDER BY fecha DESC;
+  `;

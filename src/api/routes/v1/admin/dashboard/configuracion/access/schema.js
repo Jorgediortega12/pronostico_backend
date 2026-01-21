@@ -332,4 +332,7 @@ export default {
     diasSemana: Joi.array().items(Joi.number().min(0).max(6)).optional(),
     festivo: Joi.boolean().optional(),
   }),
+  listarTodosLosFestivos: Joi.object({
+    ucp: Joi.string().required(),
+  }),
 };

@@ -10,90 +10,90 @@ export default function () {
   router.get(
     "/buscarSaveDocumento/:aux3",
     validator(schema.buscarSaveDocumento),
-    controllers.buscarSaveDocumento
+    controllers.buscarSaveDocumento,
   );
 
   //cargar dias potencia
   router.get(
     "/cargarDiasPotencia/:ucp",
     validator(schema.cargarDiasPotencia),
-    controllers.cargarDiasPotencia
+    controllers.cargarDiasPotencia,
   );
 
   // buscar versiones sesion
   router.get(
     "/buscarVersionesSesion/:nombre",
     validator(schema.buscarVersioneSesion),
-    controllers.buscarVersionSesion
+    controllers.buscarVersionSesion,
   );
 
   // Buscar dias festivos
   router.get(
     "/buscarDiaFestivo/:fecha/:ucp",
     validator(schema.buscarDiaFestivo),
-    controllers.buscarDiaFestivo
+    controllers.buscarDiaFestivo,
   );
 
   // routes/festivos.ts
   router.get(
     "/listarFestivos/:fechaInicio/:fechaFin/:ucp",
     validator(schema.listarFestivosPorRango),
-    controllers.listarFestivosPorRango
+    controllers.listarFestivosPorRango,
   );
 
   //cargar dias potencias
   router.get(
     "/buscarPotenciaDia/:ucp/:dia",
     validator(schema.buscarPotenciaDia),
-    controllers.buscarPotenciaDia
+    controllers.buscarPotenciaDia,
   );
 
   // traer datos de historicos desde fechaInicio hasta el más reciente
   router.get(
     "/cargarPeriodosxUCPDesdeFecha/:ucp/:fechaInicio",
     validator(schema.cargarPeriodosxUCPDesdeFecha),
-    controllers.cargarPeriodosxUCPDesdeFecha
+    controllers.cargarPeriodosxUCPDesdeFecha,
   );
 
   // traer datos climas desde fechaInicio hasta el más reciente
   router.get(
     "/cargarVariablesClimaticasxUCPDesdeFecha/:ucp/:fechaInicio",
     validator(schema.cargarPeriodosxUCPDesdeFecha),
-    controllers.cargarVariablesClimaticasxUCPDesdeFecha
+    controllers.cargarVariablesClimaticasxUCPDesdeFecha,
   );
 
   // traer datos de historicos desde el limite hasta la fechaInicio
   router.get(
     "/cargarPeriodosxUCPxUnaFechaxLimite/:ucp/:fechaInicio/:limite",
     validator(schema.cargarPeriodosxUCPxUnaFechaxLimite),
-    controllers.cargarPeriodosxUCPxUnaFechaxLimite
+    controllers.cargarPeriodosxUCPxUnaFechaxLimite,
   );
 
   //cargar todos los dias potencias
   router.get(
     "/cargarTodosLosDiasPotencia",
-    controllers.cargarTodosLosDiasPotencia
+    controllers.cargarTodosLosDiasPotencia,
   );
 
   // actualizar dia potencia
   router.put(
     "/actualizarDiaPotencia",
     validator(schema.actualizarDiaPotencia),
-    controllers.actualizarDiaPotencia
+    controllers.actualizarDiaPotencia,
   );
 
   // POST crear dia potencia
   router.post(
     "/crearDiaPotencia",
     validator(schema.crearDiaPotencia),
-    controllers.crearDiaPotencia
+    controllers.crearDiaPotencia,
   );
 
   // POST agregar UCP fuente
   router.post(
     "/agregarUCPMedida",
     validator(schema.agregarUCPMedida),
-    controllers.agregarUCPMedida
+    controllers.agregarUCPMedida,
   );
 
   // GET cargar fuentes
@@ -103,14 +103,14 @@ export default function () {
   router.put(
     "/actualizarUCPMedida",
     validator(schema.actualizarUCPMedida), // si usas middleware
-    controllers.actualizarUCPMedida
+    controllers.actualizarUCPMedida,
   );
 
   // DELETE eliminar
   router.delete(
     "/eliminarUCPMedida/:codigo",
     validator(schema.eliminarUCPMedidaParams),
-    controllers.eliminarUCPMedida
+    controllers.eliminarUCPMedida,
   );
 
   // GET cargar equivalencias
@@ -123,141 +123,148 @@ export default function () {
   router.post(
     "/editarMercadoCascade",
     validator(schema.editarMercado),
-    controllers.editarMercadoCascade
+    controllers.editarMercadoCascade,
   );
 
   router.get(
     "/cargarUmbral",
     validator(schema.cargarUmbralSchema),
-    controllers.cargarUmbral
+    controllers.cargarUmbral,
   );
   router.post(
     "/editarUmbral",
     validator(schema.editarUmbralSchema),
-    controllers.editarUmbral
+    controllers.editarUmbral,
   );
   router.get(
     "/cargarDiasFestivos",
     validator(schema.cargarDiasFestivosSchema),
-    controllers.cargarDiasFestivos
+    controllers.cargarDiasFestivos,
   );
   router.post(
     "/buscarDiaFestivo",
     validator(schema.buscarDiaFestivoSchema),
-    controllers.buscarDiaFestivo
+    controllers.buscarDiaFestivo,
   );
   router.post(
     "/ingresarDiaFestivos",
     validator(schema.ingresarDiaFestivosSchema),
-    controllers.ingresarDiaFestivos
+    controllers.ingresarDiaFestivos,
   );
   router.post(
     "/borrarDiaFestivos",
     validator(schema.borrarDiaFestivosSchema),
-    controllers.borrarDiaFestivos
+    controllers.borrarDiaFestivos,
   );
   router.get(
     "/buscarUltimaFechaHistorica/:ucp",
     validator(schema.buscarUltimaFechaHistorica),
-    controllers.buscarUltimaFechaHistorica
+    controllers.buscarUltimaFechaHistorica,
   );
   router.get(
     "/buscarUltimaFechaClimaLog",
-    controllers.buscarUltimaFechaClimaLog
+    controllers.buscarUltimaFechaClimaLog,
   );
   router.get("/buscarUltimaFechaClima", controllers.buscarUltimaFechaClima);
   router.get("/buscarKey", controllers.buscarKey);
   router.get(
     "/buscarFactor",
     validator(schema.buscarFactor),
-    controllers.buscarFactor
+    controllers.buscarFactor,
   );
   router.get(
     "/cargarCodigoRMPxUCP",
     validator(schema.cargarCodigoRMPxUCP),
-    controllers.cargarCodigoRMPxUCP
+    controllers.cargarCodigoRMPxUCP,
   );
   router.get(
     "/cargarTipoArchivos",
     validator(schema.cargarTipoArchivos),
-    controllers.cargarTipoArchivos
+    controllers.cargarTipoArchivos,
   );
   router.get(
     "/cargarUCPxAux2",
     validator(schema.cargarUCPxAux2),
-    controllers.cargarUCPxAux2
+    controllers.cargarUCPxAux2,
   );
   router.get(
     "/buscarUCPActualizacionDatos/:ucp/:fecha",
     validator(schema.buscarUCPActualizacionDatos),
-    controllers.buscarUCPActualizacionDatos
+    controllers.buscarUCPActualizacionDatos,
   );
   router.get(
     "/verificarExisteActualizacionDatos/:ucp/:fecha",
     validator(schema.verificarExisteActualizacionDatos),
-    controllers.verificarExisteActualizacionDatos
+    controllers.verificarExisteActualizacionDatos,
   );
   router.post(
     "/agregarUCPActualizacionDatos",
     validator(schema.agregarUCPActualizacionDatos),
-    controllers.agregarUCPActualizacionDatos
+    controllers.agregarUCPActualizacionDatos,
   );
   router.put(
     "/actualizarUCPActualizacionDatos",
     validator(schema.actualizarUCPActualizacionDatos),
-    controllers.actualizarUCPActualizacionDatos
+    controllers.actualizarUCPActualizacionDatos,
   );
   router.get(
     "/buscarClimaPeriodos/:ucp/:fecha",
     validator(schema.buscarClimaPeriodos),
-    controllers.buscarClimaPeriodos
+    controllers.buscarClimaPeriodos,
   );
 
   router.post(
     "/agregarClimaPronosticoLog/:fecha/:ucp",
     validator(schema.agregarClimaPronosticoLog),
-    controllers.agregarClimaPronosticoLog
+    controllers.agregarClimaPronosticoLog,
   );
 
   router.post(
     "/agregarClimaPeriodo/:fecha/:ucp/:indice/:clima",
     validator(schema.agregarClimaPeriodo),
-    controllers.agregarClimaPeriodo
+    controllers.agregarClimaPeriodo,
   );
 
   router.put(
     "/actualizarClimaPeriodos/:fecha/:ucp/:indice/:clima",
     validator(schema.actualizarClimaPeriodos),
-    controllers.actualizarClimaPeriodos
+    controllers.actualizarClimaPeriodos,
   );
 
   router.get(
     "/buscarTipicidad/:ucp/:fecha",
     validator(schema.buscarTipicidad),
-    controllers.buscarTipicidad
+    controllers.buscarTipicidad,
   );
 
   router.get(
     "/listarTipoModelo/:fechaInicio/:fechaFin/:ucp",
     validator(schema.listarTipoModeloPorRango),
-    controllers.listarTipoModeloPorRango
+    controllers.listarTipoModeloPorRango,
   );
 
   router.post(
     "/insertarTipoPronostico",
     validator(schema.insertarTipoPronostico),
-    controllers.insertarTipoPronostico
+    controllers.insertarTipoPronostico,
   );
   router.post(
     "/cargarPeriodosDinamico",
     validator(schema.cargarPeriodosDinamico),
-    controllers.cargarPeriodosDinamico
+    controllers.cargarPeriodosDinamico,
   );
 
   router.post(
     "/cargarHistoricosPronosticosDinamico",
     validator(schema.cargarHistoricosPronosticosDinamico),
-    controllers.cargarHistoricosPronosticosDinamico
+    controllers.cargarHistoricosPronosticosDinamico,
+  );
+
+  // Listar todos los dias festivos
+  router.get(
+    "/listarTodosLosFestivos/:ucp",
+    validator(schema.listarTodosLosFestivos),
+    controllers.listarTodosLosFestivos,
   );
 
   return router;

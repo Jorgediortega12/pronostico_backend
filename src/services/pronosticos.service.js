@@ -179,12 +179,12 @@ export default class PronosticosService {
       moment(
         f,
         ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", "YYYY/MM/DD"],
-        true
+        true,
       ).isValid()
         ? moment(
             f,
             ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", "YYYY/MM/DD"],
-            true
+            true,
           )
         : moment(f);
 
@@ -207,7 +207,7 @@ export default class PronosticosService {
     const mLast = moment(
       lastDateStr,
       ["DD/MM/YYYY", "YYYY-MM-DD", "DD-MM-YYYY"],
-      true
+      true,
     );
     const reportMoment = mLast.isValid()
       ? mLast.clone().subtract(6, "days")
@@ -250,6 +250,7 @@ export default class PronosticosService {
       edicionfecha: datos.ediciondiareferencia ?? "",
       edicionsuma: datos.cuadropdias ?? "",
       cargaindustrial: datos.cargaindustrial ?? "",
+      observacion: datos.observacion ?? "",
     };
 
     // 1) buscar versión existente
@@ -307,6 +308,7 @@ export default class PronosticosService {
       p24_diario: cuadro.cuadroperiodo24,
       nombrearchivo,
       cargaindustrial: meta.cargaindustrial,
+      observacion: meta.observacion,
     };
 
     // Llamar a tu model.agregarVersionSesion pasando el objeto (tu model lo transforma a valores)
@@ -324,7 +326,7 @@ export default class PronosticosService {
         versionInserted[0].codigo);
     if (!codsesion) {
       throw new Error(
-        "No se obtuvo codigo de sesión desde agregarVersionSesion"
+        "No se obtuvo codigo de sesión desde agregarVersionSesion",
       );
     }
 
@@ -433,7 +435,7 @@ export default class PronosticosService {
     ucp,
     pronosticoList,
     historicoList,
-    datos = {} // <-- opcional: pasa aquí los cuadroperiodoX y metadatos si vienen
+    datos = {}, // <-- opcional: pasa aquí los cuadroperiodoX y metadatos si vienen
   ) => {
     try {
       // 1) Generar archivos
@@ -444,7 +446,7 @@ export default class PronosticosService {
 
       const ordered = Array.isArray(pronosticoList)
         ? [...pronosticoList].sort(
-            (a, b) => normalizeDate(a.fecha) - normalizeDate(b.fecha)
+            (a, b) => normalizeDate(a.fecha) - normalizeDate(b.fecha),
           )
         : [];
 
@@ -454,7 +456,7 @@ export default class PronosticosService {
       const mLast = moment(
         lastDateStr,
         ["DD/MM/YYYY", "YYYY-MM-DD", "DD-MM-YYYY"],
-        true
+        true,
       );
       const reportMoment = mLast.isValid()
         ? mLast.clone().subtract(6, "days")
@@ -479,7 +481,7 @@ export default class PronosticosService {
           ucp,
           yyyy,
           monthName,
-          reportDirPhysicalRoot
+          reportDirPhysicalRoot,
         );
         codcarpeta = folderInfo.codcarpeta;
         folderPathLogical = folderInfo.folderPathLogical;
@@ -494,7 +496,7 @@ export default class PronosticosService {
         typeof generateXlsxToFolder !== "function"
       ) {
         throw new Error(
-          "Faltan las funciones generateTxtToFolder/generateXlsxToFolder"
+          "Faltan las funciones generateTxtToFolder/generateXlsxToFolder",
         );
       }
 
@@ -551,7 +553,7 @@ export default class PronosticosService {
         await clientFiles.query("ROLLBACK");
         Logger.error(
           colors.red("Error insertando registros en archivos:"),
-          errInsert
+          errInsert,
         );
         // continuar (igual que tu C#) o throw si prefieres abortar
       } finally {
@@ -561,7 +563,7 @@ export default class PronosticosService {
       // 6) Guardar sesión y datos (pronóstico + histórico)
       if (typeof this.saveSessionAndData !== "function") {
         Logger.warn(
-          "saveSessionAndData no definido - se omite guardado de sesión"
+          "saveSessionAndData no definido - se omite guardado de sesión",
         );
       } else {
         try {
@@ -578,7 +580,7 @@ export default class PronosticosService {
             nombreArchivoTxt: txtResult.txtName,
           });
           Logger.info(
-            `Sesión guardada: ${sessionResult.nombresesion} id=${sessionResult.codsesion}`
+            `Sesión guardada: ${sessionResult.nombresesion} id=${sessionResult.codsesion}`,
           );
         } catch (err) {
           Logger.error("Error guardando sesión y datos:", err);
@@ -607,13 +609,13 @@ export default class PronosticosService {
       const result = await model.borrarPronosticosPorUCPyRango(
         ucp,
         finicio,
-        ffin
+        ffin,
       );
       return { success: true, message: "Pronósticos borrados." };
     } catch (err) {
       Logger.error(
         colors.red("Error PronosticosService borrarPronosticos "),
-        err
+        err,
       );
       throw new Error("ERROR TECNICO");
     }
@@ -657,7 +659,7 @@ export default class PronosticosService {
         // Buscar si ya existe el tipo para esa fecha
         const buscar = await sesionModel.buscarTipoPronostico(
           mc,
-          fechaEvaluarIso
+          fechaEvaluarIso,
         );
 
         if (!buscar || buscar.length === 0) {
@@ -665,14 +667,14 @@ export default class PronosticosService {
           await sesionModel.ingresarTipoPronostico(
             mc,
             fechaEvaluarIso,
-            "Modelo IA"
+            "Modelo IA",
           );
         } else {
           // Existe -> actualizar (tu model espera ordenar parámetros: tipopronostico, ucp, fecha)
           await sesionModel.actualizarTipoPronostico(
             "Modelo IA",
             mc,
-            fechaEvaluarIso
+            fechaEvaluarIso,
           );
         }
 
@@ -688,8 +690,8 @@ export default class PronosticosService {
       Logger.error(
         colors.red(
           "Error PronosticosService.cargarTipoPronosticoxFechas: " +
-            (error && error.message ? error.message : error)
-        )
+            (error && error.message ? error.message : error),
+        ),
       );
       return {
         success: false,
@@ -714,7 +716,7 @@ export default class PronosticosService {
     ucp,
     timeoutMs = 600000,
     modelo = false, // Nuevo parámetro: false = /predict-with-base-curve, true = /base-curve
-    data
+    data,
   ) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
@@ -779,16 +781,16 @@ export default class PronosticosService {
         if (!res.ok) {
           Logger.warn(
             colors.yellow(
-              `callPredict: HTTP ${statusCode} desde ${host}:${port}${endpoint}`
-            )
+              `callPredict: HTTP ${statusCode} desde ${host}:${port}${endpoint}`,
+            ),
           );
           return { success: false, statusCode, data: json };
         }
 
         Logger.info(
           colors.green(
-            `callPredict: Predicción exitosa desde ${host}:${port}${endpoint} para ${inicioIso} a ${finIso}`
-          )
+            `callPredict: Predicción exitosa desde ${host}:${port}${endpoint} para ${inicioIso} a ${finIso}`,
+          ),
         );
         return { success: true, statusCode, data: json };
       } catch (err) {
@@ -796,16 +798,16 @@ export default class PronosticosService {
         if (err && err.name === "AbortError") {
           Logger.warn(
             colors.yellow(
-              `callPredict: request abortada por timeout (${timeoutMs}ms) hacia ${host}:${port}`
-            )
+              `callPredict: request abortada por timeout (${timeoutMs}ms) hacia ${host}:${port}`,
+            ),
           );
         } else {
           Logger.warn(
             colors.yellow(
               `callPredict: error conectando a ${host}:${port} — ${
                 err && err.message ? err.message : err
-              }`
-            )
+              }`,
+            ),
           );
         }
       }
@@ -813,8 +815,8 @@ export default class PronosticosService {
 
     Logger.error(
       colors.red(
-        `callPredict: Falló en todos los hosts para ${inicioIso} a ${finIso}`
-      )
+        `callPredict: Falló en todos los hosts para ${inicioIso} a ${finIso}`,
+      ),
     );
     return { success: false, statusCode: 0, data: null };
   }
@@ -935,11 +937,11 @@ export default class PronosticosService {
           mc,
           600000,
           modelo, // Pasar el parámetro modelo
-          data
+          data,
         );
         // log sencillo (no vuelques raw)
         Logger.info(
-          "callPredict returned statusCode: " + (predRes?.statusCode ?? "n/a")
+          "callPredict returned statusCode: " + (predRes?.statusCode ?? "n/a"),
         );
 
         // Validación según el modelo usado
@@ -963,8 +965,8 @@ export default class PronosticosService {
           Logger.error(
             colors.red(
               "callPredict falló o devolvió payload inesperado: " +
-                JSON.stringify(predRes?.data || {}).slice(0, 2000)
-            )
+                JSON.stringify(predRes?.data || {}).slice(0, 2000),
+            ),
           );
           return {
             success: false,
@@ -977,8 +979,8 @@ export default class PronosticosService {
         Logger.error(
           colors.red(
             "Error llamando a la API de predicción: " +
-              (err && err.message ? err.message : err)
-          )
+              (err && err.message ? err.message : err),
+          ),
         );
         return {
           success: false,
@@ -1007,7 +1009,7 @@ export default class PronosticosService {
       // En .NET usan c.cargarPeriodosxUCPxFecha(mc, convertFechaAño(finicio)) -> devuelve últimos 30 (según query)
       const datosHistRows = await sesionModel.cargarPeriodosxUCPxFechaInicio(
         mc,
-        inicioIso
+        inicioIso,
       ); // tu modelo definido arriba
       const PeriodosHistoricos = Array.isArray(datosHistRows)
         ? datosHistRows.map((r) => ({
@@ -1044,7 +1046,7 @@ export default class PronosticosService {
       const datosDemandaRows = await sesionModel.cargarPeriodosxUCPxFecha(
         mc,
         inicioIso,
-        finIso
+        finIso,
       );
       const rowsMapByDate = new Map();
       if (Array.isArray(datosDemandaRows)) {
@@ -1145,7 +1147,7 @@ export default class PronosticosService {
 
         // Ordenar por fecha
         PeriodosPronosticos.sort(
-          (a, b) => new Date(a.fecha) - new Date(b.fecha)
+          (a, b) => new Date(a.fecha) - new Date(b.fecha),
         );
       } else {
         // Procesamiento para predict-with-base-curve (código original)
@@ -1192,7 +1194,7 @@ export default class PronosticosService {
 
           // Ordenar por fecha
           PeriodosPronosticos.sort(
-            (a, b) => new Date(a.fecha) - new Date(b.fecha)
+            (a, b) => new Date(a.fecha) - new Date(b.fecha),
           );
         }
       }
@@ -1230,8 +1232,8 @@ export default class PronosticosService {
       Logger.error(
         colors.red(
           "Error PronosticosService.play: " +
-            (error && error.message ? error.message : error)
-        )
+            (error && error.message ? error.message : error),
+        ),
       );
       return { success: false, data: null, message: "Error al ejecutar play" };
     }
@@ -1249,7 +1251,7 @@ export default class PronosticosService {
     // const port = 8000;
     for (const host of hostsToTry) {
       const url = `http://${host}:${port}/retrain?ucp=${encodeURIComponent(
-        String(ucp)
+        String(ucp),
       )}`;
       const controller = new AbortController();
       const signal = controller.signal;
@@ -1260,7 +1262,7 @@ export default class PronosticosService {
         }, timeoutMs);
 
         Logger.info(
-          colors.green(`PredictService.retrainModel: llamando ${url}`)
+          colors.green(`PredictService.retrainModel: llamando ${url}`),
         );
 
         const res = await fetch(url, {
@@ -1281,8 +1283,8 @@ export default class PronosticosService {
         if (!res.ok) {
           Logger.warn(
             colors.yellow(
-              `PredictService.retrainModel: HTTP ${statusCode} desde ${host}:${port}`
-            )
+              `PredictService.retrainModel: HTTP ${statusCode} desde ${host}:${port}`,
+            ),
           );
           // devolvemos info para que el controller decida
           return { success: false, statusCode, data: json, host };
@@ -1290,8 +1292,8 @@ export default class PronosticosService {
 
         Logger.info(
           colors.green(
-            `PredictService.retrainModel: éxito desde ${host}:${port} para ucp=${ucp}`
-          )
+            `PredictService.retrainModel: éxito desde ${host}:${port} para ucp=${ucp}`,
+          ),
         );
         return { success: true, statusCode, data: json, host };
       } catch (err) {
@@ -1299,16 +1301,16 @@ export default class PronosticosService {
         if (err && err.name === "AbortError") {
           Logger.warn(
             colors.yellow(
-              `PredictService.retrainModel: request abortada por timeout (${timeoutMs}ms) hacia ${host}:${port}`
-            )
+              `PredictService.retrainModel: request abortada por timeout (${timeoutMs}ms) hacia ${host}:${port}`,
+            ),
           );
         } else {
           Logger.warn(
             colors.yellow(
               `PredictService.retrainModel: error conectando a ${host}:${port} — ${
                 err && err.message ? err.message : err
-              }`
-            )
+              }`,
+            ),
           );
         }
         // probar siguiente host
@@ -1317,8 +1319,8 @@ export default class PronosticosService {
 
     Logger.error(
       colors.red(
-        `PredictService.retrainModel: Falló en todos los hosts para ucp=${ucp}`
-      )
+        `PredictService.retrainModel: Falló en todos los hosts para ucp=${ucp}`,
+      ),
     );
     return { success: false, statusCode: 0, data: null };
   };
@@ -1366,15 +1368,17 @@ export default class PronosticosService {
 
         if (!res.ok) {
           Logger.warn(
-            colors.yellow(`getEvents: HTTP ${statusCode} desde ${host}:${port}`)
+            colors.yellow(
+              `getEvents: HTTP ${statusCode} desde ${host}:${port}`,
+            ),
           );
           return { success: false, statusCode, data: json };
         }
 
         Logger.info(
           colors.green(
-            `getEvents: Eventos obtenidos exitosamente desde ${host}:${port} para ${inicioIso} a ${finIso}`
-          )
+            `getEvents: Eventos obtenidos exitosamente desde ${host}:${port} para ${inicioIso} a ${finIso}`,
+          ),
         );
         return { success: true, statusCode, data: json };
       } catch (err) {
@@ -1387,16 +1391,16 @@ export default class PronosticosService {
         if (err && err.name === "AbortError") {
           Logger.warn(
             colors.yellow(
-              `getEvents: request abortada por timeout (${timeoutMs}ms) hacia ${host}:${port}`
-            )
+              `getEvents: request abortada por timeout (${timeoutMs}ms) hacia ${host}:${port}`,
+            ),
           );
         } else {
           Logger.warn(
             colors.yellow(
               `getEvents: error conectando a ${host}:${port} — ${
                 err && err.message ? err.message : err
-              }`
-            )
+              }`,
+            ),
           );
         }
         // continuar al siguiente host
@@ -1411,8 +1415,8 @@ export default class PronosticosService {
 
     Logger.error(
       colors.red(
-        `getEvents: Falló en todos los hosts para ${inicioIso} a ${finIso}`
-      )
+        `getEvents: Falló en todos los hosts para ${inicioIso} a ${finIso}`,
+      ),
     );
     return { success: false, statusCode: 0, data: null };
   }
@@ -1421,7 +1425,7 @@ export default class PronosticosService {
     end_date,
     force_retrain = false,
     ucp,
-    timeoutMs = 600000
+    timeoutMs = 600000,
   ) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
@@ -1462,8 +1466,8 @@ export default class PronosticosService {
         if (!res.ok) {
           Logger.warn(
             colors.yellow(
-              `errorFeedback: HTTP ${statusCode} desde ${host}:${port}`
-            )
+              `errorFeedback: HTTP ${statusCode} desde ${host}:${port}`,
+            ),
           );
           return { success: false, statusCode, data: json };
         }
@@ -1478,16 +1482,16 @@ export default class PronosticosService {
         if (err?.name === "AbortError") {
           Logger.warn(
             colors.yellow(
-              `errorFeedback: timeout (${timeoutMs}ms) hacia ${host}:${port}`
-            )
+              `errorFeedback: timeout (${timeoutMs}ms) hacia ${host}:${port}`,
+            ),
           );
         } else {
           Logger.warn(
             colors.yellow(
               `errorFeedback: error conectando a ${host}:${port} — ${
                 err?.message || err
-              }`
-            )
+              }`,
+            ),
           );
         }
       }
@@ -1504,7 +1508,7 @@ export default class PronosticosService {
         await configuracionModel.cargarVariablesClimaticasxFechaPeriodos(
           ucp,
           fechainicio,
-          fechafin
+          fechafin,
         );
 
       const resultado = [];
@@ -1522,7 +1526,7 @@ export default class PronosticosService {
             const iconRow = await configuracionModel.buscarIcono(
               iconId,
               esDia ? "si" : "no",
-              esDia ? "no" : "si"
+              esDia ? "no" : "si",
             );
 
             if (iconRow) {
@@ -1632,8 +1636,8 @@ export default class PronosticosService {
         if (!res.ok) {
           Logger.warn(
             colors.yellow(
-              `predictDay: HTTP ${statusCode} desde ${host}:${port}`
-            )
+              `predictDay: HTTP ${statusCode} desde ${host}:${port}`,
+            ),
           );
           return { success: false, statusCode, data: json };
         }
@@ -1659,16 +1663,16 @@ export default class PronosticosService {
         if (err?.name === "AbortError") {
           Logger.warn(
             colors.yellow(
-              `predictDay: timeout (${timeoutMs}ms) hacia ${host}:${port}`
-            )
+              `predictDay: timeout (${timeoutMs}ms) hacia ${host}:${port}`,
+            ),
           );
         } else {
           Logger.warn(
             colors.yellow(
               `predictDay: error conectando a ${host}:${port} — ${
                 err?.message || err
-              }`
-            )
+              }`,
+            ),
           );
         }
       }
@@ -1743,14 +1747,14 @@ export default class PronosticosService {
 
         Logger.info(
           "Respuesta validateHourlyAdjustments:",
-          JSON.stringify(json, null, 2)
+          JSON.stringify(json, null, 2),
         );
 
         if (!res.ok) {
           Logger.warn(
             colors.yellow(
-              `validateHourlyAdjustments: HTTP ${statusCode} desde ${host}:${port}`
-            )
+              `validateHourlyAdjustments: HTTP ${statusCode} desde ${host}:${port}`,
+            ),
           );
           return { success: false, statusCode, data: json };
         }
@@ -1774,23 +1778,23 @@ export default class PronosticosService {
         if (err?.name === "AbortError") {
           Logger.warn(
             colors.yellow(
-              `validateHourlyAdjustments: timeout (${timeoutMs}ms) hacia ${host}:${port}`
-            )
+              `validateHourlyAdjustments: timeout (${timeoutMs}ms) hacia ${host}:${port}`,
+            ),
           );
         } else {
           Logger.warn(
             colors.yellow(
               `validateHourlyAdjustments: error conectando a ${host}:${port} — ${
                 err?.message || err
-              }`
-            )
+              }`,
+            ),
           );
         }
       }
     }
 
     Logger.error(
-      colors.red("validateHourlyAdjustments: falló en todos los hosts")
+      colors.red("validateHourlyAdjustments: falló en todos los hosts"),
     );
     return { success: false, statusCode: 0, data: null };
   }
