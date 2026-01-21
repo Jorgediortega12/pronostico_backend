@@ -35,7 +35,7 @@ export default class ConfiguracionModel {
     } catch (error) {
       Logger.error(
         colors.red("Error ConfiguracionModel buscarSaveDocumento"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -52,7 +52,7 @@ export default class ConfiguracionModel {
     } catch (error) {
       Logger.error(
         colors.red("Error configuracionModel cargarDiasPotencias"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -128,7 +128,7 @@ export default class ConfiguracionModel {
     } catch (error) {
       Logger.error(
         colors.red("Error configuracionModel agregarVersionSesion"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -173,13 +173,13 @@ export default class ConfiguracionModel {
       ];
       const result = await client.query(
         querys.agregarDatosPronosticoxSesion,
-        valores
+        valores,
       );
       return result.rows.length > 0 ? result.rows[0] : null;
     } catch (error) {
       Logger.error(
         colors.red("Error configuracionModel agregarDatosPronosticoxSesion"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -195,7 +195,7 @@ export default class ConfiguracionModel {
     } catch (error) {
       Logger.error(
         colors.red("Error ConfiguracionModel buscarDiaFestivo"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -216,7 +216,7 @@ export default class ConfiguracionModel {
     } catch (error) {
       Logger.error(
         colors.red("Error ConfiguracionModel listarFestivosPorRango"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -248,7 +248,7 @@ export default class ConfiguracionModel {
       return result.rows.length > 0 ? result.rows : null;
     } catch (error) {
       Logger.error(
-        colors.red("Error configuracionModel cargarPeriodosxUCPDesdeFecha")
+        colors.red("Error configuracionModel cargarPeriodosxUCPDesdeFecha"),
       );
       throw error;
     } finally {
@@ -262,14 +262,14 @@ export default class ConfiguracionModel {
       await client.connect();
       const result = await client.query(
         querys.cargarVariablesClimaticasxUCPDesdeFecha,
-        [ucp, fechaInicio]
+        [ucp, fechaInicio],
       );
       return result.rows.length > 0 ? result.rows : null;
     } catch (error) {
       Logger.error(
         colors.red(
-          "Error configuracionModel cargarVariablesClimaticasxUCPDesdeFecha"
-        )
+          "Error configuracionModel cargarVariablesClimaticasxUCPDesdeFecha",
+        ),
       );
       throw error;
     } finally {
@@ -283,14 +283,14 @@ export default class ConfiguracionModel {
       await client.connect();
       const result = await client.query(
         querys.cargarPeriodosxUCPxUnaFechaxLimite,
-        [ucp, fechaInicio, limite]
+        [ucp, fechaInicio, limite],
       );
       return result.rows.length > 0 ? result.rows : null;
     } catch (error) {
       Logger.error(
         colors.red(
-          "Error configuracionModel cargarPeriodosxUCPxUnaFechaxLimite"
-        )
+          "Error configuracionModel cargarPeriodosxUCPxUnaFechaxLimite",
+        ),
       );
       throw error;
     } finally {
@@ -307,7 +307,7 @@ export default class ConfiguracionModel {
     } catch (error) {
       Logger.error(
         colors.red("Error configuracionModel cargarTodosLosDiasPotencia"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -348,7 +348,7 @@ export default class ConfiguracionModel {
     } catch (error) {
       Logger.error(
         colors.red("Error configuracionModel actualizarDiaPotencia"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -388,7 +388,7 @@ export default class ConfiguracionModel {
     } catch (error) {
       Logger.error(
         colors.red("Error configuracionModel crearDiaPotencia"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -638,7 +638,7 @@ export default class ConfiguracionModel {
     } catch (error) {
       Logger.error(
         colors.red("Error FestivosModel ingresarDiaFestivos"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -669,7 +669,7 @@ export default class ConfiguracionModel {
     } catch (error) {
       Logger.error(
         colors.red("Error ActualizacionModel buscarUltimaFechaHistorica"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -686,7 +686,7 @@ export default class ConfiguracionModel {
     } catch (error) {
       Logger.error(
         colors.red("Error ActualizacionModel buscarUltimaFechaClimaLog"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -703,7 +703,7 @@ export default class ConfiguracionModel {
     } catch (error) {
       Logger.error(
         colors.red("Error ActualizacionModel buscarUltimaFechaClima"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -748,7 +748,7 @@ export default class ConfiguracionModel {
     } catch (error) {
       Logger.error(
         colors.red("Error ActualizacionModel cargarCodigoRMPxUCP"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -765,7 +765,7 @@ export default class ConfiguracionModel {
     } catch (error) {
       Logger.error(
         colors.red("Error ActualizacionModel cargarTipoArchivos"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -782,7 +782,7 @@ export default class ConfiguracionModel {
     } catch (error) {
       Logger.error(
         colors.red("Error ActualizacionModel cargarUCPxAux2"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -802,7 +802,7 @@ export default class ConfiguracionModel {
     } catch (error) {
       Logger.error(
         colors.red("Error ActualizacionModel buscarUCPActualizacionDatos"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -823,9 +823,9 @@ export default class ConfiguracionModel {
     } catch (error) {
       Logger.error(
         colors.red(
-          "Error ActualizacionModel verificarExisteActualizacionDatos"
+          "Error ActualizacionModel verificarExisteActualizacionDatos",
         ),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -870,13 +870,13 @@ export default class ConfiguracionModel {
       ];
       const result = await client.query(
         querys.agregarUCPActualizacionDatos,
-        valores
+        valores,
       );
       return result.rows.length > 0 ? result.rows[0] : null;
     } catch (error) {
       Logger.error(
         colors.red("Error configuracionModel agregarUCPActualizacionDatos"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -928,13 +928,13 @@ export default class ConfiguracionModel {
       ];
       const result = await client.query(
         querys.actualizarUCPActualizacionDatos,
-        valores
+        valores,
       );
       return result.rows.length > 0 ? result.rows[0] : null;
     } catch (error) {
       Logger.error(
         colors.red("Error configuracionModel actualizarUCPActualizacionDatos"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -951,7 +951,7 @@ export default class ConfiguracionModel {
     } catch (error) {
       Logger.error(
         colors.red("Error ActualizacionModel buscarClimaPeriodos"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -972,7 +972,7 @@ export default class ConfiguracionModel {
     } catch (error) {
       Logger.error(
         colors.red("Error ActualizacionModel agregarClimaPronosticoLog"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -1000,7 +1000,7 @@ export default class ConfiguracionModel {
     } catch (error) {
       Logger.error(
         colors.red("Error ActualizacionModel agregarClimaPeriodo"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -1024,7 +1024,7 @@ export default class ConfiguracionModel {
     } catch (error) {
       Logger.error(
         colors.red("Error ActualizacionModel actualizarClimaPeriodos"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -1041,7 +1041,7 @@ export default class ConfiguracionModel {
     } catch (error) {
       Logger.error(
         colors.red("Error ActualizacionModel buscarTipicidad"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -1055,7 +1055,7 @@ export default class ConfiguracionModel {
       await client.connect();
       const res = await client.query(
         querys.cargarVariablesClimaticasxFechaPeriodos,
-        [ucp, fechainicio, fechafin]
+        [ucp, fechainicio, fechafin],
       );
       return res.rows.length ? res.rows : [];
     } finally {
@@ -1098,7 +1098,7 @@ export default class ConfiguracionModel {
     } catch (error) {
       Logger.error(
         colors.red("Error ConfiguracionModel listarTipoModeloPorRango"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -1121,7 +1121,7 @@ export default class ConfiguracionModel {
     } catch (error) {
       Logger.error(
         colors.red("Error FechasTipoPronosticoModel insertarTipoPronostico"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -1181,7 +1181,7 @@ export default class ConfiguracionModel {
       return result.rows.length ? result.rows : null;
     } catch (error) {
       Logger.error(
-        colors.red("Error configuracionModel cargarPeriodosDinamico")
+        colors.red("Error configuracionModel cargarPeriodosDinamico"),
       );
       throw error;
     } finally {
@@ -1247,7 +1247,24 @@ export default class ConfiguracionModel {
       return result.rows.length ? result.rows : null;
     } catch (error) {
       Logger.error(
-        colors.red("Error model cargarHistoricosPronosticosDinamico")
+        colors.red("Error model cargarHistoricosPronosticosDinamico"),
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  listarTodosLosFestivos = async (ucp) => {
+    const client = this.createClient();
+    try {
+      await client.connect();
+      const result = await client.query(querys.listarTodosLosFestivos, [ucp]);
+      return result.rows.length > 0 ? result.rows : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ConfiguracionModel listarTodosLosFestivos"),
+        error,
       );
       throw error;
     } finally {

@@ -111,7 +111,7 @@ export const buscarPotenciaDia = async (req, res) => {
         200,
         "Parametros de ucp y dia no proporcionados",
         400,
-        res
+        res,
       );
     }
 
@@ -137,7 +137,7 @@ export const cargarPeriodosxUCPDesdeFecha = async (req, res) => {
         200,
         "Parametros de ucp y fechaInicio no proporcionados",
         400,
-        res
+        res,
       );
     }
 
@@ -163,13 +163,13 @@ export const cargarVariablesClimaticasxUCPDesdeFecha = async (req, res) => {
         200,
         "Parametros de ucp y fechaInicio no proporcionados",
         400,
-        res
+        res,
       );
     }
 
     const result = await service.cargarVariablesClimaticasxUCPDesdeFecha(
       ucp,
-      fechaInicio
+      fechaInicio,
     );
 
     if (!result.success) {
@@ -192,14 +192,14 @@ export const cargarPeriodosxUCPxUnaFechaxLimite = async (req, res) => {
         200,
         "Parametros de ucp, fechaInicio o limite no proporcionados",
         400,
-        res
+        res,
       );
     }
 
     const result = await service.cargarPeriodosxUCPxUnaFechaxLimite(
       ucp,
       fechaInicio,
-      limite
+      limite,
     );
 
     if (!result.success) {
@@ -550,7 +550,7 @@ export const listarFestivosPorRango = async (req, res) => {
     const result = await service.listarFestivosPorRango(
       fechaInicio,
       fechaFin,
-      ucp
+      ucp,
     );
 
     if (!result.success)
@@ -615,7 +615,7 @@ export const buscarUltimaFechaHistorica = async (req, res) => {
   } catch (err) {
     Logger.error(
       colors.red("Error controller buscarUltimaFechaHistorica"),
-      err
+      err,
     );
     return res
       .status(500)
@@ -749,7 +749,7 @@ export const buscarUCPActualizacionDatos = async (req, res) => {
   } catch (err) {
     Logger.error(
       colors.red("Error controller buscarUCPActualizacionDatos"),
-      err
+      err,
     );
     return res
       .status(500)
@@ -769,7 +769,7 @@ export const verificarExisteActualizacionDatos = async (req, res) => {
   } catch (err) {
     Logger.error(
       colors.red("Error controller verificarExisteActualizacionDatos"),
-      err
+      err,
     );
     return res
       .status(500)
@@ -841,7 +841,7 @@ export const agregarClimaPeriodo = async (req, res) => {
       ucp,
       indice,
       clima,
-      valor
+      valor,
     );
     if (!result.success) return responseError(200, result.message, 400, res);
     return SuccessResponse(res, result.data, result.message);
@@ -860,7 +860,7 @@ export const actualizarClimaPeriodos = async (req, res) => {
       ucp,
       indice,
       clima,
-      valor
+      valor,
     );
     if (!result.success) return responseError(200, result.message, 404, res);
     return SuccessResponse(res, result.data, result.message);
@@ -889,7 +889,7 @@ export const listarTipoModeloPorRango = async (req, res) => {
     const result = await service.listarTipoModeloPorRango(
       fechaInicio,
       fechaFin,
-      ucp
+      ucp,
     );
 
     if (!result.success)
@@ -915,7 +915,7 @@ export const insertarTipoPronostico = async (req, res) => {
     const result = await service.insertarTipoPronostico(
       ucp,
       fecha,
-      tipopronostico
+      tipopronostico,
     );
 
     if (!result.success)
@@ -963,5 +963,22 @@ export const cargarHistoricosPronosticosDinamico = async (req, res) => {
   } catch (err) {
     Logger.error(err);
     return InternalError(err);
+  }
+};
+
+export const listarTodosLosFestivos = async (req, res) => {
+  try {
+    const { ucp } = req.params;
+    const result = await service.listarTodosLosFestivos(ucp);
+    if (!result.success)
+      return res.status(500).json({ success: false, message: result.message });
+    return res
+      .status(200)
+      .json({ success: true, data: result.data, message: result.message });
+  } catch (err) {
+    Logger.error(colors.red("Error controller listarTodosLosFestivos"), err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
   }
 };

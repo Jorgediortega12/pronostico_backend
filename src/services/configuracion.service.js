@@ -34,7 +34,7 @@ export default class ConfiguracionService {
     } catch (err) {
       Logger.error(
         colors.red("Error ConfiguracionService buscarSaveDocumento"),
-        err
+        err,
       );
       return {
         success: false,
@@ -62,7 +62,7 @@ export default class ConfiguracionService {
     } catch (error) {
       Logger.error(
         colors.red("Error ConfiguracionService cargarDiasPotencia"),
-        error
+        error,
       );
       return {
         success: false,
@@ -90,7 +90,7 @@ export default class ConfiguracionService {
       };
     } catch (error) {
       Logger.error(
-        colors.red("Error configuracionServices buscarVersionSesion")
+        colors.red("Error configuracionServices buscarVersionSesion"),
       );
       return {
         success: false,
@@ -119,7 +119,7 @@ export default class ConfiguracionService {
     } catch (error) {
       Logger.error(
         colors.red("Error configuracionServices agregarVersionSesion"),
-        error
+        error,
       );
       return {
         success: false,
@@ -131,9 +131,8 @@ export default class ConfiguracionService {
 
   agregarDatosPronosticoxSesion = async (datos) => {
     try {
-      const datosPronosticoxSesion = await model.agregarDatosPronosticoxSesion(
-        datos
-      );
+      const datosPronosticoxSesion =
+        await model.agregarDatosPronosticoxSesion(datos);
       if (!datosPronosticoxSesion) {
         return {
           success: false,
@@ -149,7 +148,9 @@ export default class ConfiguracionService {
       };
     } catch (error) {
       Logger.error(
-        colors.red("Error configuracionServices agregarDatosPronosticosxSesion")
+        colors.red(
+          "Error configuracionServices agregarDatosPronosticosxSesion",
+        ),
       );
       return {
         success: false,
@@ -179,7 +180,7 @@ export default class ConfiguracionService {
     } catch (err) {
       Logger.error(
         colors.red("Error ConfiguracionService buscarDiaFestivo"),
-        err
+        err,
       );
       return {
         success: false,
@@ -235,7 +236,7 @@ export default class ConfiguracionService {
       };
     } catch (error) {
       Logger.error(
-        colors.red("Error configuracionServices cargarPeriodosxUCPDesdeFecha")
+        colors.red("Error configuracionServices cargarPeriodosxUCPDesdeFecha"),
       );
       return {
         success: false,
@@ -249,7 +250,7 @@ export default class ConfiguracionService {
     try {
       const res = await model.cargarVariablesClimaticasxUCPDesdeFecha(
         ucp,
-        fechaInicio
+        fechaInicio,
       );
 
       if (!res) {
@@ -268,8 +269,8 @@ export default class ConfiguracionService {
     } catch (error) {
       Logger.error(
         colors.red(
-          "Error configuracionServices cargarVariablesClimaticasxUCPDesdeFecha"
-        )
+          "Error configuracionServices cargarVariablesClimaticasxUCPDesdeFecha",
+        ),
       );
       return {
         success: false,
@@ -284,7 +285,7 @@ export default class ConfiguracionService {
       const res = await model.cargarPeriodosxUCPxUnaFechaxLimite(
         ucp,
         fechaInicio,
-        limite
+        limite,
       );
 
       if (!res) {
@@ -303,8 +304,8 @@ export default class ConfiguracionService {
     } catch (error) {
       Logger.error(
         colors.red(
-          "Error configuracionServices cargarPeriodosxUCPxUnaFechaxLimite"
-        )
+          "Error configuracionServices cargarPeriodosxUCPxUnaFechaxLimite",
+        ),
       );
       return {
         success: false,
@@ -332,7 +333,7 @@ export default class ConfiguracionService {
     } catch (error) {
       Logger.error(
         colors.red("Error ConfiguracionService cargarTodosLosDiasPotencia"),
-        error
+        error,
       );
       return {
         success: false,
@@ -361,7 +362,7 @@ export default class ConfiguracionService {
     } catch (error) {
       Logger.error(
         colors.red("Error ConfiguracionService actualizarDiaPotencia"),
-        error
+        error,
       );
       return {
         success: false,
@@ -390,7 +391,7 @@ export default class ConfiguracionService {
     } catch (error) {
       Logger.error(
         colors.red("Error ConfiguracionService crearDiaPotencia"),
-        error
+        error,
       );
       return {
         success: false,
@@ -594,7 +595,7 @@ export default class ConfiguracionService {
     } catch (error) {
       Logger.error(
         colors.red("Error FestivosService cargarDiasFestivos"),
-        error
+        error,
       );
       return {
         success: false,
@@ -623,7 +624,7 @@ export default class ConfiguracionService {
       const rows = await model.listarFestivosPorRango(
         fechaInicio,
         fechaFin,
-        ucp
+        ucp,
       );
       return {
         success: true,
@@ -633,7 +634,7 @@ export default class ConfiguracionService {
     } catch (error) {
       Logger.error(
         colors.red("Error FestivosService listarFestivosPorRango"),
-        error
+        error,
       );
       return {
         success: false,
@@ -650,7 +651,7 @@ export default class ConfiguracionService {
     } catch (error) {
       Logger.error(
         colors.red("Error FestivosService ingresarDiaFestivos"),
-        error
+        error,
       );
       return {
         success: false,
@@ -675,7 +676,7 @@ export default class ConfiguracionService {
     } catch (error) {
       Logger.error(
         colors.red("Error FestivosService borrarDiaFestivos"),
-        error
+        error,
       );
       return {
         success: false,
@@ -692,7 +693,7 @@ export default class ConfiguracionService {
     } catch (error) {
       Logger.error(
         colors.red("Error ActualizacionService buscarUltimaFechaHistorica"),
-        error
+        error,
       );
       return {
         success: false,
@@ -709,7 +710,7 @@ export default class ConfiguracionService {
     } catch (error) {
       Logger.error(
         colors.red("Error ActualizacionService buscarUltimaFechaClimaLog"),
-        error
+        error,
       );
       return {
         success: false,
@@ -740,7 +741,7 @@ export default class ConfiguracionService {
     } catch (error) {
       Logger.error(
         colors.red("Error ActualizacionService buscarUltimaFechaClima"),
-        error
+        error,
       );
       return {
         success: false,
@@ -757,7 +758,7 @@ export default class ConfiguracionService {
     } catch (error) {
       Logger.error(
         colors.red("Error ActualizacionService buscarFactor"),
-        error
+        error,
       );
       return {
         success: false,
@@ -773,7 +774,7 @@ export default class ConfiguracionService {
     } catch (error) {
       Logger.error(
         colors.red("Error ActualizacionService cargarCodigoRMPxUCP"),
-        error
+        error,
       );
       return {
         success: false,
@@ -789,7 +790,7 @@ export default class ConfiguracionService {
     } catch (error) {
       Logger.error(
         colors.red("Error ActualizacionService cargarTipoArchivos"),
-        error
+        error,
       );
       return {
         success: false,
@@ -806,7 +807,7 @@ export default class ConfiguracionService {
     } catch (error) {
       Logger.error(
         colors.red("Error ActualizacionService cargarUCPxAux2"),
-        error
+        error,
       );
       return {
         success: false,
@@ -823,7 +824,7 @@ export default class ConfiguracionService {
     } catch (error) {
       Logger.error(
         colors.red("Error ActualizacionService buscarUCPActualizacionDatos"),
-        error
+        error,
       );
       return {
         success: false,
@@ -844,9 +845,9 @@ export default class ConfiguracionService {
     } catch (error) {
       Logger.error(
         colors.red(
-          "Error ActualizacionService verificarExisteActualizacionDatos"
+          "Error ActualizacionService verificarExisteActualizacionDatos",
         ),
-        error
+        error,
       );
       return {
         success: false,
@@ -874,7 +875,7 @@ export default class ConfiguracionService {
       };
     } catch (error) {
       Logger.error(
-        colors.red("Error configuracionServices agregarUCPActualizacionDatos")
+        colors.red("Error configuracionServices agregarUCPActualizacionDatos"),
       );
       return {
         success: false,
@@ -903,8 +904,8 @@ export default class ConfiguracionService {
     } catch (error) {
       Logger.error(
         colors.red(
-          "Error configuracionServices actualizarUCPActualizacionDatos"
-        )
+          "Error configuracionServices actualizarUCPActualizacionDatos",
+        ),
       );
       return {
         success: false,
@@ -920,7 +921,7 @@ export default class ConfiguracionService {
     } catch (error) {
       Logger.error(
         colors.red("Error ActualizacionService buscarClimaPeriodos"),
-        error
+        error,
       );
       return {
         success: false,
@@ -947,7 +948,7 @@ export default class ConfiguracionService {
     } catch (error) {
       Logger.error(
         colors.red("Error ActualizacionService agregarClimaPronosticoLog"),
-        error
+        error,
       );
       return {
         success: false,
@@ -964,7 +965,7 @@ export default class ConfiguracionService {
         ucp,
         indice,
         clima,
-        valor
+        valor,
       );
       if (!row)
         return {
@@ -980,7 +981,7 @@ export default class ConfiguracionService {
     } catch (error) {
       Logger.error(
         colors.red("Error ActualizacionService agregarClimaPeriodo"),
-        error
+        error,
       );
       return {
         success: false,
@@ -997,7 +998,7 @@ export default class ConfiguracionService {
         ucp,
         indice,
         clima,
-        valor
+        valor,
       );
       if (!row)
         return {
@@ -1013,7 +1014,7 @@ export default class ConfiguracionService {
     } catch (error) {
       Logger.error(
         colors.red("Error ActualizacionService actualizarClimaPeriodos"),
-        error
+        error,
       );
       return {
         success: false,
@@ -1030,7 +1031,7 @@ export default class ConfiguracionService {
     } catch (error) {
       Logger.error(
         colors.red("Error ActualizacionService buscarTipicidad"),
-        error
+        error,
       );
       return {
         success: false,
@@ -1045,7 +1046,7 @@ export default class ConfiguracionService {
       const rows = await model.listarTipoModeloPorRango(
         fechaInicio,
         fechaFin,
-        ucp
+        ucp,
       );
       return {
         success: true,
@@ -1055,7 +1056,7 @@ export default class ConfiguracionService {
     } catch (error) {
       Logger.error(
         colors.red("Error FestivosService listarTipoModeloPorRango"),
-        error
+        error,
       );
       return {
         success: false,
@@ -1070,7 +1071,7 @@ export default class ConfiguracionService {
       const row = await model.insertarTipoPronostico(
         ucp,
         fecha,
-        tipopronostico
+        tipopronostico,
       );
 
       return {
@@ -1081,7 +1082,7 @@ export default class ConfiguracionService {
     } catch (error) {
       Logger.error(
         colors.red("Error FechasTipoPronosticoService insertarTipoPronostico"),
-        error
+        error,
       );
       return {
         success: false,
@@ -1110,7 +1111,7 @@ export default class ConfiguracionService {
       };
     } catch (error) {
       Logger.error(
-        colors.red("Error configuracionServices cargarPeriodosDinamico")
+        colors.red("Error configuracionServices cargarPeriodosDinamico"),
       );
       return {
         success: false,
@@ -1139,12 +1140,41 @@ export default class ConfiguracionService {
       };
     } catch (error) {
       Logger.error(
-        colors.red("Error service cargarHistoricosPronosticosDinamico")
+        colors.red("Error service cargarHistoricosPronosticosDinamico"),
       );
       return {
         success: false,
         data: null,
         message: "Error al cargar pronósticos históricos",
+      };
+    }
+  };
+
+  listarTodosLosFestivos = async (ucp) => {
+    try {
+      const festivos = await model.listarTodosLosFestivos(ucp);
+      if (!festivos) {
+        return {
+          success: false,
+          data: null,
+          message: "festivos no encontrados.",
+        };
+      }
+
+      return {
+        success: true,
+        data: festivos,
+        message: "festivos obtenidos correctamente.",
+      };
+    } catch (err) {
+      Logger.error(
+        colors.red("Error ConfiguracionService listarTodosLosFestivos"),
+        err,
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al obtener el festivos.",
       };
     }
   };

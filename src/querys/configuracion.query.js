@@ -335,3 +335,8 @@ LEFT JOIN festivos f
 WHERE sp.tipo = 'P'
   AND sp.fecha BETWEEN $2 AND $3
 `;
+
+export const listarTodosLosFestivos = `
+  SELECT *
+  FROM festivos WHERE ucp = $1 ORDER BY fecha DESC;
+  `;

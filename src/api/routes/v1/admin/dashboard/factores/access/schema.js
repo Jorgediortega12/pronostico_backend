@@ -115,7 +115,7 @@ export default {
           p22: Joi.any().optional(),
           p23: Joi.any().optional(),
           p24: Joi.any().optional(),
-        })
+        }),
       )
       .min(1)
       .required(),
