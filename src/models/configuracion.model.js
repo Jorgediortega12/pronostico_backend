@@ -122,6 +122,7 @@ export default class ConfiguracionModel {
         datos.p24_diario,
         datos.nombrearchivo,
         datos.cargaindustrial,
+        datos.observacion,
       ];
       const result = await client.query(querys.agregarVersionSesion, valores);
       return result.rows.length > 0 ? result.rows[0] : null;

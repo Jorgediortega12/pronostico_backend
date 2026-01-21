@@ -250,6 +250,7 @@ export default class PronosticosService {
       edicionfecha: datos.ediciondiareferencia ?? "",
       edicionsuma: datos.cuadropdias ?? "",
       cargaindustrial: datos.cargaindustrial ?? "",
+      observacion: datos.observacion ?? "",
     };
 
     // 1) buscar versión existente
@@ -307,6 +308,7 @@ export default class PronosticosService {
       p24_diario: cuadro.cuadroperiodo24,
       nombrearchivo,
       cargaindustrial: meta.cargaindustrial,
+      observacion: meta.observacion,
     };
 
     // Llamar a tu model.agregarVersionSesion pasando el objeto (tu model lo transforma a valores)
