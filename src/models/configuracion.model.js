@@ -1203,46 +1203,49 @@ export default class ConfiguracionModel {
       await client.connect();
 
       let query = `
-      WITH ultima_sesion AS (
-        SELECT s.codigo
-        FROM sesiones s
-        WHERE s.ucp = $1
-          AND s.fechainicio <= $3
-          AND s.fechafin >= $2
-        ORDER BY s.version DESC
-        LIMIT 1
-      )
-      SELECT
-        sp.*,
-        CASE
-          WHEN f.fecha IS NOT NULL THEN 1
-          ELSE 0
-        END AS es_festivo
-      FROM sesiones_periodos sp
-      JOIN ultima_sesion us ON us.codigo = sp.codsesion
-      LEFT JOIN festivos f
-        ON f.ucp = $1
-       AND f.fecha = sp.fecha
-      WHERE sp.tipo = 'P'
-        AND sp.fecha BETWEEN $2 AND $3
-    `;
+WITH pronosticos_versionados AS (
+  SELECT
+    sp.*,
+    s.version,
+    ROW_NUMBER() OVER (
+      PARTITION BY sp.fecha
+      ORDER BY s.version DESC
+    ) AS rn
+  FROM sesiones_periodos sp
+  JOIN sesiones s ON s.codigo = sp.codsesion
+  WHERE s.ucp = $1
+    AND sp.tipo = 'P'
+    AND sp.fecha BETWEEN $2 AND $3
+)
+SELECT
+  pv.*,
+  CASE
+    WHEN f.fecha IS NOT NULL THEN 1
+    ELSE 0
+  END AS es_festivo
+FROM pronosticos_versionados pv
+LEFT JOIN festivos f
+  ON f.ucp = $1
+ AND f.fecha = pv.fecha
+WHERE pv.rn = 1
+`;
 
       const values = [ucp, fechaInicio, fechaFin];
       let index = values.length;
 
-      // días de la semana
+      // 🔹 DÍAS DE LA SEMANA
       if (diasSemana?.length) {
         index++;
-        query += ` AND EXTRACT(DOW FROM sp.fecha) = ANY($${index})`;
+        query += ` AND EXTRACT(DOW FROM pv.fecha) = ANY($${index})`;
         values.push(diasSemana);
       }
 
-      // festivos
+      // 🔹 FESTIVOS
       if (festivo !== undefined) {
         query += festivo ? ` AND f.fecha IS NOT NULL` : ` AND f.fecha IS NULL`;
       }
 
-      query += ` ORDER BY sp.fecha ASC`;
+      query += ` ORDER BY pv.fecha ASC`;
 
       const result = await client.query(query, values);
       return result.rows.length ? result.rows : null;
