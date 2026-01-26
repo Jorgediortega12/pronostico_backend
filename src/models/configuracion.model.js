@@ -1203,46 +1203,52 @@ export default class ConfiguracionModel {
       await client.connect();
 
       let query = `
-      WITH ultima_sesion AS (
-        SELECT s.codigo
-        FROM sesiones s
-        WHERE s.ucp = $1
-          AND s.fechainicio <= $3
-          AND s.fechafin >= $2
-        ORDER BY s.version DESC
-        LIMIT 1
-      )
-      SELECT
-        sp.*,
-        CASE
-          WHEN f.fecha IS NOT NULL THEN 1
-          ELSE 0
-        END AS es_festivo
-      FROM sesiones_periodos sp
-      JOIN ultima_sesion us ON us.codigo = sp.codsesion
-      LEFT JOIN festivos f
-        ON f.ucp = $1
-       AND f.fecha = sp.fecha
-      WHERE sp.tipo = 'P'
-        AND sp.fecha BETWEEN $2 AND $3
-    `;
+WITH pronosticos_recientes AS (
+  SELECT
+    sp.*,
+    s.fecha AS fecha_sesion,
+    ROW_NUMBER() OVER (
+      PARTITION BY sp.fecha
+      ORDER BY s.fecha DESC
+    ) AS rn
+  FROM sesiones_periodos sp
+  JOIN sesiones s ON s.codigo = sp.codsesion
+  WHERE s.ucp = $1
+    AND sp.tipo = 'P'
+    AND sp.fecha BETWEEN $2 AND $3
+    -- 🔴 CLAVE: la sesión debe cubrir la fecha
+    AND s.fechainicio <= sp.fecha
+    AND s.fechafin >= sp.fecha
+)
+SELECT
+  pr.*,
+  CASE
+    WHEN f.fecha IS NOT NULL THEN 1
+    ELSE 0
+  END AS es_festivo
+FROM pronosticos_recientes pr
+LEFT JOIN festivos f
+  ON f.ucp = $1
+ AND f.fecha = pr.fecha
+WHERE pr.rn = 1
+`;
 
       const values = [ucp, fechaInicio, fechaFin];
       let index = values.length;
 
-      // días de la semana
+      // 🔹 DÍAS DE LA SEMANA
       if (diasSemana?.length) {
         index++;
-        query += ` AND EXTRACT(DOW FROM sp.fecha) = ANY($${index})`;
+        query += ` AND EXTRACT(DOW FROM pr.fecha) = ANY($${index})`;
         values.push(diasSemana);
       }
 
-      // festivos
+      // 🔹 FESTIVOS
       if (festivo !== undefined) {
         query += festivo ? ` AND f.fecha IS NOT NULL` : ` AND f.fecha IS NULL`;
       }
 
-      query += ` ORDER BY sp.fecha ASC`;
+      query += ` ORDER BY pr.fecha ASC`;
 
       const result = await client.query(query, values);
       return result.rows.length ? result.rows : null;
@@ -1250,6 +1256,94 @@ export default class ConfiguracionModel {
       Logger.error(
         colors.red("Error model cargarHistoricosPronosticosDinamico"),
       );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  cargarPronosticosEHistoricos = async ({ ucp, fechaInicio, fechaFin }) => {
+    const client = this.createClient();
+
+    try {
+      await client.connect();
+
+      const query = `
+    -- ===============================
+    -- 🔹 PRONÓSTICOS (sesiones)
+    -- ===============================
+    WITH pronosticos AS (
+      SELECT
+        sp.codigo,
+        sp.fecha,
+        sp.p1, sp.p2, sp.p3, sp.p4, sp.p5, sp.p6,
+        sp.p7, sp.p8, sp.p9, sp.p10, sp.p11, sp.p12,
+        sp.p13, sp.p14, sp.p15, sp.p16, sp.p17, sp.p18,
+        sp.p19, sp.p20, sp.p21, sp.p22, sp.p23, sp.p24,
+        sp.observacion,
+        'P'::text AS tipo,
+        s.fecha AS fecha_sesion,
+        ROW_NUMBER() OVER (
+          PARTITION BY sp.fecha
+          ORDER BY s.fecha DESC
+        ) AS rn
+      FROM sesiones_periodos sp
+      JOIN sesiones s ON s.codigo = sp.codsesion
+      WHERE s.ucp = $1
+        AND sp.fecha BETWEEN $2 AND $3
+        AND sp.tipo = 'P'
+        AND s.fechainicio <= sp.fecha
+        AND s.fechafin >= sp.fecha
+    ),
+
+    -- ===============================
+    -- 🔹 HISTÓRICOS REALES (definitivos)
+    -- ===============================
+    historicos AS (
+      SELECT
+        a.codigo,
+        a.fecha,
+        a.p1, a.p2, a.p3, a.p4, a.p5, a.p6,
+        a.p7, a.p8, a.p9, a.p10, a.p11, a.p12,
+        a.p13, a.p14, a.p15, a.p16, a.p17, a.p18,
+        a.p19, a.p20, a.p21, a.p22, a.p23, a.p24,
+        a.observacion,
+        'D'::text AS tipo,
+        NULL::timestamp AS fecha_sesion,
+        1 AS rn
+      FROM actualizaciondatos a
+      WHERE a.fecha BETWEEN $2 AND $3
+    )
+
+    -- ===============================
+    -- 🔹 UNION FINAL
+    -- ===============================
+    SELECT
+      p.*,
+      CASE WHEN f.fecha IS NOT NULL THEN 1 ELSE 0 END AS es_festivo
+    FROM pronosticos p
+    LEFT JOIN festivos f
+      ON f.ucp = $1 AND f.fecha = p.fecha
+    WHERE p.rn = 1
+
+    UNION ALL
+
+    SELECT
+      h.*,
+      CASE WHEN f.fecha IS NOT NULL THEN 1 ELSE 0 END AS es_festivo
+    FROM historicos h
+    LEFT JOIN festivos f
+      ON f.ucp = $1 AND f.fecha = h.fecha
+
+    ORDER BY fecha ASC, tipo ASC;
+    `;
+
+      const values = [ucp, fechaInicio, fechaFin];
+      const result = await client.query(query, values);
+
+      return result.rows.length ? result.rows : null;
+    } catch (error) {
+      Logger.error("Error model cargarPronosticosEHistoricos");
       throw error;
     } finally {
       await client.end();

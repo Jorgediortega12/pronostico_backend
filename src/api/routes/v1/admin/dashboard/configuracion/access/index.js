@@ -966,6 +966,21 @@ export const cargarHistoricosPronosticosDinamico = async (req, res) => {
   }
 };
 
+export const cargarPronosticosEHistoricos = async (req, res) => {
+  try {
+    const result = await service.cargarPronosticosEHistoricos(req.body);
+
+    if (!result.success) {
+      return responseError(200, result.message, 404, res);
+    }
+
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(err);
+  }
+};
+
 export const listarTodosLosFestivos = async (req, res) => {
   try {
     const { ucp } = req.params;

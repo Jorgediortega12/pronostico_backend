@@ -260,6 +260,12 @@ export default function () {
     controllers.cargarHistoricosPronosticosDinamico,
   );
 
+  router.post(
+    "/cargarPronosticosEHistoricos",
+    validator(schema.cargarPronosticosEHistoricos),
+    controllers.cargarPronosticosEHistoricos,
+  );
+
   // Listar todos los dias festivos
   router.get(
     "/listarTodosLosFestivos/:ucp",

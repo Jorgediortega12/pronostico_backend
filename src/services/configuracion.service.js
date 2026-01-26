@@ -1150,6 +1150,39 @@ export default class ConfiguracionService {
     }
   };
 
+  cargarPronosticosEHistoricos = async (filters) => {
+    try {
+      const res = await model.cargarPronosticosEHistoricos(filters);
+
+      if (!res) {
+        return {
+          success: false,
+          data: null,
+          message: "No se encontraron datos",
+        };
+      }
+
+      const pronosticos = res.filter((r) => r.tipo === "P");
+      const historicos = res.filter((r) => r.tipo === "D");
+
+      return {
+        success: true,
+        data: {
+          pronosticos,
+          historicos,
+        },
+        message: "Pronóstico e histórico cargados correctamente",
+      };
+    } catch (error) {
+      Logger.error(colors.red("Error service cargarPronosticosEHistoricos"));
+      return {
+        success: false,
+        data: null,
+        message: "Error al cargar pronósticos e históricos",
+      };
+    }
+  };
+
   listarTodosLosFestivos = async (ucp) => {
     try {
       const festivos = await model.listarTodosLosFestivos(ucp);

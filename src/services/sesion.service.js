@@ -107,9 +107,8 @@ export default class SesionService {
 
   cargarArchivosVrSesiones = async (codcarpeta) => {
     try {
-      const archivosVrSesiones = await model.cargarArchivosVrSesiones(
-        codcarpeta
-      );
+      const archivosVrSesiones =
+        await model.cargarArchivosVrSesiones(codcarpeta);
 
       if (!archivosVrSesiones) {
         return {
@@ -165,7 +164,7 @@ export default class SesionService {
     try {
       const sesionesPeriodos = await model.cargarPeriodosSesion(
         codsesion,
-        tipo
+        tipo,
       );
 
       if (!sesionesPeriodos) {
@@ -196,7 +195,7 @@ export default class SesionService {
       const actualizacionDatos = await model.cargarPeriodosxUCPxFecha(
         ucp,
         fechainicio,
-        fechafin
+        fechafin,
       );
 
       if (!actualizacionDatos) {
@@ -214,7 +213,7 @@ export default class SesionService {
       };
     } catch (error) {
       Logger.error(
-        colors.red("Error sesionServices obtenerActualizacionDatos")
+        colors.red("Error sesionServices obtenerActualizacionDatos"),
       );
       return {
         success: false,
@@ -247,6 +246,7 @@ export default class SesionService {
         ? toISODateString(dato.fechainicio)
         : "";
       const fechafin = dato.fechafin ? toISODateString(dato.fechafin) : "";
+      const observacion = dato.observacion || "";
       const dropManual = dato.edicionfiltro;
       const dropUltimo = dato.edicionperiodo;
       const diareferencia = dato.fechainicio
@@ -342,7 +342,7 @@ export default class SesionService {
       const datosDemandaRows = await model.cargarPeriodosxUCPxFecha(
         mc,
         fechainicio,
-        fechafin
+        fechafin,
       );
       const rowsMapByDate = new Map();
       if (Array.isArray(datosDemandaRows)) {
@@ -428,6 +428,7 @@ export default class SesionService {
         mc,
         fechainicio,
         fechafin,
+        observacion,
         dropmanual: dropManual,
         dropultimo: dropUltimo,
         diareferencia,
@@ -451,8 +452,8 @@ export default class SesionService {
       Logger.error(
         colors.red(
           "Error sesionServices cargarSesion: " +
-            (error && error.message ? error.message : error)
-        )
+            (error && error.message ? error.message : error),
+        ),
       );
       return {
         success: false,
@@ -481,7 +482,7 @@ export default class SesionService {
       };
     } catch (error) {
       Logger.error(
-        colors.red("Error sesionServices verificarUltimaActualizacionPorUcp")
+        colors.red("Error sesionServices verificarUltimaActualizacionPorUcp"),
       );
       return {
         success: false,
