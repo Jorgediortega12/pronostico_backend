@@ -27,7 +27,7 @@ export const exportarBulk = async (req, res) => {
       ucp,
       pronostico,
       historico,
-      datos
+      datos,
     );
     if (!result.success) return responseError(200, result.message, 404, res);
     return SuccessResponse(res, true, result.message);
@@ -65,7 +65,7 @@ export const play = async (req, res) => {
       fecha_fin,
       force_retrain,
       modelo,
-      data
+      data,
     );
     if (!result.success) return responseError(200, result.message, 404, res);
     return SuccessResponse(res, result.data, result.message);
@@ -84,8 +84,8 @@ export const retrainModel = async (req, res) => {
     const timeoutMs = timeoutMsQuery
       ? Number(timeoutMsQuery)
       : typeof timeoutMsBody !== "undefined"
-      ? Number(timeoutMsBody)
-      : undefined;
+        ? Number(timeoutMsBody)
+        : undefined;
 
     if (!ucp) {
       return res
@@ -126,7 +126,7 @@ export const getEvents = async (req, res) => {
       fecha_inicio,
       fecha_fin,
       ucp,
-      600000
+      600000,
     );
 
     if (!result.success) {
@@ -134,7 +134,7 @@ export const getEvents = async (req, res) => {
         200,
         result.data?.message || "Error al obtener eventos",
         404,
-        res
+        res,
       );
     }
 
@@ -161,14 +161,14 @@ export const errorFeedback = async (req, res) => {
         200,
         "No fue posible obtener el feedback de error",
         404,
-        res
+        res,
       );
     }
 
     return SuccessResponse(
       res,
       result.data, // { reason }
-      "Feedback obtenido correctamente"
+      "Feedback obtenido correctamente",
     );
   } catch (err) {
     Logger.error(err);
@@ -183,7 +183,7 @@ export const traerDatosClimaticos = async (req, res) => {
     const result = await service.traerDatosClimaticos(
       ucp,
       fechainicio,
-      fechafin
+      fechafin,
     );
 
     if (!result.success) {
@@ -214,14 +214,14 @@ export const predictDay = async (req, res) => {
         200,
         result.message || "Error en predictDay",
         404,
-        res
+        res,
       );
     }
 
     return SuccessResponse(
       res,
       result.data,
-      "Predicción diaria generada correctamente"
+      "Predicción diaria generada correctamente",
     );
   } catch (err) {
     Logger.error(err);
@@ -249,14 +249,41 @@ export const validateHourlyAdjustments = async (req, res) => {
         200,
         result.message || "Error en validateHourlyAdjustments",
         404,
-        res
+        res,
       );
     }
 
     return SuccessResponse(
       res,
       result.data,
-      "Ajustes horarios validados correctamente"
+      "Ajustes horarios validados correctamente",
+    );
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const analyzeDeviation = async (req, res) => {
+  const { ucp, desvios } = req.body;
+
+  try {
+    const result = await service.analyzeDeviation(ucp, desvios);
+
+    if (!result.success) {
+      // mantenemos la forma que usas en errorFeedback: responseError con código 200 y detalle
+      return responseError(
+        200,
+        "No fue posible analizar los desvíos",
+        404,
+        res,
+      );
+    }
+
+    return SuccessResponse(
+      res,
+      result.data, // lo que devuelva el microservicio que consulta OpenAI
+      "Análisis de desvíos obtenido correctamente",
     );
   } catch (err) {
     Logger.error(err);
