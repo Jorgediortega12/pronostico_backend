@@ -37,7 +37,7 @@ export default {
           p22: Joi.number().optional(),
           p23: Joi.number().optional(),
           p24: Joi.number().optional(),
-        })
+        }),
       )
       .required(),
     historico: Joi.array()
@@ -70,7 +70,7 @@ export default {
           p22: Joi.number().optional(),
           p23: Joi.number().optional(),
           p24: Joi.number().optional(),
-        })
+        }),
       )
       .required(),
     datos: Joi.object().required(),
@@ -121,6 +121,17 @@ export default {
     ajustes_solicitados: Joi.array()
       .items(Joi.number().required())
       .length(24)
+      .required(),
+  }),
+  analyzeDeviation: Joi.object().keys({
+    ucp: Joi.string().required(),
+    desvios: Joi.array()
+      .items(
+        Joi.object().keys({
+          fecha: Joi.string().required(), // ISO date string esperada (ej: "2025-01-15")
+          mape: Joi.number().required(),
+        }),
+      )
       .required(),
   }),
 };

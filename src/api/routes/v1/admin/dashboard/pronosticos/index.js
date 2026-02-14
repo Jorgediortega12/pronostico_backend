@@ -10,7 +10,7 @@ export default function () {
   router.post(
     "/exportarBulk",
     validator(schema.exportarBulk),
-    controllers.exportarBulk
+    controllers.exportarBulk,
   );
   router.post("/borrarPronosticos", controllers.borrarPronosticos); // puedes añadir schema si quieres
   router.post("/play", validator(schema.play), controllers.play);
@@ -18,33 +18,39 @@ export default function () {
   router.post(
     "/retrainModel",
     validator(schema.retrainModel),
-    controllers.retrainModel
+    controllers.retrainModel,
   );
   router.post(
     "/get-events",
     validator(schema.getEvents),
-    controllers.getEvents
+    controllers.getEvents,
   );
   router.post(
     "/error-feedback",
     validator(schema.errorFeedback),
-    controllers.errorFeedback
+    controllers.errorFeedback,
   );
   router.get(
     "/traerDatosClimaticos/:ucp/:fechainicio/:fechafin",
     validator(schema.traerDatosClimaticos),
-    controllers.traerDatosClimaticos
+    controllers.traerDatosClimaticos,
   );
   router.post(
     "/predictDay",
     validator(schema.predictDay),
-    controllers.predictDay
+    controllers.predictDay,
   );
   // routes/pronosticos.routes.ts
   router.post(
     "/validateHourlyAdjustments",
     validator(schema.validateHourlyAdjustments),
-    controllers.validateHourlyAdjustments
+    controllers.validateHourlyAdjustments,
+  );
+
+  router.post(
+    "/analyze-deviation",
+    validator(schema.analyzeDeviation),
+    controllers.analyzeDeviation,
   );
 
   return router;
