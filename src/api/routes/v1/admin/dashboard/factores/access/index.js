@@ -92,7 +92,7 @@ export const consultarAgrupacionesIndex_xBarraId = async (req, res) => {
         200,
         "Parametro barra_id no proporcionado",
         400,
-        res
+        res,
       );
     }
 
@@ -299,8 +299,15 @@ export const consultarBarraFlujoNombreInicial = async (req, res) => {
 
 export const consultarBarraFactorNombre = async (req, res) => {
   try {
+    console.log("PARAMS:", req.params); // ← agrega esto
+    console.log("BODY:", req.body); // ← agrega esto
     const { barra, tipo } = req.params;
     const { codigo_rpm } = req.body;
+
+    // Validar params manualmente
+    if (!barra || !tipo) {
+      return responseError(200, "barra y tipo son requeridos", 400, res);
+    }
 
     if (!Array.isArray(codigo_rpm) || codigo_rpm.length === 0) {
       return responseError(200, "codigo_rpm debe ser un arreglo", 400, res);
@@ -309,7 +316,7 @@ export const consultarBarraFactorNombre = async (req, res) => {
     const result = await service.consultarBarraFactorNombre(
       barra,
       tipo,
-      codigo_rpm
+      codigo_rpm,
     );
 
     if (!result.success) {
@@ -336,105 +343,6 @@ export const consultarMedidasCalcularCompleto = async (req, res) => {
   }
 };
 
-// export const exportarMedidasExcel = async (req, res) => {
-//   try {
-//     const { fecha_inicial, fecha_final, mc, tipo_dia, tipo_energia } = req.body;
-
-//     if (!fecha_inicial || !fecha_final || !mc || !tipo_dia || !tipo_energia) {
-//       return responseError(200, "Parámetros incompletos", 400, res);
-//     }
-
-//     // 1️⃣ Obtener barras
-//     const barrasRes = await service.consultarBarrasIndex_xMC(mc);
-//     if (!barrasRes.success || !barrasRes.data?.length) {
-//       return responseError(200, "No hay barras", 400, res);
-//     }
-
-//     const workbook = new ExcelJS.Workbook();
-
-//     // 2️⃣ Procesar barra por barra
-//     for (const barra of barrasRes.data) {
-//       const barraNombre = barra.barra;
-
-//       // códigos RPM
-//       const rpmRes = await service.consultarBarraNombre(barraNombre);
-//       if (!rpmRes.success || !rpmRes.data?.length) continue;
-
-//       const codigosRPM = rpmRes.data.map((r) => r.codigo_rpm);
-
-//       // flujos
-//       const flujosRes = await service.consultarBarraFlujoNombreInicial(
-//         barraNombre,
-//         tipo_energia
-//       );
-//       if (!flujosRes.success || !flujosRes.data?.length) continue;
-
-//       const flujos = flujosRes.data.map((f) => f.flujo);
-
-//       // medidas
-//       const medidasRes = await service.consultarMedidasCalcularCompleto({
-//         fecha_inicial,
-//         fecha_final,
-//         mc,
-//         tipo_dia,
-//         barra: barraNombre,
-//         codigo_rpm: codigosRPM,
-//         flujo: flujos,
-//         marcado: false,
-//       });
-
-//       if (!medidasRes.success || !medidasRes.data?.length) continue;
-
-//       // 3️⃣ Crear hoja
-//       const sheet = workbook.addWorksheet(barraNombre);
-
-//       sheet.columns = [
-//         { header: "Flujo", key: "flujo", width: 10 },
-//         { header: "Fecha", key: "fecha", width: 14 },
-//         { header: "Cod. RPM", key: "codigo_rpm", width: 15 },
-//         ...Array.from({ length: 24 }, (_, i) => ({
-//           header: `P${i + 1}`,
-//           key: `p${i + 1}`,
-//           width: 10,
-//         })),
-//       ];
-
-//       sheet.getRow(1).font = { bold: true };
-//       sheet.views = [{ state: "frozen", ySplit: 1 }];
-
-//       // 4️⃣ Llenar filas
-//       for (const m of medidasRes.data) {
-//         sheet.addRow({
-//           flujo: m.meflujo,
-//           fecha: m.mefecha,
-//           codigo_rpm: m.mecodigo_rpm,
-//           ...Object.fromEntries(
-//             Array.from({ length: 24 }, (_, i) => [
-//               `p${i + 1}`,
-//               Number(m[`mep${i + 1}`]),
-//             ])
-//           ),
-//         });
-//       }
-//     }
-
-//     // 5️⃣ Descargar
-//     res.setHeader(
-//       "Content-Type",
-//       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-//     );
-//     res.setHeader(
-//       "Content-Disposition",
-//       "attachment; filename=Medidas_por_Barra.xlsx"
-//     );
-
-//     await workbook.xlsx.write(res);
-//     res.end();
-//   } catch (error) {
-//     console.error(error);
-//     return InternalError(res);
-//   }
-// };
 export const exportarMedidasExcel = async (req, res) => {
   try {
     const { fecha_inicial, fecha_final, mc, tipo_dia, tipo_energia } = req.body;
@@ -463,7 +371,7 @@ export const exportarMedidasExcel = async (req, res) => {
       // flujos
       const flujosRes = await service.consultarBarraFlujoNombreInicial(
         barraNombre,
-        tipo_energia
+        tipo_energia,
       );
       if (!flujosRes.success || !flujosRes.data?.length) continue;
       const flujos = flujosRes.data.map((f) => f.flujo);
@@ -472,7 +380,7 @@ export const exportarMedidasExcel = async (req, res) => {
       const factoresRes = await service.consultarBarraFactorNombre(
         barraNombre,
         tipo_energia,
-        codigosRPM
+        codigosRPM,
       );
       console.log("Factores Res:", factoresRes);
       if (!factoresRes.success) continue;
@@ -549,17 +457,142 @@ export const exportarMedidasExcel = async (req, res) => {
     // 6️⃣ Descargar Excel
     res.setHeader(
       "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     );
     res.setHeader(
       "Content-Disposition",
-      "attachment; filename=Medidas_por_Barra.xlsx"
+      "attachment; filename=Medidas_por_Barra.xlsx",
     );
 
     await workbook.xlsx.write(res);
     res.end();
   } catch (error) {
     console.error(error);
+    return InternalError(res);
+  }
+};
+
+export const calculosCurvasTipicas = async (req, res) => {
+  const { fecha_inicio, fecha_fin, ucp, tipo_dia, flujo_tipo, n_max, barra } =
+    req.body;
+
+  try {
+    const result = await service.calculosCurvasTipicas(
+      fecha_inicio,
+      fecha_fin,
+      ucp,
+      tipo_dia,
+      flujo_tipo,
+      n_max,
+      barra,
+      600000,
+    );
+
+    if (!result.success) {
+      return responseError(
+        200,
+        "No fue posible obtener el calculo de curvas tipicas",
+        404,
+        res,
+      );
+    }
+
+    return SuccessResponse(
+      res,
+      result.data,
+      "Calculo de curvas tipicas obtenido correctamente",
+    );
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const calculoFda = async (req, res) => {
+  const { fecha_inicio, fecha_fin, ucp, tipo_dia, curvas_tipicas } = req.body;
+
+  try {
+    const result = await service.calculoFda(
+      fecha_inicio,
+      fecha_fin,
+      ucp,
+      tipo_dia,
+      curvas_tipicas,
+      600000,
+    );
+
+    if (!result.success) {
+      return responseError(
+        200,
+        "No fue posible obtener el calculo FDA",
+        404,
+        res,
+      );
+    }
+
+    return SuccessResponse(
+      res,
+      result.data,
+      "Calculo de FDA obtenido correctamente",
+    );
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const calculoFdp = async (req, res) => {
+  const { fecha_inicio, fecha_fin, ucp, tipo_dia, curvas_tipicas } = req.body;
+
+  try {
+    const result = await service.calculoFda(
+      fecha_inicio,
+      fecha_fin,
+      ucp,
+      tipo_dia,
+      curvas_tipicas,
+      600000,
+    );
+
+    if (!result.success) {
+      return responseError(
+        200,
+        "No fue posible obtener el calculo FDP",
+        404,
+        res,
+      );
+    }
+
+    return SuccessResponse(
+      res,
+      result.data,
+      "Calculo de FDP obtenido correctamente",
+    );
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const calcularMedidas = async (req, res) => {
+  const { fecha_inicio, fecha_fin, e_ar, ucp } = req.query;
+
+  try {
+    const result = await service.calcularMedidas(
+      fecha_inicio,
+      fecha_fin,
+      e_ar,
+      ucp,
+      600000,
+    );
+
+    if (!result.success) {
+      return responseError(200, "No fue posible obtener el calculo", 404, res);
+    }
+
+    return SuccessResponse(res, result.data, "Calculo obtenido correctamente");
+  } catch (err) {
+    Logger.error(err);
     return InternalError(res);
   }
 };

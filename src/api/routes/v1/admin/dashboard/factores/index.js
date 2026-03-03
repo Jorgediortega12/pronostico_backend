@@ -11,93 +11,93 @@ export default function () {
   router.post(
     "/guardarBarra",
     validator(schema.guardarBarra),
-    controllers.guardarBarra
+    controllers.guardarBarra,
   );
 
   // consultar barras por mc/ucp
   router.get(
     "/consultarBarrasIndex_xMC/:mc",
     validator(schema.consultarBarrasIndex_xMC),
-    controllers.consultarBarrasIndex_xMC
+    controllers.consultarBarrasIndex_xMC,
   );
 
   router.put(
     "/actualizarBarra/:id",
     validator(schema.actualizarBarra),
-    controllers.actualizarBarra
+    controllers.actualizarBarra,
   );
 
   router.post(
     "/guardarAgrupacion",
     validator(schema.guardarAgrupacion),
-    controllers.guardarAgrupacion
+    controllers.guardarAgrupacion,
   );
 
   // consultar abrupaciones por el id de la barra
   router.get(
     "/consultarAgrupacionesIndex_xBarraId/:barra_id",
     validator(schema.consultarAgrupacionesIndex_xBarraId),
-    controllers.consultarAgrupacionesIndex_xBarraId
+    controllers.consultarAgrupacionesIndex_xBarraId,
   );
 
   router.put(
     "/actualizarAgrupacion/:id",
     validator(schema.actualizarAgrupacion),
-    controllers.actualizarAgrupacion
+    controllers.actualizarAgrupacion,
   );
 
   router.delete(
     "/eliminarBarra/:id",
     validator(schema.eliminarBarra),
-    controllers.eliminarBarra
+    controllers.eliminarBarra,
   );
 
   router.delete(
     "/eliminarAgrupacion/:id",
     validator(schema.eliminarAgrupacion),
-    controllers.eliminarAgrupacion
+    controllers.eliminarAgrupacion,
   );
 
   router.post(
     "/eliminarMedidasRapido",
     validator(schema.eliminarRapido),
-    controllers.eliminarMedidasRapido
+    controllers.eliminarMedidasRapido,
   );
 
   router.post(
     "/actualizarMedidasRapido",
     validator(schema.actualizarRapido),
-    controllers.actualizarMedidasRapido
+    controllers.actualizarMedidasRapido,
   );
 
   router.post(
     "/insertarMedidasRapido",
     validator(schema.insertarRapido),
-    controllers.insertarMedidasRapido
+    controllers.insertarMedidasRapido,
   );
 
   router.post(
     "/cargarDesdeExcel",
     uploadExcel.single("archivo"),
-    controllers.cargarMedidasDesdeExcel
+    controllers.cargarMedidasDesdeExcel,
   );
 
   // Descargar plantilla Excel
   router.get(
     "/descargarPlantillaMedidas",
-    controllers.descargarPlantillaMedidas
+    controllers.descargarPlantillaMedidas,
   );
 
   router.delete(
     "/eliminarFechasIngresadasTodos/:ucp",
     validator(schema.eliminarFechasIngresadasTodos),
-    controllers.eliminarFechasIngresadasTodos
+    controllers.eliminarFechasIngresadasTodos,
   );
 
   router.post(
     "/guardarRangoFecha",
     validator(schema.guardarRangoFecha),
-    controllers.guardarRangoFecha
+    controllers.guardarRangoFecha,
   );
 
   router.put("/reiniciarMedidas", controllers.reiniciarMedidas);
@@ -105,31 +105,53 @@ export default function () {
   router.get(
     "/consultarBarraNombre/:barra",
     validator(schema.consultarBarraNombre),
-    controllers.consultarBarraNombre
+    controllers.consultarBarraNombre,
   );
 
   router.get(
     "/consultarBarraFlujoNombreInicial/:barra/:tipo",
     validator(schema.consultarBarraFlujoNombreInicial),
-    controllers.consultarBarraFlujoNombreInicial
+    controllers.consultarBarraFlujoNombreInicial,
   );
 
   router.post(
     "/consultarBarraFactorNombre/:barra/:tipo",
     validator(schema.consultarBarraFactorNombre),
-    controllers.consultarBarraFactorNombre
+    controllers.consultarBarraFactorNombre,
   );
 
   router.post(
     "/consultarMedidasCalcularCompleto",
     validator(schema.consultarMedidasCalcularCompleto),
-    controllers.consultarMedidasCalcularCompleto
+    controllers.consultarMedidasCalcularCompleto,
   );
 
   router.post(
     "/exportarMedidasExcel",
     validator(schema.exportarMedidasExcel),
-    controllers.exportarMedidasExcel
+    controllers.exportarMedidasExcel,
+  );
+
+  router.post(
+    "/calculosCurvasTipicas",
+    validator(schema.calculosCurvasTipicas),
+    controllers.calculosCurvasTipicas,
+  );
+
+  router.post(
+    "/calculoFda",
+    validator(schema.calculoFdaFdp),
+    controllers.calculoFda,
+  );
+  router.post(
+    "/calculoFdp",
+    validator(schema.calculoFdaFdp),
+    controllers.calculoFdp,
+  );
+  router.get(
+    "/calcularMedidas",
+    validator(schema.calcularMedidas, "query"),
+    controllers.calcularMedidas,
   );
 
   return router;

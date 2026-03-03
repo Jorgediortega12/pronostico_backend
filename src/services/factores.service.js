@@ -53,7 +53,7 @@ export default class FactoresService {
     } catch (err) {
       Logger.error(
         colors.red("Error FactoresService consultarBarrasIndex_xMC"),
-        err
+        err,
       );
       return {
         success: false,
@@ -117,7 +117,7 @@ export default class FactoresService {
     } catch (err) {
       Logger.error(
         colors.red("Error FactoresService consultarAgrupacionesIndex_xBarraId"),
-        err
+        err,
       );
       return {
         success: false,
@@ -206,7 +206,7 @@ export default class FactoresService {
     const filePath = path.join(
       process.cwd(),
       "Plantillas",
-      "CargarMedidasPrimeGridt.xlsx"
+      "CargarMedidasPrimeGridt.xlsx",
     );
 
     if (!fs.existsSync(filePath)) {
@@ -275,7 +275,7 @@ export default class FactoresService {
       const data = await model.consultarBarraFactorNombre(
         barra,
         tipo,
-        codigosRPM
+        codigosRPM,
       );
 
       return {
@@ -309,4 +309,341 @@ export default class FactoresService {
       };
     }
   };
+
+  async calculosCurvasTipicas(
+    inicioIso,
+    finIso,
+    ucp,
+    tipo_dia,
+    flujo_tipo,
+    n_max,
+    barra,
+    timeoutMs = 600000,
+  ) {
+    const hostsToTry = ["127.0.0.1", "localhost"];
+    //puerto produccion
+    const port = 8002;
+    //puerto desarrollo
+    // const port = 8001;
+
+    for (const host of hostsToTry) {
+      let timer;
+      try {
+        const url = `http://${host}:${port}/factores/calculos/curvas-tipicas`;
+        const controller = new AbortController();
+        const signal = controller.signal;
+
+        timer = setTimeout(() => {
+          controller.abort();
+        }, timeoutMs);
+
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            fecha_inicial: inicioIso,
+            fecha_final: finIso,
+            mc: ucp,
+            tipo_dia,
+            flujo_tipo,
+            n_max,
+            barra,
+          }),
+          signal,
+        });
+
+        clearTimeout(timer);
+
+        const statusCode = res.status;
+        const json = await res.json().catch(() => null);
+
+        if (!res.ok) {
+          Logger.warn(
+            colors.yellow(
+              `errorFeedback: HTTP ${statusCode} desde ${host}:${port}`,
+            ),
+          );
+          return { success: false, statusCode, data: json };
+        }
+
+        return {
+          success: true,
+          statusCode,
+          data: json,
+        };
+      } catch (err) {
+        clearTimeout(timer);
+        if (err?.name === "AbortError") {
+          Logger.warn(
+            colors.yellow(
+              `errorFeedback: timeout (${timeoutMs}ms) hacia ${host}:${port}`,
+            ),
+          );
+        } else {
+          Logger.warn(
+            colors.yellow(
+              `errorFeedback: error conectando a ${host}:${port} — ${
+                err?.message || err
+              }`,
+            ),
+          );
+        }
+      }
+    }
+
+    Logger.error(colors.red(`errorFeedback: Falló en todos los hosts`));
+
+    return { success: false, statusCode: 0, data: null };
+  }
+
+  async calculoFda(
+    inicioIso,
+    finIso,
+    ucp,
+    tipo_dia,
+    curvas_tipicas,
+    timeoutMs = 600000,
+  ) {
+    const hostsToTry = ["127.0.0.1", "localhost"];
+    //puerto produccion
+    const port = 8002;
+    //puerto desarrollo
+    // const port = 8001;
+
+    for (const host of hostsToTry) {
+      let timer;
+      try {
+        const url = `http://${host}:${port}/factores/calculos/fda`;
+        const controller = new AbortController();
+        const signal = controller.signal;
+
+        timer = setTimeout(() => {
+          controller.abort();
+        }, timeoutMs);
+
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            fecha_inicial: inicioIso,
+            fecha_final: finIso,
+            mc: ucp,
+            tipo_dia,
+            curvas_tipicas,
+          }),
+          signal,
+        });
+
+        clearTimeout(timer);
+
+        const statusCode = res.status;
+        const json = await res.json().catch(() => null);
+
+        if (!res.ok) {
+          Logger.warn(
+            colors.yellow(
+              `errorFeedback: HTTP ${statusCode} desde ${host}:${port}`,
+            ),
+          );
+          return { success: false, statusCode, data: json };
+        }
+
+        return {
+          success: true,
+          statusCode,
+          data: json,
+        };
+      } catch (err) {
+        clearTimeout(timer);
+        if (err?.name === "AbortError") {
+          Logger.warn(
+            colors.yellow(
+              `errorFeedback: timeout (${timeoutMs}ms) hacia ${host}:${port}`,
+            ),
+          );
+        } else {
+          Logger.warn(
+            colors.yellow(
+              `errorFeedback: error conectando a ${host}:${port} — ${
+                err?.message || err
+              }`,
+            ),
+          );
+        }
+      }
+    }
+
+    Logger.error(colors.red(`errorFeedback: Falló en todos los hosts`));
+
+    return { success: false, statusCode: 0, data: null };
+  }
+
+  async calculoFdp(
+    inicioIso,
+    finIso,
+    ucp,
+    tipo_dia,
+    curvas_tipicas,
+    timeoutMs = 600000,
+  ) {
+    const hostsToTry = ["127.0.0.1", "localhost"];
+    //puerto produccion
+    const port = 8002;
+    //puerto desarrollo
+    // const port = 8001;
+
+    for (const host of hostsToTry) {
+      let timer;
+      try {
+        const url = `http://${host}:${port}/factores/calculos/fdp`;
+        const controller = new AbortController();
+        const signal = controller.signal;
+
+        timer = setTimeout(() => {
+          controller.abort();
+        }, timeoutMs);
+
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            fecha_inicial: inicioIso,
+            fecha_final: finIso,
+            mc: ucp,
+            tipo_dia,
+            curvas_tipicas,
+          }),
+          signal,
+        });
+
+        clearTimeout(timer);
+
+        const statusCode = res.status;
+        const json = await res.json().catch(() => null);
+
+        if (!res.ok) {
+          Logger.warn(
+            colors.yellow(
+              `errorFeedback: HTTP ${statusCode} desde ${host}:${port}`,
+            ),
+          );
+          return { success: false, statusCode, data: json };
+        }
+
+        return {
+          success: true,
+          statusCode,
+          data: json,
+        };
+      } catch (err) {
+        clearTimeout(timer);
+        if (err?.name === "AbortError") {
+          Logger.warn(
+            colors.yellow(
+              `errorFeedback: timeout (${timeoutMs}ms) hacia ${host}:${port}`,
+            ),
+          );
+        } else {
+          Logger.warn(
+            colors.yellow(
+              `errorFeedback: error conectando a ${host}:${port} — ${
+                err?.message || err
+              }`,
+            ),
+          );
+        }
+      }
+    }
+
+    Logger.error(colors.red(`errorFeedback: Falló en todos los hosts`));
+
+    return { success: false, statusCode: 0, data: null };
+  }
+
+  async calcularMedidas(inicioIso, finIso, e_ar, ucp, timeoutMs = 600000) {
+    const hostsToTry = ["127.0.0.1", "localhost"];
+    //puerto produccion
+    const port = 8002;
+    //puerto desarrollo
+    // const port = 8001;
+
+    for (const host of hostsToTry) {
+      let timer;
+
+      try {
+        const params = new URLSearchParams({
+          fecha_inicial: inicioIso,
+          fecha_final: finIso,
+          e_ar,
+          mc: ucp,
+        });
+
+        const url = `http://${host}:${port}/factores/medidas/calcular?${params.toString()}`;
+
+        const controller = new AbortController();
+        const signal = controller.signal;
+
+        timer = setTimeout(() => {
+          controller.abort();
+        }, timeoutMs);
+
+        const res = await fetch(url, {
+          method: "GET",
+          headers: {
+            accept: "application/json",
+          },
+          signal,
+        });
+
+        clearTimeout(timer);
+
+        const statusCode = res.status;
+        const json = await res.json().catch(() => null);
+
+        if (!res.ok) {
+          Logger.warn(
+            colors.yellow(`calcular: HTTP ${statusCode} desde ${host}:${port}`),
+          );
+          return { success: false, statusCode, data: json };
+        }
+
+        return {
+          success: true,
+          statusCode,
+          data: json,
+        };
+      } catch (err) {
+        clearTimeout(timer);
+
+        if (err?.name === "AbortError") {
+          Logger.warn(
+            colors.yellow(
+              `calcular: timeout (${timeoutMs}ms) hacia ${host}:${port}`,
+            ),
+          );
+        } else {
+          Logger.warn(
+            colors.yellow(
+              `calcular: error conectando a ${host}:${port} — ${
+                err?.message || err
+              }`,
+            ),
+          );
+        }
+      }
+    }
+
+    Logger.error(colors.red(`calcular: Falló en todos los hosts`));
+
+    return { success: false, statusCode: 0, data: null };
+  }
 }

@@ -148,8 +148,7 @@ export default {
     tipo: Joi.string().length(1).required(),
   }),
   consultarBarraFactorNombre: Joi.object({
-    barra: Joi.string().required(),
-    tipo: Joi.string().length(1).required(),
+    // Solo validar lo que viene del body
     codigo_rpm: Joi.array().items(Joi.string()).min(1).required(),
   }),
   consultarMedidasCalcularCompleto: Joi.object({
@@ -169,5 +168,34 @@ export default {
     tipo_dia: Joi.string().valid("ORDINARIO", "SABADO", "FESTIVO").required(),
     tipo_energia: Joi.string().length(1).valid("A", "R").required(),
     marcado: Joi.boolean().optional().default(false),
+  }),
+  calculosCurvasTipicas: Joi.object({
+    fecha_inicio: Joi.string().required(),
+    fecha_fin: Joi.string().required(),
+    ucp: Joi.string().required(),
+    tipo_dia: Joi.string().valid("ORDINARIO", "SABADO", "FESTIVO").required(),
+    flujo_tipo: Joi.string().length(1).valid("A", "R").required(),
+    n_max: Joi.number().required(),
+    barra: Joi.string().required(),
+  }),
+  calculoFdaFdp: Joi.object({
+    fecha_inicio: Joi.string().required(),
+    fecha_fin: Joi.string().required(),
+    ucp: Joi.string().required(),
+    tipo_dia: Joi.string().valid("ORDINARIO", "SABADO", "FESTIVO").required(),
+    curvas_tipicas: Joi.array()
+      .items(
+        Joi.object({
+          barra: Joi.string().required(),
+          fecha: Joi.string().required(),
+        }),
+      )
+      .required(),
+  }),
+  calcularMedidas: Joi.object({
+    fecha_inicio: Joi.string().isoDate().required(),
+    fecha_fin: Joi.string().isoDate().required(),
+    e_ar: Joi.string().required(),
+    ucp: Joi.string().required(),
   }),
 };
