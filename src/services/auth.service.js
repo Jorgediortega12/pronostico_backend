@@ -1,50 +1,112 @@
-import jwt from 'jsonwebtoken';
-import config from '../config/index.js';
-import UserModel from '../models/user.model.js';
+import jwt from "jsonwebtoken";
+
+import { signToken } from "../helpers/signToken.js";
+import { createConectionPG } from "../helpers/connections.js";
+
+import config from "../config/index.js";
+import UserModel from "../models/user.model.js";
+import RedisModel from "../models/redis.model.js";
 
 class AuthService {
   constructor() {
     this.userModel = UserModel.getInstance();
+    this.redisModel = RedisModel.getInstance();
   }
 
-  async login(usuario, password) {
+  //Verificando login superadmin
+  loginS = async (usuario, password) => {
     try {
-      // Buscar usuario por nickname
-      const result = await this.userModel.verificarUsuario(usuario, password);
+      //Key: usuario_perfil_estado_usuario
+      const resultKeys = await this.redisModel.keys(`usuarios_*_1_${usuario}`);
 
+      if (resultKeys.length == 0)
+        return {
+          success: false,
+          message: "Este usuario no se encuentra registrado en el sistema.",
+        };
+
+      const getInfoData = await this.redisModel.get(resultKeys[0]);
+      const data = JSON.parse(getInfoData);
+      if (data.contrasenia !== password)
+        return {
+          success: false,
+          message: "Intente nuevamente, las contraseñas no son válidas.",
+        };
+
+      delete data.contrasenia;
+      const token = signToken({ data, email: data.correo });
+      return {
+        success: true,
+        message: "Datos del usuario.",
+        user: { user: data, token },
+      };
+    } catch (error) {
+      Logger.error(colors.red("Error LoginService verifyLoginS "), error);
+      throw new Error("ERROR TECNICO");
+    }
+  };
+
+  async login(uuid, usuario, password) {
+    try {
+      // 1. Buscar el mercado en Redis por uuid
+      const resultKeys = await this.redisModel.keys(`mercados_${uuid}*`);
+      if (resultKeys.length === 0) {
+        throw new Error("Mercado no encontrado.");
+      }
+
+      const getInfoData = await this.redisModel.get(resultKeys[0]);
+      const raw = JSON.parse(getInfoData);
+      const mercado = typeof raw === "string" ? JSON.parse(raw) : raw;
+
+      // 2. Verificar que el mercado tiene accesos configurados
+      if (!mercado.accesos) {
+        throw new Error("Este mercado no tiene base de datos configurada.");
+      }
+
+      // 3. Crear conexión dinámica a la BD del mercado
+      const client = createConectionPG(mercado.accesos);
+
+      // 4. Verificar usuario/contraseña contra la BD del mercado
+      const result = await this.userModel.verificarUsuario(
+        usuario,
+        password,
+        client,
+      );
+      console.log("result:", result);
       if (!result || result.rows.length === 0) {
-        throw new Error('Usuario o contraseña incorrectos');
+        throw new Error("Usuario o contraseña incorrectos");
       }
 
       const user = result.rows[0];
 
-      // Verificar si el usuario está bloqueado
-      if (user.bloqueo && user.bloqueo !== '0' && user.bloqueo !== null) {
-        throw new Error('Usuario bloqueado');
+      // 5. Validaciones de estado
+      if (user.bloqueo && user.bloqueo !== "0" && user.bloqueo !== null) {
+        throw new Error("Usuario bloqueado");
+      }
+      if (user.estado !== "On") {
+        throw new Error("Usuario inactivo");
       }
 
-      // Verificar si el usuario está activo
-      if (user.estado !== 'On') {
-        throw new Error('Usuario inactivo');
-      }
+      // 6. Generar token incluyendo info del mercado
+      const token = this.generateToken(user, mercado);
 
-      // Generar token JWT
-      const token = this.generateToken(user);
-
-      // Retornar usuario sin la contraseña
       const { pass, ...userWithoutPassword } = user;
 
       return {
         success: true,
         token,
-        user: userWithoutPassword
+        user: {
+          ...userWithoutPassword,
+          uuid_mercado: mercado.uuid,
+          nombre_mercado: mercado.nombre,
+        },
       };
     } catch (error) {
       throw error;
     }
   }
 
-  generateToken(user) {
+  generateToken(user, mercado) {
     const payload = {
       cod: user.cod,
       usuario: user.usuario,
@@ -54,14 +116,13 @@ class AuthService {
       papellido: user.papellido,
       sapellido: user.sapellido,
       perfil: user.perfil || user.codperfil,
-      identificacion: user.identificacion
+      identificacion: user.identificacion,
+      // ← datos del mercado en el token para peticiones posteriores
+      uuid_mercado: mercado.uuid,
+      nombre_mercado: mercado.nombre,
     };
 
-    // Token expira en 24 horas
-    const token = jwt.sign(payload, config.secretKey, {
-      expiresIn: '24h'
-    });
-
+    const token = jwt.sign(payload, config.secretKey, { expiresIn: "24h" });
     return token;
   }
 
@@ -70,7 +131,7 @@ class AuthService {
       const decoded = jwt.verify(token, config.secretKey);
       return decoded;
     } catch (error) {
-      throw new Error('Token inválido o expirado');
+      throw new Error("Token inválido o expirado");
     }
   }
 
@@ -87,26 +148,32 @@ class AuthService {
         telefono,
         celular,
         email,
-        codperfil
+        codperfil,
       } = userData;
 
       // Verificar si el usuario ya existe
-      const existingUserByUsername = await this.userModel.buscarUsuarioxNickname(usuario);
+      const existingUserByUsername =
+        await this.userModel.buscarUsuarioxNickname(usuario);
       if (existingUserByUsername && existingUserByUsername.rows.length > 0) {
-        throw new Error('El nombre de usuario ya está registrado');
+        throw new Error("El nombre de usuario ya está registrado");
       }
 
       // Verificar si el email ya existe
-      const existingUserByEmail = await this.userModel.buscarUsuarioxNickname(email);
+      const existingUserByEmail =
+        await this.userModel.buscarUsuarioxNickname(email);
       if (existingUserByEmail && existingUserByEmail.rows.length > 0) {
-        throw new Error('El email ya está registrado');
+        throw new Error("El email ya está registrado");
       }
 
       // Verificar si la identificación ya existe
       if (identificacion) {
-        const existingUserByIdentificacion = await this.userModel.buscarUsuarioxIdentificacion(identificacion);
-        if (existingUserByIdentificacion && existingUserByIdentificacion.rows.length > 0) {
-          throw new Error('La identificación ya está registrada');
+        const existingUserByIdentificacion =
+          await this.userModel.buscarUsuarioxIdentificacion(identificacion);
+        if (
+          existingUserByIdentificacion &&
+          existingUserByIdentificacion.rows.length > 0
+        ) {
+          throw new Error("La identificación ya está registrada");
         }
       }
 
@@ -114,19 +181,19 @@ class AuthService {
       const result = await this.userModel.agregarUsuarioPG(
         usuario,
         password,
-        identificacion || '',
-        pnombre || '',
-        snombre || '',
-        papellido || '',
-        sapellido || '',
-        telefono || '',
-        celular || '',
+        identificacion || "",
+        pnombre || "",
+        snombre || "",
+        papellido || "",
+        sapellido || "",
+        telefono || "",
+        celular || "",
         email,
-        codperfil || '1' // Perfil por defecto
+        codperfil || "1", // Perfil por defecto
       );
 
       if (!result || result.rows.length === 0) {
-        throw new Error('Error al crear el usuario');
+        throw new Error("Error al crear el usuario");
       }
 
       const newUser = result.rows[0];
@@ -140,19 +207,19 @@ class AuthService {
       return {
         success: true,
         token,
-        user: userWithoutPassword
+        user: userWithoutPassword,
       };
     } catch (error) {
       throw error;
     }
   }
-   
+
   async getUserById(userId) {
     try {
       const result = await this.userModel.buscarUsuario(userId);
 
       if (!result || result.rows.length === 0) {
-        throw new Error('Usuario no encontrado');
+        throw new Error("Usuario no encontrado");
       }
 
       const user = result.rows[0];
@@ -169,7 +236,7 @@ class AuthService {
       const result = await this.userModel.buscarUsuarioxNickname(usuario);
 
       if (!result || result.rows.length === 0) {
-        throw new Error('Usuario no encontrado');
+        throw new Error("Usuario no encontrado");
       }
 
       const user = result.rows[0];
@@ -188,14 +255,17 @@ class AuthService {
       console.log(verifyResult);
 
       if (!verifyResult || verifyResult.length === 0) {
-        throw new Error('No se pudo cambiar la contraseña');
+        throw new Error("No se pudo cambiar la contraseña");
       }
 
       // Actualizar la contraseña
-      const updateResult = await this.userModel.editarPass(verifyResult, newPassword);
+      const updateResult = await this.userModel.editarPass(
+        verifyResult,
+        newPassword,
+      );
 
       if (!updateResult || updateResult.rowCount === 0) {
-        throw new Error('Error al actualizar la contraseña');
+        throw new Error("Error al actualizar la contraseña");
       }
 
       return true;
@@ -210,30 +280,36 @@ class AuthService {
       const userResult = await this.userModel.buscarUsuario(userId);
 
       if (!userResult || userResult.rows.length === 0) {
-        throw new Error('Usuario no encontrado');
+        throw new Error("Usuario no encontrado");
       }
 
       const user = userResult.rows[0];
 
       // Verificar que la contraseña actual sea correcta
-      const verifyResult = await this.userModel.verificarUsuario(user.usuario, currentPassword);
+      const verifyResult = await this.userModel.verificarUsuario(
+        user.usuario,
+        currentPassword,
+      );
 
       if (!verifyResult || verifyResult.rows.length === 0) {
-        throw new Error('Contraseña actual incorrecta');
+        throw new Error("Contraseña actual incorrecta");
       }
 
       // buscamos el email del usuario para poder confirmar el cambio de contraseña
       const verifyUserId = await this.userModel.verificarUsuario2(user.email);
 
       if (!verifyUserId || verifyUserId.length === 0) {
-        throw new Error('No se pudo cambiar la contraseña');
+        throw new Error("No se pudo cambiar la contraseña");
       }
 
       // Actualizar la contraseña
-      const updateResult = await this.userModel.editarPass(verifyUserId, newPassword);
+      const updateResult = await this.userModel.editarPass(
+        verifyUserId,
+        newPassword,
+      );
 
       if (!updateResult || updateResult.rowCount === 0) {
-        throw new Error('Error al actualizar la contraseña');
+        throw new Error("Error al actualizar la contraseña");
       }
 
       return true;
@@ -255,13 +331,13 @@ class AuthService {
         telefono,
         celular,
         estado,
-        codperfil
+        codperfil,
       } = userData;
 
       // Obtener datos actuales del usuario
       const currentUserResult = await this.userModel.buscarUsuario(userId);
       if (!currentUserResult || currentUserResult.rows.length === 0) {
-        throw new Error('Usuario no encontrado');
+        throw new Error("Usuario no encontrado");
       }
 
       const currentUser = currentUserResult.rows[0];
@@ -279,11 +355,11 @@ class AuthService {
         celular || currentUser.celular,
         estado || currentUser.estado,
         codperfil || currentUser.codperfil,
-        userId
+        userId,
       );
 
       if (!result || result.rowCount === 0) {
-        throw new Error('Error al actualizar el usuario');
+        throw new Error("Error al actualizar el usuario");
       }
 
       // Obtener usuario actualizado
@@ -299,10 +375,13 @@ class AuthService {
 
   async toggleUserBlock(usuario, bloqueo) {
     try {
-      const result = await this.userModel.actualizarBloqueoUsuario(usuario, bloqueo);
+      const result = await this.userModel.actualizarBloqueoUsuario(
+        usuario,
+        bloqueo,
+      );
 
       if (!result || result.rowCount === 0) {
-        throw new Error('Error al actualizar el estado de bloqueo');
+        throw new Error("Error al actualizar el estado de bloqueo");
       }
 
       return true;
@@ -310,7 +389,7 @@ class AuthService {
       throw error;
     }
   }
-  
+
   async refreshToken(token) {
     try {
       // Verificar el token actual
@@ -320,14 +399,14 @@ class AuthService {
       const result = await this.userModel.buscarUsuario(decoded.cod);
 
       if (!result || result.rows.length === 0) {
-        throw new Error('Usuario no encontrado');
+        throw new Error("Usuario no encontrado");
       }
 
       const user = result.rows[0];
 
       // Verificar si el usuario sigue activo
-      if (user.estado !== 'On') {
-        throw new Error('Usuario inactivo');
+      if (user.estado !== "On") {
+        throw new Error("Usuario inactivo");
       }
 
       // Generar nuevo token
@@ -339,7 +418,7 @@ class AuthService {
     }
   }
 
-    async getAllUsers() {
+  async getAllUsers() {
     try {
       const result = await this.userModel.cargarUsuarios();
 
@@ -348,7 +427,7 @@ class AuthService {
       }
 
       // Remover contraseñas de todos los usuarios
-      const usersWithoutPassword = result.rows.map(user => {
+      const usersWithoutPassword = result.rows.map((user) => {
         const { pass, ...userWithoutPassword } = user;
         return userWithoutPassword;
       });
@@ -377,7 +456,7 @@ class AuthService {
     try {
       const response = await this.userModel.agregarPerfiles(nombrePerfil);
       if (!nombrePerfil) {
-        throw new Error('Error al insertar un nuevo perfil');
+        throw new Error("Error al insertar un nuevo perfil");
       }
 
       return response.rows[0];
@@ -399,30 +478,32 @@ class AuthService {
         telefono,
         celular,
         estado,
-        codperfil
+        codperfil,
       } = userData;
 
       // Verificar que el usuario existe
       const existingUserResult = await this.userModel.buscarUsuario(userId);
       if (!existingUserResult || existingUserResult.rows.length === 0) {
-        throw new Error('Usuario no encontrado');
+        throw new Error("Usuario no encontrado");
       }
 
       const currentUser = existingUserResult.rows[0];
 
       // Verificar si el nuevo nombre de usuario ya existe (si se está cambiando)
       if (usuario && usuario !== currentUser.usuario) {
-        const userByUsername = await this.userModel.buscarUsuarioxNickname(usuario);
+        const userByUsername =
+          await this.userModel.buscarUsuarioxNickname(usuario);
         if (userByUsername && userByUsername.rows.length > 0) {
-          throw new Error('El nombre de usuario ya está registrado');
+          throw new Error("El nombre de usuario ya está registrado");
         }
       }
 
       // Verificar si la nueva identificación ya existe (si se está cambiando)
       if (identificacion && identificacion !== currentUser.identificacion) {
-        const userByIdentificacion = await this.userModel.buscarUsuarioxIdentificacion(identificacion);
+        const userByIdentificacion =
+          await this.userModel.buscarUsuarioxIdentificacion(identificacion);
         if (userByIdentificacion && userByIdentificacion.rows.length > 0) {
-          throw new Error('La identificación ya está registrada');
+          throw new Error("La identificación ya está registrada");
         }
       }
 
@@ -439,11 +520,11 @@ class AuthService {
         celular || currentUser.celular,
         estado || currentUser.estado,
         codperfil || currentUser.codperfil,
-        userId
+        userId,
       );
 
       if (!result || result.rowCount === 0) {
-        throw new Error('Error al actualizar el usuario');
+        throw new Error("Error al actualizar el usuario");
       }
 
       // Obtener usuario actualizado
@@ -462,19 +543,19 @@ class AuthService {
       // Verificar que el usuario existe
       const existingUserResult = await this.userModel.buscarUsuario(userId);
       if (!existingUserResult || existingUserResult.rows.length === 0) {
-        throw new Error('Usuario no encontrado');
+        throw new Error("Usuario no encontrado");
       }
 
       // Eliminar usuario
       const result = await this.userModel.eliminarUsuario(userId);
 
       if (!result || result.rowCount === 0) {
-        throw new Error('Error al eliminar el usuario');
+        throw new Error("Error al eliminar el usuario");
       }
 
       return {
         success: true,
-        message: 'Usuario eliminado exitosamente'
+        message: "Usuario eliminado exitosamente",
       };
     } catch (error) {
       throw error;

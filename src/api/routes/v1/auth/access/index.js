@@ -1,50 +1,72 @@
-import authService from '../../../../../services/auth.service.js';
-
+import authService from "../../../../../services/auth.service.js";
+import Logger from "../../../../../helpers/logger.js";
+import {
+  SuccessResponse,
+  InternalError,
+  responseError,
+} from "../../../../../helpers/api.response.js";
 class AuthController {
+  async loginS(req, res) {
+    const { usuario, password } = req.body;
+
+    try {
+      const verifyLogin = await authService.loginS(usuario, password);
+
+      if (!verifyLogin.success)
+        return responseError(200, verifyLogin.message, 404, res);
+
+      return SuccessResponse(res, verifyLogin.user, verifyLogin.message);
+    } catch (error) {
+      Logger.error(error);
+      return InternalError(res);
+    }
+  }
 
   async login(req, res) {
     try {
-      const { usuario, password } = req.body;
+      const { uuid, usuario, password } = req.body; // ← agregar uuid
 
-      // Consumir el servicio de autenticacion
-      const result = await authService.login(usuario, password);
+      const result = await authService.login(uuid, usuario, password);
 
       return res.status(200).json({
         success: true,
-        message: 'Inicio de sesion exitoso',
+        message: "Inicio de sesión exitoso",
         data: {
           token: result.token,
-          user: result.user
-        }
+          user: result.user,
+        },
       });
     } catch (error) {
-      // Manejo de errores específicos
-      if (error.message === 'Usuario o contraseña incorrectos') {
-        return res.status(401).json({
-          success: false,
-          message: 'Credenciales invalidas'
-        });
+      if (error.message === "Mercado no encontrado.") {
+        return res.status(404).json({ success: false, message: error.message });
       }
-
-      if (error.message === 'Usuario bloqueado') {
+      if (
+        error.message === "Este mercado no tiene base de datos configurada."
+      ) {
+        return res.status(400).json({ success: false, message: error.message });
+      }
+      if (error.message === "Usuario o contraseña incorrectos") {
+        return res
+          .status(401)
+          .json({ success: false, message: "Credenciales inválidas" });
+      }
+      if (error.message === "Usuario bloqueado") {
         return res.status(403).json({
           success: false,
-          message: 'Usuario bloqueado. Contacte al administrador'
+          message: "Usuario bloqueado. Contacte al administrador",
         });
       }
-
-      if (error.message === 'Usuario inactivo') {
+      if (error.message === "Usuario inactivo") {
         return res.status(403).json({
           success: false,
-          message: 'Usuario inactivo. Contacte al administrador'
+          message: "Usuario inactivo. Contacte al administrador",
         });
       }
 
-      // Error genérico
       return res.status(500).json({
         success: false,
-        message: 'Error al iniciar sesion',
-        error: error.message
+        message: "Error al iniciar sesión",
+        error: error.message,
       });
     }
   }
@@ -58,26 +80,29 @@ class AuthController {
 
       return res.status(201).json({
         success: true,
-        message: 'Usuario registrado exitosamente',
+        message: "Usuario registrado exitosamente",
         data: {
           token: result.token,
-          user: result.user
-        }
+          user: result.user,
+        },
       });
     } catch (error) {
       // Manejo de errores específicos
-      if (error.message.includes('ya está registrado') || error.message.includes('ya está registrada')) {
+      if (
+        error.message.includes("ya está registrado") ||
+        error.message.includes("ya está registrada")
+      ) {
         return res.status(409).json({
           success: false,
-          message: error.message
+          message: error.message,
         });
       }
 
       // Error genérico
       return res.status(500).json({
         success: false,
-        message: 'Error al registrar usuario',
-        error: error.message
+        message: "Error al registrar usuario",
+        error: error.message,
       });
     }
   }
@@ -89,13 +114,13 @@ class AuthController {
 
       return res.status(200).json({
         success: true,
-        user
+        user,
       });
     } catch (error) {
       return res.status(500).json({
         success: false,
-        message: 'Error al obtener perfil',
-        error: error.message
+        message: "Error al obtener perfil",
+        error: error.message,
       });
     }
   }
@@ -103,8 +128,8 @@ class AuthController {
   async verifyToken(req, res) {
     return res.status(200).json({
       success: true,
-      message: 'Token valido',
-      user: req.user
+      message: "Token valido",
+      user: req.user,
     });
   }
 
@@ -115,20 +140,20 @@ class AuthController {
 
       return res.status(200).json({
         success: true,
-        message: 'Contraseña actualizada exitosamente'
+        message: "Contraseña actualizada exitosamente",
       });
     } catch (error) {
-      if (error.message === 'Contraseña actual incorrecta') {
+      if (error.message === "Contraseña actual incorrecta") {
         return res.status(400).json({
           success: false,
-          message: error.message
+          message: error.message,
         });
       }
 
       return res.status(500).json({
         success: false,
-        message: 'Error al cambiar contraseña',
-        error: error.message
+        message: "Error al cambiar contraseña",
+        error: error.message,
       });
     }
   }
@@ -140,31 +165,35 @@ class AuthController {
       //extraemos parametros
       const { currentPassword, newPassword } = req.body;
 
-      await authService.changePasswordAuthenticated(userId, currentPassword, newPassword);
+      await authService.changePasswordAuthenticated(
+        userId,
+        currentPassword,
+        newPassword,
+      );
 
       return res.status(200).json({
         success: true,
-        message: 'Contraseña actualizada exitosamente'
+        message: "Contraseña actualizada exitosamente",
       });
     } catch (error) {
-      if (error.message === 'Contraseña actual incorrecta') {
+      if (error.message === "Contraseña actual incorrecta") {
         return res.status(400).json({
           success: false,
-          message: 'La contraseña actual es incorrecta'
+          message: "La contraseña actual es incorrecta",
         });
       }
 
-      if (error.message === 'Usuario no encontrado') {
+      if (error.message === "Usuario no encontrado") {
         return res.status(404).json({
           success: false,
-          message: error.message
+          message: error.message,
         });
       }
 
       return res.status(500).json({
         success: false,
-        message: 'Error al cambiar contraseña',
-        error: error.message
+        message: "Error al cambiar contraseña",
+        error: error.message,
       });
     }
   }
@@ -178,14 +207,14 @@ class AuthController {
 
       return res.status(200).json({
         success: true,
-        message: 'Perfil actualizado exitosamente',
-        user: updatedUser
+        message: "Perfil actualizado exitosamente",
+        user: updatedUser,
       });
     } catch (error) {
       return res.status(500).json({
         success: false,
-        message: 'Error al actualizar perfil',
-        error: error.message
+        message: "Error al actualizar perfil",
+        error: error.message,
       });
     }
   }
@@ -198,28 +227,28 @@ class AuthController {
 
       return res.status(200).json({
         success: true,
-        message: 'Token renovado exitosamente',
-        token: newToken
+        message: "Token renovado exitosamente",
+        token: newToken,
       });
     } catch (error) {
-      if (error.message === 'Token inválido o expirado') {
+      if (error.message === "Token inválido o expirado") {
         return res.status(401).json({
           success: false,
-          message: error.message
+          message: error.message,
         });
       }
 
-      if (error.message === 'Usuario inactivo') {
+      if (error.message === "Usuario inactivo") {
         return res.status(403).json({
           success: false,
-          message: 'Usuario inactivo. No se puede renovar el token'
+          message: "Usuario inactivo. No se puede renovar el token",
         });
       }
 
       return res.status(500).json({
         success: false,
-        message: 'Error al renovar token',
-        error: error.message
+        message: "Error al renovar token",
+        error: error.message,
       });
     }
   }
@@ -230,14 +259,14 @@ class AuthController {
 
       return res.status(200).json({
         success: true,
-        message: 'Usuarios obtenidos exitosamente',
-        data: users
+        message: "Usuarios obtenidos exitosamente",
+        data: users,
       });
     } catch (error) {
       return res.status(500).json({
         success: false,
-        message: 'Error al obtener usuarios',
-        error: error.message
+        message: "Error al obtener usuarios",
+        error: error.message,
       });
     }
   }
@@ -250,21 +279,21 @@ class AuthController {
 
       return res.status(201).json({
         success: true,
-        message: 'Perfil agregado exitosamente',
-        data: result.perfil
+        message: "Perfil agregado exitosamente",
+        data: result.perfil,
       });
     } catch (error) {
-      if (error.message === 'El nombre del perfil es requerido') {
+      if (error.message === "El nombre del perfil es requerido") {
         return res.status(400).json({
           success: false,
-          message: error.message
+          message: error.message,
         });
       }
 
       return res.status(500).json({
         success: false,
-        message: 'Error al agregar perfil',
-        error: error.message
+        message: "Error al agregar perfil",
+        error: error.message,
       });
     }
   }
@@ -275,14 +304,14 @@ class AuthController {
 
       return res.status(200).json({
         success: true,
-        message: 'Perfiles obtenidos exitosamente',
-        data: perfiles
+        message: "Perfiles obtenidos exitosamente",
+        data: perfiles,
       });
     } catch (error) {
       return res.status(500).json({
         success: false,
-        message: 'Error al obtener perfiles',
-        error: error.message
+        message: "Error al obtener perfiles",
+        error: error.message,
       });
     }
   }
@@ -292,32 +321,38 @@ class AuthController {
       const { id } = req.params;
       const userData = req.body;
 
-      const updatedUser = await authService.editarUsuario(parseInt(id), userData);
+      const updatedUser = await authService.editarUsuario(
+        parseInt(id),
+        userData,
+      );
 
       return res.status(200).json({
         success: true,
-        message: 'Usuario actualizado exitosamente',
-        data: updatedUser
+        message: "Usuario actualizado exitosamente",
+        data: updatedUser,
       });
     } catch (error) {
-      if (error.message === 'Usuario no encontrado') {
+      if (error.message === "Usuario no encontrado") {
         return res.status(404).json({
           success: false,
-          message: error.message
+          message: error.message,
         });
       }
 
-      if (error.message.includes('ya está registrado') || error.message.includes('ya está registrada')) {
+      if (
+        error.message.includes("ya está registrado") ||
+        error.message.includes("ya está registrada")
+      ) {
         return res.status(409).json({
           success: false,
-          message: error.message
+          message: error.message,
         });
       }
 
       return res.status(500).json({
         success: false,
-        message: 'Error al actualizar usuario',
-        error: error.message
+        message: "Error al actualizar usuario",
+        error: error.message,
       });
     }
   }
@@ -330,20 +365,20 @@ class AuthController {
 
       return res.status(200).json({
         success: result.success,
-        message: result.message
+        message: result.message,
       });
     } catch (error) {
-      if (error.message === 'Usuario no encontrado') {
+      if (error.message === "Usuario no encontrado") {
         return res.status(404).json({
           success: false,
-          message: error.message
+          message: error.message,
         });
       }
 
       return res.status(500).json({
         success: false,
-        message: 'Error al eliminar usuario',
-        error: error.message
+        message: "Error al eliminar usuario",
+        error: error.message,
       });
     }
   }

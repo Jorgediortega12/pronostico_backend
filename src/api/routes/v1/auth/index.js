@@ -1,11 +1,20 @@
 import express from "express";
 import authMiddleware from "../../../../middleware/auth.middleware.js";
 import authController from "./access/index.js";
-import { loginSchema, registerSchema, agregarPerfilSchema, editarUsuarioSchema, changePasswordAuthSchema, validate } from "./access/schema.js";
+import {
+  loginSchema,
+  loginSchemaS,
+  registerSchema,
+  agregarPerfilSchema,
+  editarUsuarioSchema,
+  changePasswordAuthSchema,
+  validate,
+} from "./access/schema.js";
 
 const router = express.Router();
 
 // Rutas públicas (sin autenticación)
+router.post("/loginS", validate(loginSchemaS), authController.loginS);
 router.post("/login", validate(loginSchema), authController.login);
 router.post("/register", validate(registerSchema), authController.register);
 router.post("/refresh-token", authController.refreshToken);
@@ -15,13 +24,28 @@ router.put("/change-password", authController.changePassword);
 router.get("/profile", authMiddleware, authController.getProfile);
 router.get("/verify", authMiddleware, authController.verifyToken);
 router.put("/profile", authMiddleware, authController.updateProfile);
-router.put("/change-password-auth", authMiddleware, validate(changePasswordAuthSchema), authController.changePasswordAuth);
+router.put(
+  "/change-password-auth",
+  authMiddleware,
+  validate(changePasswordAuthSchema),
+  authController.changePasswordAuth,
+);
 router.get("/users", authMiddleware, authController.getAllUsers);
-router.post("/perfil", authMiddleware, validate(agregarPerfilSchema), authController.agregarPerfile);
+router.post(
+  "/perfil",
+  authMiddleware,
+  validate(agregarPerfilSchema),
+  authController.agregarPerfile,
+);
 router.get("/perfiles", authMiddleware, authController.getPerfiles);
-    
+
 // Rutas para editar y eliminar usuarios
-router.put("/users/:id", authMiddleware, validate(editarUsuarioSchema), authController.editarUsuario);
+router.put(
+  "/users/:id",
+  authMiddleware,
+  validate(editarUsuarioSchema),
+  authController.editarUsuario,
+);
 router.delete("/users/:id", authMiddleware, authController.eliminarUsuario);
 
 export default router;
