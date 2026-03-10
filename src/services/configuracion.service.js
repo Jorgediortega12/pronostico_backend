@@ -1,6 +1,7 @@
 import ConfiguracionModel from "../models/configuracion.model.js";
 import Logger from "../helpers/logger.js";
 import colors from "colors";
+import { createConectionPG } from "../helpers/connections.js";
 
 const model = ConfiguracionModel.getInstance();
 
@@ -14,9 +15,10 @@ export default class ConfiguracionService {
     return ConfiguracionService.instance;
   }
 
-  buscarSaveDocumento = async (aux3) => {
+  buscarSaveDocumento = async (aux3, session) => {
     try {
-      const documento = await model.buscarSaveDocumento(aux3);
+      const client = createConectionPG(session);
+      const documento = await model.buscarSaveDocumento(aux3, client);
 
       if (!documento) {
         return {
@@ -44,9 +46,10 @@ export default class ConfiguracionService {
     }
   };
 
-  cargarDiasPotencia = async (ucp) => {
+  cargarDiasPotencia = async (ucp, session) => {
     try {
-      const cargarDiasPotencia = await model.cargarDiasPotencias(ucp);
+      const client = createConectionPG(session);
+      const cargarDiasPotencia = await model.cargarDiasPotencias(ucp, client);
       if (!cargarDiasPotencia) {
         return {
           success: false,
@@ -72,9 +75,13 @@ export default class ConfiguracionService {
     }
   };
 
-  buscarVersionSesion = async (nombre) => {
+  buscarVersionSesion = async (nombre, session) => {
     try {
-      const buscarVersionSesion = await model.buscarVersionSesion(nombre);
+      const client = createConectionPG(session);
+      const buscarVersionSesion = await model.buscarVersionSesion(
+        nombre,
+        client,
+      );
       if (!buscarVersionSesion) {
         return {
           success: false,
@@ -100,9 +107,10 @@ export default class ConfiguracionService {
     }
   };
 
-  agregarVersionSesion = async (datos) => {
+  agregarVersionSesion = async (datos, session) => {
     try {
-      const versionSesion = await model.agregarVersionSesion(datos);
+      const client = createConectionPG(session);
+      const versionSesion = await model.agregarVersionSesion(datos, client);
       if (!versionSesion) {
         return {
           success: false,
@@ -129,10 +137,13 @@ export default class ConfiguracionService {
     }
   };
 
-  agregarDatosPronosticoxSesion = async (datos) => {
+  agregarDatosPronosticoxSesion = async (datos, session) => {
     try {
-      const datosPronosticoxSesion =
-        await model.agregarDatosPronosticoxSesion(datos);
+      const client = createConectionPG(session);
+      const datosPronosticoxSesion = await model.agregarDatosPronosticoxSesion(
+        datos,
+        client,
+      );
       if (!datosPronosticoxSesion) {
         return {
           success: false,
@@ -160,9 +171,10 @@ export default class ConfiguracionService {
     }
   };
 
-  buscarDiaFestivo = async (fecha, ucp) => {
+  buscarDiaFestivo = async (fecha, ucp, session) => {
     try {
-      const festivos = await model.buscarDiaFestivo(fecha, ucp);
+      const client = createConectionPG(session);
+      const festivos = await model.buscarDiaFestivo(fecha, ucp, client);
 
       if (!festivos) {
         return {
@@ -190,9 +202,10 @@ export default class ConfiguracionService {
     }
   };
 
-  buscarPotenciaDia = async (ucp, dia) => {
+  buscarPotenciaDia = async (ucp, dia, session) => {
     try {
-      const diasPotencias = await model.buscarPotenciaDia(ucp, dia);
+      const client = createConectionPG(session);
+      const diasPotencias = await model.buscarPotenciaDia(ucp, dia, client);
 
       if (!diasPotencias) {
         return {
@@ -217,9 +230,14 @@ export default class ConfiguracionService {
     }
   };
 
-  cargarPeriodosxUCPDesdeFecha = async (ucp, fechaInicio) => {
+  cargarPeriodosxUCPDesdeFecha = async (ucp, fechaInicio, session) => {
     try {
-      const res = await model.cargarPeriodosxUCPDesdeFecha(ucp, fechaInicio);
+      const client = createConectionPG(session);
+      const res = await model.cargarPeriodosxUCPDesdeFecha(
+        ucp,
+        fechaInicio,
+        client,
+      );
 
       if (!res) {
         return {
@@ -246,11 +264,17 @@ export default class ConfiguracionService {
     }
   };
 
-  cargarVariablesClimaticasxUCPDesdeFecha = async (ucp, fechaInicio) => {
+  cargarVariablesClimaticasxUCPDesdeFecha = async (
+    ucp,
+    fechaInicio,
+    session,
+  ) => {
     try {
+      const client = createConectionPG(session);
       const res = await model.cargarVariablesClimaticasxUCPDesdeFecha(
         ucp,
         fechaInicio,
+        client,
       );
 
       if (!res) {
@@ -280,12 +304,19 @@ export default class ConfiguracionService {
     }
   };
 
-  cargarPeriodosxUCPxUnaFechaxLimite = async (ucp, fechaInicio, limite) => {
+  cargarPeriodosxUCPxUnaFechaxLimite = async (
+    ucp,
+    fechaInicio,
+    limite,
+    session,
+  ) => {
     try {
+      const client = createConectionPG(session);
       const res = await model.cargarPeriodosxUCPxUnaFechaxLimite(
         ucp,
         fechaInicio,
         limite,
+        client,
       );
 
       if (!res) {
@@ -315,9 +346,10 @@ export default class ConfiguracionService {
     }
   };
 
-  cargarTodosLosDiasPotencia = async () => {
+  cargarTodosLosDiasPotencia = async (session) => {
     try {
-      const result = await model.cargarTodosLosDiasPotencia();
+      const client = createConectionPG(session);
+      const result = await model.cargarTodosLosDiasPotencia(client);
       if (!result) {
         return {
           success: false,
@@ -343,9 +375,10 @@ export default class ConfiguracionService {
     }
   };
 
-  actualizarDiaPotencia = async (payload) => {
+  actualizarDiaPotencia = async (payload, session) => {
     try {
-      const updated = await model.actualizarDiaPotencia(payload);
+      const client = createConectionPG(session);
+      const updated = await model.actualizarDiaPotencia(payload, client);
       if (!updated) {
         return {
           success: false,
@@ -372,10 +405,11 @@ export default class ConfiguracionService {
     }
   };
 
-  crearDiaPotencia = async (payload) => {
+  crearDiaPotencia = async (payload, session) => {
     try {
+      const client = createConectionPG(session);
       // payload ya validado por Joi en la ruta/middleware
-      const created = await model.crearDiaPotencia(payload);
+      const created = await model.crearDiaPotencia(payload, client);
       if (!created) {
         return {
           success: false,
@@ -401,10 +435,11 @@ export default class ConfiguracionService {
     }
   };
   // AGREGAR FUENTES
-  agregarUCPMedida = async (payload) => {
+  agregarUCPMedida = async (payload, session) => {
     try {
+      const client = createConectionPG(session);
       // payload debería venir validado por Joi en la ruta
-      const created = await model.agregarUCPMedida(payload);
+      const created = await model.agregarUCPMedida(payload, client);
       if (!created) {
         return {
           success: false,
@@ -428,9 +463,10 @@ export default class ConfiguracionService {
     }
   };
   // CARGAR FUENTES
-  cargarFuentes = async () => {
+  cargarFuentes = async (session) => {
     try {
-      const rows = await model.cargarFuentes();
+      const client = createConectionPG(session);
+      const rows = await model.cargarFuentes(client);
       return {
         success: true,
         data: rows,
@@ -446,10 +482,11 @@ export default class ConfiguracionService {
     }
   };
 
-  actualizarUCPMedida = async (payload) => {
+  actualizarUCPMedida = async (payload, session) => {
     try {
+      const client = createConectionPG(session);
       // payload validado por Joi en la ruta
-      const updated = await model.actualizarUCPMedida(payload);
+      const updated = await model.actualizarUCPMedida(payload, client);
       if (!updated) {
         return {
           success: false,
@@ -473,9 +510,10 @@ export default class ConfiguracionService {
     }
   };
 
-  eliminarUCPMedida = async (codigo) => {
+  eliminarUCPMedida = async (codigo, session) => {
     try {
-      const deleted = await model.eliminarUCPMedida(codigo);
+      const client = createConectionPG(session);
+      const deleted = await model.eliminarUCPMedida(codigo, client);
       if (!deleted) {
         return {
           success: false,
@@ -498,9 +536,10 @@ export default class ConfiguracionService {
     }
   };
 
-  cargarEquivalencias = async () => {
+  cargarEquivalencias = async (session) => {
     try {
-      const rows = await model.cargarEquivalencias();
+      const client = createConectionPG(session);
+      const rows = await model.cargarEquivalencias(client);
       return {
         success: true,
         data: rows,
@@ -516,9 +555,10 @@ export default class ConfiguracionService {
     }
   };
 
-  cargarUCP = async (codpadre = 0, estado = 1) => {
+  cargarUCP = async (codpadre = 0, estado = 1, session) => {
     try {
-      const rows = await model.cargarUCP(codpadre, estado);
+      const client = createConectionPG(session);
+      const rows = await model.cargarUCP(codpadre, estado, client);
       return {
         success: true,
         data: rows,
@@ -534,9 +574,10 @@ export default class ConfiguracionService {
     }
   };
 
-  editarMercadoCascade = async (mc, mcnuevo) => {
+  editarMercadoCascade = async (mc, mcnuevo, session) => {
     try {
-      await model.editarMercadoCascade(mc, mcnuevo);
+      const client = createConectionPG(session);
+      await model.editarMercadoCascade(mc, mcnuevo, client);
       return {
         success: true,
         data: null,
@@ -552,9 +593,10 @@ export default class ConfiguracionService {
     }
   };
 
-  cargarUmbral = async (codpadre = 79, estado = 1) => {
+  cargarUmbral = async (codpadre = 79, estado = 1, session) => {
     try {
-      const rows = await model.cargarUmbral(codpadre, estado);
+      const client = createConectionPG(session);
+      const rows = await model.cargarUmbral(codpadre, estado, client);
       return { success: true, data: rows, message: "Umbrales cargados." };
     } catch (error) {
       Logger.error(colors.red("Error UcpService cargarUmbral"), error);
@@ -566,9 +608,10 @@ export default class ConfiguracionService {
     }
   };
 
-  editarUmbral = async (codigo, aux2) => {
+  editarUmbral = async (codigo, aux2, session) => {
     try {
-      const res = await model.editarUmbral(aux2, codigo);
+      const client = createConectionPG(session);
+      const res = await model.editarUmbral(aux2, codigo, client);
       if (res.rowCount && res.rowCount > 0) {
         return { success: true, data: null, message: "Umbral actualizado." };
       } else {
@@ -588,9 +631,10 @@ export default class ConfiguracionService {
     }
   };
 
-  cargarDiasFestivos = async (anio, ucp) => {
+  cargarDiasFestivos = async (anio, ucp, session) => {
     try {
-      const rows = await model.cargarDiasFestivos(anio, ucp);
+      const client = createConectionPG(session);
+      const rows = await model.cargarDiasFestivos(anio, ucp, client);
       return { success: true, data: rows, message: "Festivos cargados." };
     } catch (error) {
       Logger.error(
@@ -605,9 +649,10 @@ export default class ConfiguracionService {
     }
   };
 
-  buscarDiaFestivo = async (fechaIso, ucp) => {
+  buscarDiaFestivo = async (fechaIso, ucp, session) => {
     try {
-      const row = await model.buscarDiaFestivo(fechaIso, ucp);
+      const client = createConectionPG(session);
+      const row = await model.buscarDiaFestivo(fechaIso, ucp, client);
       return { success: true, data: row, message: "Búsqueda completada." };
     } catch (error) {
       Logger.error(colors.red("Error FestivosService buscarDiaFestivo"), error);
@@ -619,12 +664,14 @@ export default class ConfiguracionService {
     }
   };
 
-  listarFestivosPorRango = async (fechaInicio, fechaFin, ucp) => {
+  listarFestivosPorRango = async (fechaInicio, fechaFin, ucp, session) => {
     try {
+      const client = createConectionPG(session);
       const rows = await model.listarFestivosPorRango(
         fechaInicio,
         fechaFin,
         ucp,
+        client,
       );
       return {
         success: true,
@@ -644,9 +691,10 @@ export default class ConfiguracionService {
     }
   };
 
-  ingresarDiaFestivos = async (ucp, fechaIso) => {
+  ingresarDiaFestivos = async (ucp, fechaIso, session) => {
     try {
-      const created = await model.ingresarDiaFestivos(ucp, fechaIso);
+      const client = createConectionPG(session);
+      const created = await model.ingresarDiaFestivos(ucp, fechaIso, client);
       return { success: true, data: created, message: "Festivo ingresado." };
     } catch (error) {
       Logger.error(
@@ -661,9 +709,10 @@ export default class ConfiguracionService {
     }
   };
 
-  borrarDiaFestivos = async (codigo) => {
+  borrarDiaFestivos = async (codigo, session) => {
     try {
-      const deleted = await model.borrarDiaFestivos(codigo);
+      const client = createConectionPG(session);
+      const deleted = await model.borrarDiaFestivos(codigo, client);
       if (deleted) {
         return { success: true, data: deleted, message: "Festivo eliminado." };
       } else {
@@ -686,9 +735,10 @@ export default class ConfiguracionService {
     }
   };
 
-  buscarUltimaFechaHistorica = async (ucp) => {
+  buscarUltimaFechaHistorica = async (ucp, session) => {
     try {
-      const row = await model.buscarUltimaFechaHistorica(ucp);
+      const client = createConectionPG(session);
+      const row = await model.buscarUltimaFechaHistorica(ucp, client);
       return { success: true, data: row, message: "Búsqueda completada." };
     } catch (error) {
       Logger.error(
@@ -703,9 +753,10 @@ export default class ConfiguracionService {
     }
   };
 
-  buscarUltimaFechaClimaLog = async () => {
+  buscarUltimaFechaClimaLog = async (session) => {
     try {
-      const row = await model.buscarUltimaFechaClimaLog();
+      const client = createConectionPG(session);
+      const row = await model.buscarUltimaFechaClimaLog(client);
       return { success: true, data: row, message: "Búsqueda completada." };
     } catch (error) {
       Logger.error(
@@ -720,9 +771,10 @@ export default class ConfiguracionService {
     }
   };
 
-  buscarKey = async () => {
+  buscarKey = async (session) => {
     try {
-      const row = await model.buscarKey();
+      const client = createConectionPG(session);
+      const row = await model.buscarKey(client);
       return { success: true, data: row, message: "Búsqueda completada." };
     } catch (error) {
       Logger.error(colors.red("Error ActualizacionService buscarKey"), error);
@@ -734,9 +786,10 @@ export default class ConfiguracionService {
     }
   };
 
-  buscarUltimaFechaClima = async () => {
+  buscarUltimaFechaClima = async (session) => {
     try {
-      const row = await model.buscarUltimaFechaClima();
+      const client = createConectionPG(session);
+      const row = await model.buscarUltimaFechaClima(client);
       return { success: true, data: row, message: "Búsqueda completada." };
     } catch (error) {
       Logger.error(
@@ -751,9 +804,10 @@ export default class ConfiguracionService {
     }
   };
 
-  buscarFactor = async (codigo) => {
+  buscarFactor = async (codigo, session) => {
     try {
-      const row = await model.buscarFactor(codigo);
+      const client = createConectionPG(session);
+      const row = await model.buscarFactor(codigo, client);
       return { success: true, data: row, message: "Búsqueda completada." };
     } catch (error) {
       Logger.error(
@@ -767,9 +821,10 @@ export default class ConfiguracionService {
       };
     }
   };
-  cargarCodigoRMPxUCP = async (codpadre) => {
+  cargarCodigoRMPxUCP = async (codpadre, session) => {
     try {
-      const row = await model.cargarCodigoRMPxUCP(codpadre);
+      const client = createConectionPG(session);
+      const row = await model.cargarCodigoRMPxUCP(codpadre, client);
       return { success: true, data: row, message: "Búsqueda completada." };
     } catch (error) {
       Logger.error(
@@ -783,9 +838,10 @@ export default class ConfiguracionService {
       };
     }
   };
-  cargarTipoArchivos = async (estado, aux2) => {
+  cargarTipoArchivos = async (estado, aux2, session) => {
     try {
-      const rows = await model.cargarTipoArchivos(estado, aux2);
+      const client = createConectionPG(session);
+      const rows = await model.cargarTipoArchivos(estado, aux2, client);
       return { success: true, data: rows, message: "Búsqueda completada." };
     } catch (error) {
       Logger.error(
@@ -800,9 +856,10 @@ export default class ConfiguracionService {
     }
   };
 
-  cargarUCPxAux2 = async (aux2) => {
+  cargarUCPxAux2 = async (aux2, session) => {
     try {
-      const rows = await model.cargarUCPxAux2(aux2);
+      const client = createConectionPG(session);
+      const rows = await model.cargarUCPxAux2(aux2, client);
       return { success: true, data: rows, message: "Búsqueda completada." };
     } catch (error) {
       Logger.error(
@@ -817,9 +874,10 @@ export default class ConfiguracionService {
     }
   };
 
-  buscarUCPActualizacionDatos = async (ucp, fecha) => {
+  buscarUCPActualizacionDatos = async (ucp, fecha, session) => {
     try {
-      const rows = await model.buscarUCPActualizacionDatos(ucp, fecha);
+      const client = createConectionPG(session);
+      const rows = await model.buscarUCPActualizacionDatos(ucp, fecha, client);
       return { success: true, data: rows, message: "Búsqueda completada." };
     } catch (error) {
       Logger.error(
@@ -834,9 +892,14 @@ export default class ConfiguracionService {
     }
   };
 
-  verificarExisteActualizacionDatos = async (ucp, fecha) => {
+  verificarExisteActualizacionDatos = async (ucp, fecha, session) => {
     try {
-      const existe = await model.verificarExisteActualizacionDatos(ucp, fecha);
+      const client = createConectionPG(session);
+      const existe = await model.verificarExisteActualizacionDatos(
+        ucp,
+        fecha,
+        client,
+      );
       return {
         success: true,
         data: { existe },
@@ -857,9 +920,10 @@ export default class ConfiguracionService {
     }
   };
 
-  agregarUCPActualizacionDatos = async (datos) => {
+  agregarUCPActualizacionDatos = async (datos, session) => {
     try {
-      const result = await model.agregarUCPActualizacionDatos(datos);
+      const client = createConectionPG(session);
+      const result = await model.agregarUCPActualizacionDatos(datos, client);
       if (!result) {
         return {
           success: false,
@@ -885,9 +949,10 @@ export default class ConfiguracionService {
     }
   };
 
-  actualizarUCPActualizacionDatos = async (datos) => {
+  actualizarUCPActualizacionDatos = async (datos, session) => {
     try {
-      const result = await model.actualizarUCPActualizacionDatos(datos);
+      const client = createConectionPG(session);
+      const result = await model.actualizarUCPActualizacionDatos(datos, client);
       if (!result) {
         return {
           success: false,
@@ -914,9 +979,10 @@ export default class ConfiguracionService {
       };
     }
   };
-  buscarClimaPeriodos = async (ucp, fecha) => {
+  buscarClimaPeriodos = async (ucp, fecha, session) => {
     try {
-      const rows = await model.buscarClimaPeriodos(ucp, fecha);
+      const client = createConectionPG(session);
+      const rows = await model.buscarClimaPeriodos(ucp, fecha, client);
       return { success: true, data: rows, message: "Búsqueda completada." };
     } catch (error) {
       Logger.error(
@@ -931,9 +997,10 @@ export default class ConfiguracionService {
     }
   };
 
-  agregarClimaPronosticoLog = async (fecha, ucp) => {
+  agregarClimaPronosticoLog = async (fecha, ucp, session) => {
     try {
-      const row = await model.agregarClimaPronosticoLog(fecha, ucp);
+      const client = createConectionPG(session);
+      const row = await model.agregarClimaPronosticoLog(fecha, ucp, client);
       if (!row)
         return {
           success: false,
@@ -958,14 +1025,16 @@ export default class ConfiguracionService {
     }
   };
 
-  agregarClimaPeriodo = async (fecha, ucp, indice, clima, valor) => {
+  agregarClimaPeriodo = async (fecha, ucp, indice, clima, valor, session) => {
     try {
+      const client = createConectionPG(session);
       const row = await model.agregarClimaPeriodo(
         fecha,
         ucp,
         indice,
         clima,
         valor,
+        client,
       );
       if (!row)
         return {
@@ -991,14 +1060,23 @@ export default class ConfiguracionService {
     }
   };
 
-  actualizarClimaPeriodos = async (fecha, ucp, indice, clima, valor) => {
+  actualizarClimaPeriodos = async (
+    fecha,
+    ucp,
+    indice,
+    clima,
+    valor,
+    session,
+  ) => {
     try {
+      const client = createConectionPG(session);
       const row = await model.actualizarClimaPeriodos(
         fecha,
         ucp,
         indice,
         clima,
         valor,
+        client,
       );
       if (!row)
         return {
@@ -1024,9 +1102,10 @@ export default class ConfiguracionService {
     }
   };
 
-  buscarTipicidad = async (ucp, fecha) => {
+  buscarTipicidad = async (ucp, fecha, session) => {
     try {
-      const row = await model.buscarTipicidad(ucp, fecha);
+      const client = createConectionPG(session);
+      const row = await model.buscarTipicidad(ucp, fecha, client);
       return { success: true, data: row, message: "Búsqueda completada." };
     } catch (error) {
       Logger.error(
@@ -1041,12 +1120,14 @@ export default class ConfiguracionService {
     }
   };
 
-  listarTipoModeloPorRango = async (fechaInicio, fechaFin, ucp) => {
+  listarTipoModeloPorRango = async (fechaInicio, fechaFin, ucp, session) => {
     try {
+      const client = createConectionPG(session);
       const rows = await model.listarTipoModeloPorRango(
         fechaInicio,
         fechaFin,
         ucp,
+        client,
       );
       return {
         success: true,
@@ -1066,12 +1147,14 @@ export default class ConfiguracionService {
     }
   };
 
-  insertarTipoPronostico = async (ucp, fecha, tipopronostico) => {
+  insertarTipoPronostico = async (ucp, fecha, tipopronostico, session) => {
     try {
+      const client = createConectionPG(session);
       const row = await model.insertarTipoPronostico(
         ucp,
         fecha,
         tipopronostico,
+        client,
       );
 
       return {
@@ -1092,9 +1175,10 @@ export default class ConfiguracionService {
     }
   };
 
-  cargarPeriodosDinamico = async (filters) => {
+  cargarPeriodosDinamico = async (filters, session) => {
     try {
-      const res = await model.cargarPeriodosDinamico(filters);
+      const client = createConectionPG(session);
+      const res = await model.cargarPeriodosDinamico(filters, client);
 
       if (!res) {
         return {
@@ -1121,9 +1205,13 @@ export default class ConfiguracionService {
     }
   };
 
-  cargarHistoricosPronosticosDinamico = async (filters) => {
+  cargarHistoricosPronosticosDinamico = async (filters, session) => {
     try {
-      const res = await model.cargarHistoricosPronosticosDinamico(filters);
+      const client = createConectionPG(session);
+      const res = await model.cargarHistoricosPronosticosDinamico(
+        filters,
+        client,
+      );
 
       if (!res) {
         return {
@@ -1150,9 +1238,10 @@ export default class ConfiguracionService {
     }
   };
 
-  cargarPronosticosEHistoricos = async (filters) => {
+  cargarPronosticosEHistoricos = async (filters, session) => {
     try {
-      const res = await model.cargarPronosticosEHistoricos(filters);
+      const client = createConectionPG(session);
+      const res = await model.cargarPronosticosEHistoricos(filters, client);
 
       if (!res) {
         return {
@@ -1183,9 +1272,10 @@ export default class ConfiguracionService {
     }
   };
 
-  listarTodosLosFestivos = async (ucp) => {
+  listarTodosLosFestivos = async (ucp, session) => {
     try {
-      const festivos = await model.listarTodosLosFestivos(ucp);
+      const client = createConectionPG(session);
+      const festivos = await model.listarTodosLosFestivos(ucp, client);
       if (!festivos) {
         return {
           success: false,

@@ -13,13 +13,14 @@ export const buscarSaveDocumento = async (req, res) => {
   try {
     //tomamos el parametro
     const { aux3 } = req.params;
+    const { session } = req.user;
 
     //sino tenemos el parametro lo que lanzamos es un error
     if (!aux3) {
       return responseError(200, "Parametro aux3 no proporcionado", 400, res);
     }
 
-    const result = await service.buscarSaveDocumento(aux3);
+    const result = await service.buscarSaveDocumento(aux3, session);
 
     if (!result.success) {
       return responseError(200, result.message, 404, res);
@@ -35,11 +36,11 @@ export const buscarSaveDocumento = async (req, res) => {
 export const cargarDiasPotencia = async (req, res) => {
   try {
     const { ucp } = req.params;
-
+    const { session } = req.user;
     if (!ucp) {
       return responseError(200, "Parametro ucp no proporcionado", 400, res);
     }
-    const result = await service.cargarDiasPotencia(ucp);
+    const result = await service.cargarDiasPotencia(ucp, session);
 
     if (!result.success) {
       return responseError(200, result.message, 404, res);
@@ -55,12 +56,12 @@ export const cargarDiasPotencia = async (req, res) => {
 export const buscarVersionSesion = async (req, res) => {
   try {
     const { nombre } = req.params;
-
+    const { session } = req.user;
     if (!nombre) {
       return responseError(200, "Parametro nombre no proporcionado", 400, res);
     }
 
-    const result = await service.buscarVersionSesion(nombre);
+    const result = await service.buscarVersionSesion(nombre, session);
 
     if (!result.success) {
       return responseError(200, result.message, 404, res);
@@ -75,7 +76,8 @@ export const buscarVersionSesion = async (req, res) => {
 
 export const agregarVersionSesion = async (req, res) => {
   try {
-    const result = await service.agregarVersionSesion(req.body);
+    const { session } = req.user;
+    const result = await service.agregarVersionSesion(req.body, session);
 
     if (!result.success) {
       return responseError(200, result.message, 404, res);
@@ -90,7 +92,8 @@ export const agregarVersionSesion = async (req, res) => {
 
 export const agregarDatosPronosticoxSesion = async (req, res) => {
   try {
-    const result = await service.agregarDatosPronosticoxSesion();
+    const { session } = req.user;
+    const result = await service.agregarDatosPronosticoxSesion(session);
     if (!result.success) {
       return responseError(200, result.message, 404, res);
     }
@@ -105,6 +108,7 @@ export const agregarDatosPronosticoxSesion = async (req, res) => {
 export const buscarPotenciaDia = async (req, res) => {
   try {
     const { ucp, dia } = req.params;
+    const { session } = req.user;
 
     if (!ucp || !dia) {
       return responseError(
@@ -115,7 +119,7 @@ export const buscarPotenciaDia = async (req, res) => {
       );
     }
 
-    const result = await service.buscarPotenciaDia(ucp, dia);
+    const result = await service.buscarPotenciaDia(ucp, dia, session);
 
     if (!result.success) {
       return responseError(200, result.message, 404, res);
@@ -131,7 +135,7 @@ export const buscarPotenciaDia = async (req, res) => {
 export const cargarPeriodosxUCPDesdeFecha = async (req, res) => {
   try {
     const { ucp, fechaInicio } = req.params;
-
+    const { session } = req.user;
     if (!ucp || !fechaInicio) {
       return responseError(
         200,
@@ -141,7 +145,11 @@ export const cargarPeriodosxUCPDesdeFecha = async (req, res) => {
       );
     }
 
-    const result = await service.cargarPeriodosxUCPDesdeFecha(ucp, fechaInicio);
+    const result = await service.cargarPeriodosxUCPDesdeFecha(
+      ucp,
+      fechaInicio,
+      session,
+    );
 
     if (!result.success) {
       return responseError(200, result.message, 404, res);
@@ -157,7 +165,7 @@ export const cargarPeriodosxUCPDesdeFecha = async (req, res) => {
 export const cargarVariablesClimaticasxUCPDesdeFecha = async (req, res) => {
   try {
     const { ucp, fechaInicio } = req.params;
-
+    const { session } = req.user;
     if (!ucp || !fechaInicio) {
       return responseError(
         200,
@@ -170,6 +178,7 @@ export const cargarVariablesClimaticasxUCPDesdeFecha = async (req, res) => {
     const result = await service.cargarVariablesClimaticasxUCPDesdeFecha(
       ucp,
       fechaInicio,
+      session,
     );
 
     if (!result.success) {
@@ -186,7 +195,7 @@ export const cargarVariablesClimaticasxUCPDesdeFecha = async (req, res) => {
 export const cargarPeriodosxUCPxUnaFechaxLimite = async (req, res) => {
   try {
     const { ucp, fechaInicio, limite } = req.params;
-
+    const { session } = req.user;
     if (!ucp || !fechaInicio || !limite) {
       return responseError(
         200,
@@ -200,6 +209,7 @@ export const cargarPeriodosxUCPxUnaFechaxLimite = async (req, res) => {
       ucp,
       fechaInicio,
       limite,
+      session,
     );
 
     if (!result.success) {
@@ -215,7 +225,8 @@ export const cargarPeriodosxUCPxUnaFechaxLimite = async (req, res) => {
 
 export const cargarTodosLosDiasPotencia = async (req, res) => {
   try {
-    const result = await service.cargarTodosLosDiasPotencia();
+    const { session } = req.user;
+    const result = await service.cargarTodosLosDiasPotencia(session);
 
     if (!result.success) {
       return responseError(200, result.message, 404, res);
@@ -230,6 +241,7 @@ export const cargarTodosLosDiasPotencia = async (req, res) => {
 
 export const actualizarDiaPotencia = async (req, res) => {
   try {
+    const { session } = req.user;
     // asumo que envías los datos en req.body
     const {
       codigo,
@@ -244,18 +256,21 @@ export const actualizarDiaPotencia = async (req, res) => {
       ucp,
     } = req.body;
 
-    const result = await service.actualizarDiaPotencia({
-      codigo,
-      dia,
-      potencia1,
-      potencia2,
-      potencia3,
-      potencia4,
-      potencia5,
-      potencia6,
-      potencia7,
-      ucp,
-    });
+    const result = await service.actualizarDiaPotencia(
+      {
+        codigo,
+        dia,
+        potencia1,
+        potencia2,
+        potencia3,
+        potencia4,
+        potencia5,
+        potencia6,
+        potencia7,
+        ucp,
+      },
+      session,
+    );
 
     if (!result.success) {
       return responseError(200, result.message, 404, res);
@@ -270,6 +285,7 @@ export const actualizarDiaPotencia = async (req, res) => {
 
 export const crearDiaPotencia = async (req, res) => {
   try {
+    const { session } = req.user;
     // Asumimos que el body ya pasó por validación Joi
     const {
       dia,
@@ -295,7 +311,7 @@ export const crearDiaPotencia = async (req, res) => {
       ucp,
     };
 
-    const result = await service.crearDiaPotencia(payload);
+    const result = await service.crearDiaPotencia(payload, session);
 
     if (!result.success) {
       return responseError(200, result.message, 400, res);
@@ -310,6 +326,7 @@ export const crearDiaPotencia = async (req, res) => {
 };
 // AGREGAR FUENTES
 export const agregarUCPMedida = async (req, res) => {
+  const { session } = req.user;
   try {
     // Obtener campos del body (asumimos middleware Joi los validó)
     const {
@@ -336,7 +353,7 @@ export const agregarUCPMedida = async (req, res) => {
       aux4,
     };
 
-    const result = await service.agregarUCPMedida(payload);
+    const result = await service.agregarUCPMedida(payload, session);
 
     if (!result.success) {
       // 400 bad request semántico, mantengo tu patrón de responseError (ajusta códigos si lo deseas)
@@ -352,7 +369,8 @@ export const agregarUCPMedida = async (req, res) => {
 // CARGAR FUENTES
 export const cargarFuentes = async (req, res) => {
   try {
-    const result = await service.cargarFuentes();
+    const { session } = req.user;
+    const result = await service.cargarFuentes(session);
     if (!result.success) {
       return responseError(200, result.message, 404, res);
     }
@@ -378,7 +396,7 @@ export const actualizarUCPMedida = async (req, res) => {
       aux3,
       aux4,
     } = req.body;
-
+    const { session } = req.user;
     const payload = {
       codigo,
       nombre,
@@ -392,7 +410,7 @@ export const actualizarUCPMedida = async (req, res) => {
       aux4,
     };
 
-    const result = await service.actualizarUCPMedida(payload);
+    const result = await service.actualizarUCPMedida(payload, session);
 
     if (!result.success) {
       return responseError(200, result.message, 400, res);
@@ -408,12 +426,13 @@ export const actualizarUCPMedida = async (req, res) => {
 export const eliminarUCPMedida = async (req, res) => {
   try {
     const { codigo } = req.params;
+    const { session } = req.user;
     const codeNum = Number(codigo);
     if (Number.isNaN(codeNum)) {
       return responseError(200, "Código inválido", 400, res);
     }
 
-    const result = await service.eliminarUCPMedida(codeNum);
+    const result = await service.eliminarUCPMedida(codeNum, session);
     if (!result.success) {
       return responseError(200, result.message, 404, res);
     }
@@ -427,7 +446,8 @@ export const eliminarUCPMedida = async (req, res) => {
 
 export const cargarEquivalencias = async (req, res) => {
   try {
-    const result = await service.cargarEquivalencias();
+    const { session } = req.user;
+    const result = await service.cargarEquivalencias(session);
     if (!result.success) {
       return responseError(200, result.message, 404, res);
     }
@@ -440,8 +460,13 @@ export const cargarEquivalencias = async (req, res) => {
 
 export const cargarUCP = async (req, res) => {
   try {
+    const { session } = req.user;
     const { codpadre = 0, estado = 1 } = req.query;
-    const result = await service.cargarUCP(Number(codpadre), Number(estado));
+    const result = await service.cargarUCP(
+      Number(codpadre),
+      Number(estado),
+      session,
+    );
     if (!result.success) {
       return res.status(500).json({ success: false, message: result.message });
     }
@@ -458,8 +483,9 @@ export const cargarUCP = async (req, res) => {
 
 export const editarMercadoCascade = async (req, res) => {
   try {
+    const { session } = req.user;
     const { mc, mcnuevo } = req.body;
-    const result = await service.editarMercadoCascade(mc, mcnuevo);
+    const result = await service.editarMercadoCascade(mc, mcnuevo, session);
     if (!result.success) {
       return res.status(500).json({ success: false, message: result.message });
     }
@@ -474,9 +500,10 @@ export const editarMercadoCascade = async (req, res) => {
 
 export const cargarUmbral = async (req, res) => {
   try {
+    const { session } = req.user;
     const codpadre = Number(req.query.codpadre ?? 79);
     const estado = Number(req.query.estado ?? 1);
-    const result = await service.cargarUmbral(codpadre, estado);
+    const result = await service.cargarUmbral(codpadre, estado, session);
     if (!result.success) {
       return res.status(500).json({ success: false, message: result.message });
     }
@@ -495,7 +522,8 @@ export const cargarUmbral = async (req, res) => {
 export const editarUmbral = async (req, res) => {
   try {
     const { codigo, aux2 } = req.body;
-    const result = await service.editarUmbral(Number(codigo), aux2);
+    const { session } = req.user;
+    const result = await service.editarUmbral(Number(codigo), aux2, session);
     if (!result.success) {
       return res.status(400).json({ success: false, message: result.message });
     }
@@ -510,9 +538,10 @@ export const editarUmbral = async (req, res) => {
 
 export const cargarDiasFestivos = async (req, res) => {
   try {
+    const { session } = req.user;
     const anio = Number(req.query.anio);
     const ucp = req.query.ucp;
-    const result = await service.cargarDiasFestivos(anio, ucp);
+    const result = await service.cargarDiasFestivos(anio, ucp, session);
     if (!result.success)
       return res.status(500).json({ success: false, message: result.message });
     return res
@@ -529,7 +558,8 @@ export const cargarDiasFestivos = async (req, res) => {
 export const buscarDiaFestivo = async (req, res) => {
   try {
     const { fecha, ucp } = req.body;
-    const result = await service.buscarDiaFestivo(fecha, ucp);
+    const { session } = req.user;
+    const result = await service.buscarDiaFestivo(fecha, ucp, session);
     if (!result.success)
       return res.status(500).json({ success: false, message: result.message });
     return res
@@ -546,11 +576,12 @@ export const buscarDiaFestivo = async (req, res) => {
 export const listarFestivosPorRango = async (req, res) => {
   try {
     const { fechaInicio, fechaFin, ucp } = req.params;
-
+    const { session } = req.user;
     const result = await service.listarFestivosPorRango(
       fechaInicio,
       fechaFin,
       ucp,
+      session,
     );
 
     if (!result.success)
@@ -572,7 +603,8 @@ export const listarFestivosPorRango = async (req, res) => {
 export const ingresarDiaFestivos = async (req, res) => {
   try {
     const { ucp, fecha } = req.body;
-    const result = await service.ingresarDiaFestivos(ucp, fecha);
+    const { session } = req.user;
+    const result = await service.ingresarDiaFestivos(ucp, fecha, session);
     if (!result.success)
       return res.status(500).json({ success: false, message: result.message });
     return res
@@ -589,7 +621,8 @@ export const ingresarDiaFestivos = async (req, res) => {
 export const borrarDiaFestivos = async (req, res) => {
   try {
     const { codigo } = req.body;
-    const result = await service.borrarDiaFestivos(codigo);
+    const { session } = req.user;
+    const result = await service.borrarDiaFestivos(codigo, session);
     if (!result.success)
       return res.status(400).json({ success: false, message: result.message });
     return res
@@ -606,7 +639,8 @@ export const borrarDiaFestivos = async (req, res) => {
 export const buscarUltimaFechaHistorica = async (req, res) => {
   try {
     const { ucp } = req.params;
-    const result = await service.buscarUltimaFechaHistorica(ucp);
+    const { session } = req.user;
+    const result = await service.buscarUltimaFechaHistorica(ucp, session);
     if (!result.success)
       return res.status(500).json({ success: false, message: result.message });
     return res
@@ -625,7 +659,8 @@ export const buscarUltimaFechaHistorica = async (req, res) => {
 
 export const buscarUltimaFechaClimaLog = async (req, res) => {
   try {
-    const result = await service.buscarUltimaFechaClimaLog();
+    const { session } = req.user;
+    const result = await service.buscarUltimaFechaClimaLog(session);
     if (!result.success)
       return res.status(500).json({ success: false, message: result.message });
     return res
@@ -641,7 +676,8 @@ export const buscarUltimaFechaClimaLog = async (req, res) => {
 
 export const buscarKey = async (req, res) => {
   try {
-    const result = await service.buscarKey();
+    const { session } = req.user;
+    const result = await service.buscarKey(session);
     if (!result.success)
       return res.status(500).json({ success: false, message: result.message });
     return res
@@ -656,7 +692,8 @@ export const buscarKey = async (req, res) => {
 };
 export const buscarUltimaFechaClima = async (req, res) => {
   try {
-    const result = await service.buscarUltimaFechaClima();
+    const { session } = req.user;
+    const result = await service.buscarUltimaFechaClima(session);
     if (!result.success)
       return res.status(500).json({ success: false, message: result.message });
     return res
@@ -672,8 +709,9 @@ export const buscarUltimaFechaClima = async (req, res) => {
 
 export const buscarFactor = async (req, res) => {
   try {
+    const { session } = req.user;
     const { codigo } = req.query;
-    const result = await service.buscarFactor(codigo);
+    const result = await service.buscarFactor(codigo, session);
     if (!result.success)
       return res.status(500).json({ success: false, message: result.message });
     return res
@@ -688,8 +726,9 @@ export const buscarFactor = async (req, res) => {
 };
 export const cargarCodigoRMPxUCP = async (req, res) => {
   try {
+    const { session } = req.user;
     const { codpadre } = req.query;
-    const result = await service.cargarCodigoRMPxUCP(codpadre);
+    const result = await service.cargarCodigoRMPxUCP(codpadre, session);
     if (!result.success)
       return res.status(500).json({ success: false, message: result.message });
     return res
@@ -706,7 +745,8 @@ export const cargarCodigoRMPxUCP = async (req, res) => {
 export const cargarTipoArchivos = async (req, res) => {
   try {
     const { estado, aux2 } = req.query;
-    const result = await service.cargarTipoArchivos(estado, aux2);
+    const { session } = req.user;
+    const result = await service.cargarTipoArchivos(estado, aux2, session);
     if (!result.success)
       return res.status(500).json({ success: false, message: result.message });
     return res
@@ -723,7 +763,8 @@ export const cargarTipoArchivos = async (req, res) => {
 export const cargarUCPxAux2 = async (req, res) => {
   try {
     const { aux2 } = req.query;
-    const result = await service.cargarUCPxAux2(aux2);
+    const { session } = req.user;
+    const result = await service.cargarUCPxAux2(aux2, session);
     if (!result.success)
       return res.status(500).json({ success: false, message: result.message });
     return res
@@ -740,7 +781,12 @@ export const cargarUCPxAux2 = async (req, res) => {
 export const buscarUCPActualizacionDatos = async (req, res) => {
   try {
     const { ucp, fecha } = req.params;
-    const result = await service.buscarUCPActualizacionDatos(ucp, fecha);
+    const { session } = req.user;
+    const result = await service.buscarUCPActualizacionDatos(
+      ucp,
+      fecha,
+      session,
+    );
     if (!result.success)
       return res.status(500).json({ success: false, message: result.message });
     return res
@@ -760,7 +806,12 @@ export const buscarUCPActualizacionDatos = async (req, res) => {
 export const verificarExisteActualizacionDatos = async (req, res) => {
   try {
     const { ucp, fecha } = req.params;
-    const result = await service.verificarExisteActualizacionDatos(ucp, fecha);
+    const { session } = req.user;
+    const result = await service.verificarExisteActualizacionDatos(
+      ucp,
+      fecha,
+      session,
+    );
     if (!result.success)
       return res.status(500).json({ success: false, message: result.message });
     return res
@@ -779,7 +830,11 @@ export const verificarExisteActualizacionDatos = async (req, res) => {
 
 export const agregarUCPActualizacionDatos = async (req, res) => {
   try {
-    const result = await service.agregarUCPActualizacionDatos(req.body);
+    const { session } = req.user;
+    const result = await service.agregarUCPActualizacionDatos(
+      req.body,
+      session,
+    );
     if (!result.success) {
       return responseError(200, result.message, 404, res);
     }
@@ -793,7 +848,11 @@ export const agregarUCPActualizacionDatos = async (req, res) => {
 
 export const actualizarUCPActualizacionDatos = async (req, res) => {
   try {
-    const result = await service.actualizarUCPActualizacionDatos(req.body);
+    const { session } = req.user;
+    const result = await service.actualizarUCPActualizacionDatos(
+      req.body,
+      session,
+    );
     if (!result.success) {
       return responseError(200, result.message, 404, res);
     }
@@ -807,8 +866,9 @@ export const actualizarUCPActualizacionDatos = async (req, res) => {
 
 export const buscarClimaPeriodos = async (req, res) => {
   const { ucp, fecha } = req.params;
+  const { session } = req.user;
   try {
-    const result = await service.buscarClimaPeriodos(ucp, fecha);
+    const result = await service.buscarClimaPeriodos(ucp, fecha, session);
     if (!result.success) {
       return responseError(200, result.message, 404, res);
     }
@@ -822,8 +882,9 @@ export const buscarClimaPeriodos = async (req, res) => {
 
 export const agregarClimaPronosticoLog = async (req, res) => {
   const { fecha, ucp } = req.params;
+  const { session } = req.user;
   try {
-    const result = await service.agregarClimaPronosticoLog(fecha, ucp);
+    const result = await service.agregarClimaPronosticoLog(fecha, ucp, session);
     if (!result.success) return responseError(200, result.message, 400, res);
     return SuccessResponse(res, result.data, result.message);
   } catch (err) {
@@ -835,6 +896,7 @@ export const agregarClimaPronosticoLog = async (req, res) => {
 export const agregarClimaPeriodo = async (req, res) => {
   const { fecha, ucp, indice, clima } = req.params;
   const { valor } = req.body; // valor lo enviamos en body por ser potencialmente largo
+  const { session } = req.user;
   try {
     const result = await service.agregarClimaPeriodo(
       fecha,
@@ -842,6 +904,7 @@ export const agregarClimaPeriodo = async (req, res) => {
       indice,
       clima,
       valor,
+      session,
     );
     if (!result.success) return responseError(200, result.message, 400, res);
     return SuccessResponse(res, result.data, result.message);
@@ -854,6 +917,7 @@ export const agregarClimaPeriodo = async (req, res) => {
 export const actualizarClimaPeriodos = async (req, res) => {
   const { fecha, ucp, indice, clima } = req.params;
   const { valor } = req.body;
+  const { session } = req.user;
   try {
     const result = await service.actualizarClimaPeriodos(
       fecha,
@@ -861,6 +925,7 @@ export const actualizarClimaPeriodos = async (req, res) => {
       indice,
       clima,
       valor,
+      session,
     );
     if (!result.success) return responseError(200, result.message, 404, res);
     return SuccessResponse(res, result.data, result.message);
@@ -872,8 +937,9 @@ export const actualizarClimaPeriodos = async (req, res) => {
 
 export const buscarTipicidad = async (req, res) => {
   const { ucp, fecha } = req.params;
+  const { session } = req.user;
   try {
-    const result = await service.buscarTipicidad(ucp, fecha);
+    const result = await service.buscarTipicidad(ucp, fecha, session);
     if (!result.success) return responseError(200, result.message, 404, res);
     return SuccessResponse(res, result.data, result.message);
   } catch (err) {
@@ -885,11 +951,13 @@ export const buscarTipicidad = async (req, res) => {
 export const listarTipoModeloPorRango = async (req, res) => {
   try {
     const { fechaInicio, fechaFin, ucp } = req.params;
+    const { session } = req.user;
 
     const result = await service.listarTipoModeloPorRango(
       fechaInicio,
       fechaFin,
       ucp,
+      session,
     );
 
     if (!result.success)
@@ -911,11 +979,12 @@ export const listarTipoModeloPorRango = async (req, res) => {
 export const insertarTipoPronostico = async (req, res) => {
   try {
     const { ucp, fecha, tipopronostico } = req.body;
-
+    const { session } = req.user;
     const result = await service.insertarTipoPronostico(
       ucp,
       fecha,
       tipopronostico,
+      session,
     );
 
     if (!result.success)
@@ -936,9 +1005,10 @@ export const insertarTipoPronostico = async (req, res) => {
 
 export const cargarPeriodosDinamico = async (req, res) => {
   try {
+    const { session } = req.user;
     const filters = req.body;
 
-    const result = await service.cargarPeriodosDinamico(filters);
+    const result = await service.cargarPeriodosDinamico(filters, session);
 
     if (!result.success) {
       return responseError(200, result.message, 404, res);
@@ -953,7 +1023,11 @@ export const cargarPeriodosDinamico = async (req, res) => {
 
 export const cargarHistoricosPronosticosDinamico = async (req, res) => {
   try {
-    const result = await service.cargarHistoricosPronosticosDinamico(req.body);
+    const { session } = req.user;
+    const result = await service.cargarHistoricosPronosticosDinamico(
+      req.body,
+      session,
+    );
 
     if (!result.success) {
       return responseError(200, result.message, 404, res);
@@ -968,7 +1042,11 @@ export const cargarHistoricosPronosticosDinamico = async (req, res) => {
 
 export const cargarPronosticosEHistoricos = async (req, res) => {
   try {
-    const result = await service.cargarPronosticosEHistoricos(req.body);
+    const { session } = req.user;
+    const result = await service.cargarPronosticosEHistoricos(
+      req.body,
+      session,
+    );
 
     if (!result.success) {
       return responseError(200, result.message, 404, res);
@@ -983,8 +1061,9 @@ export const cargarPronosticosEHistoricos = async (req, res) => {
 
 export const listarTodosLosFestivos = async (req, res) => {
   try {
+    const { session } = req.user;
     const { ucp } = req.params;
-    const result = await service.listarTodosLosFestivos(ucp);
+    const result = await service.listarTodosLosFestivos(ucp, session);
     if (!result.success)
       return res.status(500).json({ success: false, message: result.message });
     return res

@@ -26,8 +26,7 @@ export default class SesionModel {
     });
   }
 
-  cargarDatosSesiones = async (codsuperior) => {
-    const client = this.createClient();
+  cargarDatosSesiones = async (codsuperior, client) => {
     try {
       await client.connect();
       const result = await client.query(querys.cargarDatosSesiones, [
@@ -42,8 +41,7 @@ export default class SesionModel {
     }
   };
 
-  cargarArchivosVrSesiones = async (codcarpeta) => {
-    const client = this.createClient();
+  cargarArchivosVrSesiones = async (codcarpeta, client) => {
     try {
       await client.connect();
       const result = await client.query(querys.cargarArchivoVrSesiones, [
@@ -58,8 +56,7 @@ export default class SesionModel {
     }
   };
 
-  buscarVersionSesionCod = async (codigo) => {
-    const client = this.createClient();
+  buscarVersionSesionCod = async (codigo, client) => {
     try {
       await client.connect();
       const result = await client.query(querys.buscarVersionSesionCod, [
@@ -74,8 +71,7 @@ export default class SesionModel {
     }
   };
 
-  cargarPeriodosSesion = async (codsesion, tipo) => {
-    const client = this.createClient();
+  cargarPeriodosSesion = async (codsesion, tipo, client) => {
     try {
       await client.connect();
       const result = await client.query(querys.cargarPeriodosSesion, [
@@ -91,8 +87,7 @@ export default class SesionModel {
     }
   };
 
-  cargarPeriodosxUCPxFecha = async (ucp, fechainicio, fechafin) => {
-    const client = this.createClient();
+  cargarPeriodosxUCPxFecha = async (ucp, fechainicio, fechafin, client) => {
     try {
       await client.connect();
       const result = await client.query(querys.cargarPeriodosxUCPxFecha, [
@@ -109,18 +104,17 @@ export default class SesionModel {
     }
   };
 
-  verificarFechaActualizaciondedatos = async (ucp) => {
-    const client = this.createClient();
+  verificarFechaActualizaciondedatos = async (ucp, client) => {
     try {
       await client.connect();
       const result = await client.query(
         querys.verificarFechaActualizaciondedatos,
-        [ucp]
+        [ucp],
       );
       return result.rows.length > 0 ? result.rows : null;
     } catch (error) {
       Logger.error(
-        colors.red("Error sesionModel verificarFechaActualizaciondedatos")
+        colors.red("Error sesionModel verificarFechaActualizaciondedatos"),
       );
       throw error;
     } finally {
@@ -128,8 +122,7 @@ export default class SesionModel {
     }
   };
 
-  verificarFechaClima = async (ucp) => {
-    const client = this.createClient();
+  verificarFechaClima = async (ucp, client) => {
     try {
       await client.connect();
       const result = await client.query(querys.verificarFechaClima, [ucp]);
@@ -142,8 +135,7 @@ export default class SesionModel {
     }
   };
 
-  borrarDatosPronostico = async () => {
-    const client = this.createClient();
+  borrarDatosPronostico = async (client) => {
     try {
       await client.connect();
       const result = await client.query(querys.borrarDatosPronostico);
@@ -155,14 +147,13 @@ export default class SesionModel {
     }
   };
 
-  eliminarFechasIngresadasTodo = async () => {
-    const client = this.createClient();
+  eliminarFechasIngresadasTodo = async (client) => {
     try {
       await client.connect();
       const result = await client.query(querys.eliminarFechasIngresadasTodo);
     } catch (error) {
       Logger.error(
-        colors.red("Error sesionModel eliminarFechasIngresadasTodo")
+        colors.red("Error sesionModel eliminarFechasIngresadasTodo"),
       );
       throw error;
     } finally {
@@ -170,8 +161,7 @@ export default class SesionModel {
     }
   };
 
-  guardarFechasPronosticas = async (fechainicio, fechafin, ucp) => {
-    const client = this.createClient();
+  guardarFechasPronosticas = async (fechainicio, fechafin, ucp, client) => {
     try {
       await client.connect();
       const result = await client.query(querys.guardarFechasPronosticas, [
@@ -187,8 +177,7 @@ export default class SesionModel {
     }
   };
 
-  borrarDatosTipoPronostico = async (ucp) => {
-    const client = this.createClient();
+  borrarDatosTipoPronostico = async (ucp, client) => {
     try {
       await client.connect();
       const result = await client.query(querys.borrarDatosTipoPronostico, [
@@ -216,18 +205,22 @@ export default class SesionModel {
     }
   };
 
-  cargarPeriodosPronosticosxUCPxFecha = async (ucp, fechainicio, fechafin) => {
-    const client = this.createClient();
+  cargarPeriodosPronosticosxUCPxFecha = async (
+    ucp,
+    fechainicio,
+    fechafin,
+    client,
+  ) => {
     try {
       await client.connect();
       const result = await client.query(
         querys.cargarPeriodosPronosticosxUCPxFecha,
-        [ucp, fechainicio, fechafin]
+        [ucp, fechainicio, fechafin],
       );
       return result.rows.length > 0 ? result.rows : null;
     } catch (error) {
       Logger.error(
-        colors.red("Error sesionModel cargarPeriodosPronosticosxUCPxFecha")
+        colors.red("Error sesionModel cargarPeriodosPronosticosxUCPxFecha"),
       );
       throw error;
     } finally {
@@ -235,8 +228,7 @@ export default class SesionModel {
     }
   };
 
-  cargarPeriodosxUCPxFechaInicio = async (ucp, fechainicio) => {
-    const client = this.createClient();
+  cargarPeriodosxUCPxFechaInicio = async (ucp, fechainicio, client) => {
     try {
       await client.connect();
       const result = await client.query(querys.cargarPeriodosxUCPxFechaInicio, [
@@ -246,7 +238,7 @@ export default class SesionModel {
       return result.rows.length > 0 ? result.rows : null;
     } catch (error) {
       Logger.error(
-        colors.red("Error sesionModel cargarPeriodosxUCPxFechaInicio")
+        colors.red("Error sesionModel cargarPeriodosxUCPxFechaInicio"),
       );
       throw error;
     } finally {
@@ -254,8 +246,7 @@ export default class SesionModel {
     }
   };
 
-  buscarTipoPronostico = async (ucp, fecha) => {
-    const client = this.createClient();
+  buscarTipoPronostico = async (ucp, fecha, client) => {
     try {
       await client.connect();
       const result = await client.query(querys.buscarTipoPronostico, [
@@ -271,8 +262,7 @@ export default class SesionModel {
     }
   };
 
-  ingresarTipoPronostico = async (ucp, fecha, tipopronostico) => {
-    const client = this.createClient();
+  ingresarTipoPronostico = async (ucp, fecha, tipopronostico, client) => {
     try {
       await client.connect();
       const result = await client.query(querys.ingresarTipoPronostico, [
@@ -288,8 +278,7 @@ export default class SesionModel {
     }
   };
 
-  actualizarTipoPronostico = async (tipopronostico, ucp, fecha) => {
-    const client = this.createClient();
+  actualizarTipoPronostico = async (tipopronostico, ucp, fecha, client) => {
     try {
       await client.connect();
       const result = await client.query(querys.actualizarTipoPronostico, [
@@ -305,17 +294,16 @@ export default class SesionModel {
     }
   };
 
-  verificarUltimaActualizacionPorUcp = async () => {
-    const client = this.createClient();
+  verificarUltimaActualizacionPorUcp = async (client) => {
     try {
       await client.connect();
       const result = await client.query(
-        querys.verificarUltimaActualizacionPorUcp
+        querys.verificarUltimaActualizacionPorUcp,
       );
       return result.rows.length > 0 ? result.rows : null;
     } catch (error) {
       Logger.error(
-        colors.red("Error sesionModel verificarUltimaActualizacionPorUcp")
+        colors.red("Error sesionModel verificarUltimaActualizacionPorUcp"),
       );
       throw error;
     } finally {

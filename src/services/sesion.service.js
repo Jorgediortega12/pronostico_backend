@@ -1,6 +1,7 @@
 import SesionModel from "../models/sesion.model.js";
 import Logger from "../helpers/logger.js";
 import colors from "colors";
+import { createConectionPG } from "../helpers/connections.js";
 
 const model = SesionModel.getInstance();
 
@@ -78,9 +79,13 @@ export default class SesionService {
     return SesionService.instance;
   }
 
-  cargarDatosSesiones = async (codsuperior) => {
+  cargarDatosSesiones = async (codsuperior, session) => {
     try {
-      const datosSesiones = await model.cargarDatosSesiones(codsuperior);
+      const client = createConectionPG(session);
+      const datosSesiones = await model.cargarDatosSesiones(
+        codsuperior,
+        client,
+      );
 
       if (!datosSesiones) {
         return {
@@ -105,10 +110,13 @@ export default class SesionService {
     }
   };
 
-  cargarArchivosVrSesiones = async (codcarpeta) => {
+  cargarArchivosVrSesiones = async (codcarpeta, session) => {
     try {
-      const archivosVrSesiones =
-        await model.cargarArchivosVrSesiones(codcarpeta);
+      const client = createConectionPG(session);
+      const archivosVrSesiones = await model.cargarArchivosVrSesiones(
+        codcarpeta,
+        client,
+      );
 
       if (!archivosVrSesiones) {
         return {
@@ -133,9 +141,13 @@ export default class SesionService {
     }
   };
 
-  buscarVersionSesionCod = async (codigo) => {
+  buscarVersionSesionCod = async (codigo, session) => {
     try {
-      const versionSesionCod = await model.buscarVersionSesionCod(codigo);
+      const client = createConectionPG(session);
+      const versionSesionCod = await model.buscarVersionSesionCod(
+        codigo,
+        client,
+      );
 
       if (!versionSesionCod) {
         return {
@@ -160,11 +172,13 @@ export default class SesionService {
     }
   };
 
-  cargarPeriodosSesion = async (codsesion, tipo) => {
+  cargarPeriodosSesion = async (codsesion, tipo, session) => {
     try {
+      const client = createConectionPG(session);
       const sesionesPeriodos = await model.cargarPeriodosSesion(
         codsesion,
         tipo,
+        client,
       );
 
       if (!sesionesPeriodos) {
@@ -190,12 +204,14 @@ export default class SesionService {
     }
   };
 
-  cargarPeriodosxUCPxFecha = async (ucp, fechainicio, fechafin) => {
+  cargarPeriodosxUCPxFecha = async (ucp, fechainicio, fechafin, session) => {
     try {
+      const client = createConectionPG(session);
       const actualizacionDatos = await model.cargarPeriodosxUCPxFecha(
         ucp,
         fechainicio,
         fechafin,
+        client,
       );
 
       if (!actualizacionDatos) {
@@ -223,10 +239,11 @@ export default class SesionService {
     }
   };
 
-  cargarSesion = async (codigo) => {
+  cargarSesion = async (codigo, session) => {
     try {
       // 1) buscar version de sesion por codigo
-      const versionRows = await model.buscarVersionSesionCod(codigo);
+      const client = createConectionPG(session);
+      const versionRows = await model.buscarVersionSesionCod(codigo, client);
       if (!versionRows || versionRows.length === 0) {
         return {
           success: false,
@@ -269,7 +286,12 @@ export default class SesionService {
       // 2) Periodos pronosticos (tipo 'P') -> usando model.cargarPeriodosSesion(codsesion, tipo)
       const codigoSesion =
         dato.codigo || dato.codsesion || dato.id || dato.codigo_sesion; // intentar varias claves
-      const pronRows = await model.cargarPeriodosSesion(codigoSesion, "P");
+      const client2 = createConectionPG(session);
+      const pronRows = await model.cargarPeriodosSesion(
+        codigoSesion,
+        "P",
+        client2,
+      );
       const PeriodosPronosticos = Array.isArray(pronRows)
         ? pronRows.map((r) => ({
             fecha: toISODateString(r.fecha),
@@ -302,7 +324,12 @@ export default class SesionService {
         : [];
 
       // 3) Periodos historicos (tipo 'D')
-      const histRows = await model.cargarPeriodosSesion(codigoSesion, "D");
+      const client3 = createConectionPG(session);
+      const histRows = await model.cargarPeriodosSesion(
+        codigoSesion,
+        "D",
+        client3,
+      );
       const PeriodosHistoricos = Array.isArray(histRows)
         ? histRows.map((r) => ({
             fecha: toISODateString(r.fecha),
@@ -339,10 +366,12 @@ export default class SesionService {
       // Pero tu modelo tiene firma (ucp, fecha). Aquí pedimos al model los registros relacionados al UCP
       // (por ejemplo desde fechainicio) y luego hacemos el recorrido por dias y buscamos coincidencias.
       // dentro de cargarSesion
+      const client4 = createConectionPG(session);
       const datosDemandaRows = await model.cargarPeriodosxUCPxFecha(
         mc,
         fechainicio,
         fechafin,
+        client4,
       );
       const rowsMapByDate = new Map();
       if (Array.isArray(datosDemandaRows)) {
@@ -463,9 +492,10 @@ export default class SesionService {
     }
   };
 
-  verificarUltimaActualizacionPorUcp = async () => {
+  verificarUltimaActualizacionPorUcp = async (session) => {
     try {
-      const res = await model.verificarUltimaActualizacionPorUcp();
+      const client = createConectionPG(session);
+      const res = await model.verificarUltimaActualizacionPorUcp(client);
 
       if (!res) {
         return {

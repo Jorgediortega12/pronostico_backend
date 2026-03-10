@@ -16,18 +16,7 @@ export default class ConfiguracionModel {
     return ConfiguracionModel.instance;
   }
 
-  createClient() {
-    return new Client({
-      user: process.env.POSTGRES_USER,
-      host: process.env.POSTGRES_HOST || "localhost",
-      database: process.env.POSTGRES_DB,
-      password: process.env.POSTGRES_PASSWORD,
-      port: process.env.POSTGRES_PORT || 5432,
-    });
-  }
-
-  buscarSaveDocumento = async (aux3) => {
-    const client = this.createClient();
+  buscarSaveDocumento = async (aux3, client) => {
     try {
       await client.connect();
       const result = await client.query(querys.buscarSaveDocumento, [aux3]);
@@ -43,8 +32,7 @@ export default class ConfiguracionModel {
     }
   };
 
-  cargarDiasPotencias = async (ucp) => {
-    const client = this.createClient();
+  cargarDiasPotencias = async (ucp, client) => {
     try {
       await client.connect();
       const result = await client.query(querys.cargarDiasPotencia, [ucp]);
@@ -60,12 +48,10 @@ export default class ConfiguracionModel {
     }
   };
 
-  buscarVersionSesion = async (nombre) => {
-    const client = this.createClient();
+  buscarVersionSesion = async (nombre, client) => {
     try {
       await client.connect();
       const result = await client.query(querys.buscarVersionSesion, [nombre]);
-      console.log("result buscarVersionSesion:", result);
       return result.rows;
     } catch (error) {
       Logger.error(colors.red("Error configuracionModel bsucarVersionSesion"));
@@ -75,9 +61,7 @@ export default class ConfiguracionModel {
     }
   };
 
-  agregarVersionSesion = async (datos) => {
-    const client = this.createClient();
-    console.log("datos en model agregarVersionSesion:", datos);
+  agregarVersionSesion = async (datos, client) => {
     try {
       await client.connect();
       const valores = [
@@ -137,8 +121,7 @@ export default class ConfiguracionModel {
     }
   };
 
-  agregarDatosPronosticoxSesion = async (datos) => {
-    const client = this.createClient();
+  agregarDatosPronosticoxSesion = async (datos, client) => {
     try {
       await client.connect();
       const valores = [
@@ -187,8 +170,7 @@ export default class ConfiguracionModel {
       await client.end();
     }
   };
-  buscarDiaFestivo = async (fecha, ucp) => {
-    const client = this.createClient();
+  buscarDiaFestivo = async (fecha, ucp, client) => {
     try {
       await client.connect();
       const result = await client.query(querys.buscarDiaFestivo, [fecha, ucp]);
@@ -204,8 +186,7 @@ export default class ConfiguracionModel {
     }
   };
 
-  listarFestivosPorRango = async (fechaInicio, fechaFin, ucp) => {
-    const client = this.createClient();
+  listarFestivosPorRango = async (fechaInicio, fechaFin, ucp, client) => {
     try {
       await client.connect();
       const result = await client.query(querys.listarFestivosPorRango, [
@@ -225,8 +206,7 @@ export default class ConfiguracionModel {
     }
   };
 
-  buscarPotenciaDia = async (ucp, dia) => {
-    const client = this.createClient();
+  buscarPotenciaDia = async (ucp, dia, client) => {
     try {
       await client.connect();
       const result = await client.query(querys.buscarPotenciaDia, [ucp, dia]);
@@ -238,8 +218,7 @@ export default class ConfiguracionModel {
       await client.end();
     }
   };
-  cargarPeriodosxUCPDesdeFecha = async (ucp, fechaInicio) => {
-    const client = this.createClient();
+  cargarPeriodosxUCPDesdeFecha = async (ucp, fechaInicio, client) => {
     try {
       await client.connect();
       const result = await client.query(querys.cargarPeriodosxUCPDesdeFecha, [
@@ -257,8 +236,11 @@ export default class ConfiguracionModel {
     }
   };
 
-  cargarVariablesClimaticasxUCPDesdeFecha = async (ucp, fechaInicio) => {
-    const client = this.createClient();
+  cargarVariablesClimaticasxUCPDesdeFecha = async (
+    ucp,
+    fechaInicio,
+    client,
+  ) => {
     try {
       await client.connect();
       const result = await client.query(
@@ -278,8 +260,12 @@ export default class ConfiguracionModel {
     }
   };
 
-  cargarPeriodosxUCPxUnaFechaxLimite = async (ucp, fechaInicio, limite) => {
-    const client = this.createClient();
+  cargarPeriodosxUCPxUnaFechaxLimite = async (
+    ucp,
+    fechaInicio,
+    limite,
+    client,
+  ) => {
     try {
       await client.connect();
       const result = await client.query(
@@ -299,8 +285,7 @@ export default class ConfiguracionModel {
     }
   };
 
-  cargarTodosLosDiasPotencia = async () => {
-    const client = this.createClient();
+  cargarTodosLosDiasPotencia = async (client) => {
     try {
       await client.connect();
       const result = await client.query(querys.cargarTodosLosDiasPotencia);
@@ -316,19 +301,21 @@ export default class ConfiguracionModel {
     }
   };
 
-  actualizarDiaPotencia = async ({
-    codigo,
-    dia,
-    potencia1,
-    potencia2,
-    potencia3,
-    potencia4,
-    potencia5,
-    potencia6,
-    potencia7,
-    ucp,
-  }) => {
-    const client = this.createClient();
+  actualizarDiaPotencia = async (
+    {
+      codigo,
+      dia,
+      potencia1,
+      potencia2,
+      potencia3,
+      potencia4,
+      potencia5,
+      potencia6,
+      potencia7,
+      ucp,
+    },
+    client,
+  ) => {
     try {
       await client.connect();
       const params = [
@@ -358,18 +345,20 @@ export default class ConfiguracionModel {
   };
 
   // importar querys, Logger, colors según tu proyecto
-  crearDiaPotencia = async ({
-    dia,
-    potencia1,
-    potencia2,
-    potencia3,
-    potencia4,
-    potencia5,
-    potencia6,
-    potencia7,
-    ucp,
-  }) => {
-    const client = this.createClient();
+  crearDiaPotencia = async (
+    {
+      dia,
+      potencia1,
+      potencia2,
+      potencia3,
+      potencia4,
+      potencia5,
+      potencia6,
+      potencia7,
+      ucp,
+    },
+    client,
+  ) => {
     try {
       await client.connect();
       const params = [
@@ -398,18 +387,10 @@ export default class ConfiguracionModel {
   };
 
   // AGREGAR FUENTES
-  agregarUCPMedida = async ({
-    nombre,
-    factor,
-    codigo_rpm,
-    codpadre,
-    estado,
-    aux,
-    aux2,
-    aux3,
-    aux4,
-  }) => {
-    const client = this.createClient();
+  agregarUCPMedida = async (
+    { nombre, factor, codigo_rpm, codpadre, estado, aux, aux2, aux3, aux4 },
+    client,
+  ) => {
     try {
       await client.connect();
       const params = [
@@ -434,8 +415,7 @@ export default class ConfiguracionModel {
   };
 
   // CARGAR FUENTES
-  cargarFuentes = async () => {
-    const client = this.createClient();
+  cargarFuentes = async (client) => {
     try {
       await client.connect();
       const result = await client.query(querys.cargarFuentes);
@@ -449,19 +429,21 @@ export default class ConfiguracionModel {
   };
 
   // actualizarUCPMedida
-  actualizarUCPMedida = async ({
-    codigo,
-    nombre,
-    factor,
-    codigo_rpm,
-    codpadre,
-    estado,
-    aux,
-    aux2,
-    aux3,
-    aux4,
-  }) => {
-    const client = this.createClient();
+  actualizarUCPMedida = async (
+    {
+      codigo,
+      nombre,
+      factor,
+      codigo_rpm,
+      codpadre,
+      estado,
+      aux,
+      aux2,
+      aux3,
+      aux4,
+    },
+    client,
+  ) => {
     try {
       await client.connect();
       const params = [
@@ -487,8 +469,7 @@ export default class ConfiguracionModel {
   };
 
   // eliminarUCPMedida
-  eliminarUCPMedida = async (codigo) => {
-    const client = this.createClient();
+  eliminarUCPMedida = async (codigo, client) => {
     try {
       await client.connect();
       const result = await client.query(querys.eliminarUCPMedida, [codigo]);
@@ -502,8 +483,7 @@ export default class ConfiguracionModel {
   };
 
   // Dentro de tu model (por ejemplo ucpModel)
-  cargarEquivalencias = async () => {
-    const client = this.createClient();
+  cargarEquivalencias = async (client) => {
     try {
       await client.connect();
       const result = await client.query(querys.cargarEquivalencias);
@@ -518,8 +498,7 @@ export default class ConfiguracionModel {
   };
 
   // cargarUCP: retorna array de strings [{ mc: 'Atlantico' }, ...]
-  async cargarUCP(codpadre = 0, estado = 1) {
-    const client = this.createClient();
+  async cargarUCP(codpadre = 0, estado = 1, client) {
     try {
       await client.connect();
       const res = await client.query(querys.cargarUCP, [codpadre, estado]);
@@ -534,8 +513,7 @@ export default class ConfiguracionModel {
 
   // editarMercadoCascade: ejecuta todas las updates en transacción
   // input: mc (viejo nombre), mcnuevo (nuevo nombre)
-  async editarMercadoCascade(mc, mcnuevo) {
-    const client = this.createClient();
+  async editarMercadoCascade(mc, mcnuevo, client) {
     try {
       await client.connect();
       await client.query("BEGIN");
@@ -569,8 +547,7 @@ export default class ConfiguracionModel {
     }
   }
   // Cargar umbrales (codpadre=79, estado=1)
-  async cargarUmbral(codpadre = 79, estado = 1) {
-    const client = this.createClient();
+  async cargarUmbral(codpadre = 79, estado = 1, client) {
     try {
       await client.connect();
       const res = await client.query(querys.cargarUmbral, [codpadre, estado]);
@@ -584,8 +561,7 @@ export default class ConfiguracionModel {
   }
 
   // Editar umbral: aux2 + codigo
-  async editarUmbral(aux2, codigo) {
-    const client = this.createClient();
+  async editarUmbral(aux2, codigo, client) {
     try {
       await client.connect();
       const res = await client.query(querys.editarUmbral, [aux2, codigo]);
@@ -599,8 +575,7 @@ export default class ConfiguracionModel {
     }
   }
 
-  async cargarDiasFestivos(anio, ucp) {
-    const client = this.createClient();
+  async cargarDiasFestivos(anio, ucp, client) {
     try {
       await client.connect();
       const res = await client.query(querys.cargarDiasFestivos, [anio, ucp]);
@@ -613,8 +588,7 @@ export default class ConfiguracionModel {
     }
   }
 
-  async buscarDiaFestivo(fechaIso, ucp) {
-    const client = this.createClient();
+  async buscarDiaFestivo(fechaIso, ucp, client) {
     try {
       await client.connect();
       const res = await client.query(querys.buscarDiaFestivo, [fechaIso, ucp]);
@@ -627,8 +601,7 @@ export default class ConfiguracionModel {
     }
   }
 
-  async ingresarDiaFestivos(ucp, fechaIso) {
-    const client = this.createClient();
+  async ingresarDiaFestivos(ucp, fechaIso, client) {
     try {
       await client.connect();
       const res = await client.query(querys.ingresarDiaFestivos, [
@@ -647,8 +620,7 @@ export default class ConfiguracionModel {
     }
   }
 
-  async borrarDiaFestivos(codigo) {
-    const client = this.createClient();
+  async borrarDiaFestivos(codigo, client) {
     try {
       await client.connect();
       const res = await client.query(querys.borrarDiaFestivos, [codigo]);
@@ -661,8 +633,7 @@ export default class ConfiguracionModel {
     }
   }
 
-  async buscarUltimaFechaHistorica(ucp) {
-    const client = this.createClient();
+  async buscarUltimaFechaHistorica(ucp, client) {
     try {
       await client.connect();
       const res = await client.query(querys.buscarUltimaFechaHistorica, [ucp]);
@@ -678,8 +649,7 @@ export default class ConfiguracionModel {
     }
   }
 
-  async buscarUltimaFechaClimaLog() {
-    const client = this.createClient();
+  async buscarUltimaFechaClimaLog(client) {
     try {
       await client.connect();
       const res = await client.query(querys.buscarUltimaFechaClimaLog);
@@ -695,8 +665,7 @@ export default class ConfiguracionModel {
     }
   }
 
-  async buscarUltimaFechaClima() {
-    const client = this.createClient();
+  async buscarUltimaFechaClima(client) {
     try {
       await client.connect();
       const res = await client.query(querys.buscarUltimaFechaClima);
@@ -712,8 +681,7 @@ export default class ConfiguracionModel {
     }
   }
 
-  async buscarKey() {
-    const client = this.createClient();
+  async buscarKey(client) {
     try {
       await client.connect();
       const res = await client.query(querys.buscarKey);
@@ -726,8 +694,7 @@ export default class ConfiguracionModel {
     }
   }
 
-  async buscarFactor(codigo) {
-    const client = this.createClient();
+  async buscarFactor(codigo, client) {
     try {
       await client.connect();
       const res = await client.query(querys.buscarFactor, [codigo]);
@@ -740,8 +707,7 @@ export default class ConfiguracionModel {
     }
   }
 
-  async cargarCodigoRMPxUCP(codpadre) {
-    const client = this.createClient();
+  async cargarCodigoRMPxUCP(codpadre, client) {
     try {
       await client.connect();
       const res = await client.query(querys.cargarCodigoRMPxUCP, [codpadre]);
@@ -757,8 +723,7 @@ export default class ConfiguracionModel {
     }
   }
 
-  async cargarTipoArchivos(estado, aux2) {
-    const client = this.createClient();
+  async cargarTipoArchivos(estado, aux2, client) {
     try {
       await client.connect();
       const res = await client.query(querys.cargarTipoArchivos, [estado, aux2]);
@@ -774,8 +739,7 @@ export default class ConfiguracionModel {
     }
   }
 
-  async cargarUCPxAux2(aux2) {
-    const client = this.createClient();
+  async cargarUCPxAux2(aux2, client) {
     try {
       await client.connect();
       const res = await client.query(querys.cargarUCPxAux2, [aux2]);
@@ -791,8 +755,7 @@ export default class ConfiguracionModel {
     }
   }
 
-  async buscarUCPActualizacionDatos(ucp, fecha) {
-    const client = this.createClient();
+  async buscarUCPActualizacionDatos(ucp, fecha, client) {
     try {
       await client.connect();
       const res = await client.query(querys.buscarUCPActualizacionDatos, [
@@ -811,8 +774,7 @@ export default class ConfiguracionModel {
     }
   }
 
-  async verificarExisteActualizacionDatos(ucp, fecha) {
-    const client = this.createClient();
+  async verificarExisteActualizacionDatos(ucp, fecha, client) {
     try {
       await client.connect();
       const res = await client.query(querys.verificarExisteActualizacionDatos, [
@@ -834,8 +796,7 @@ export default class ConfiguracionModel {
     }
   }
 
-  agregarUCPActualizacionDatos = async (datos) => {
-    const client = this.createClient();
+  agregarUCPActualizacionDatos = async (datos, client) => {
     try {
       await client.connect();
       const valores = [
@@ -885,8 +846,7 @@ export default class ConfiguracionModel {
     }
   };
 
-  actualizarUCPActualizacionDatos = async (datos) => {
-    const client = this.createClient();
+  actualizarUCPActualizacionDatos = async (datos, client) => {
     try {
       await client.connect();
 
@@ -943,8 +903,7 @@ export default class ConfiguracionModel {
     }
   };
 
-  async buscarClimaPeriodos(ucp, fecha) {
-    const client = this.createClient();
+  async buscarClimaPeriodos(ucp, fecha, client) {
     try {
       await client.connect();
       const res = await client.query(querys.buscarClimaPeriodos, [ucp, fecha]);
@@ -960,8 +919,7 @@ export default class ConfiguracionModel {
     }
   }
 
-  async agregarClimaPronosticoLog(fecha, ucp) {
-    const client = this.createClient();
+  async agregarClimaPronosticoLog(fecha, ucp, client) {
     try {
       await client.connect();
       const res = await client.query(querys.agregarClimaPronosticoLog, [
@@ -981,8 +939,7 @@ export default class ConfiguracionModel {
     }
   }
 
-  async agregarClimaPeriodo(fecha, ucp, indice, clima, valor) {
-    const client = this.createClient();
+  async agregarClimaPeriodo(fecha, ucp, indice, clima, valor, client) {
     try {
       await client.connect();
 
@@ -1009,8 +966,7 @@ export default class ConfiguracionModel {
     }
   }
 
-  async actualizarClimaPeriodos(fecha, ucp, indice, clima, valor) {
-    const client = this.createClient();
+  async actualizarClimaPeriodos(fecha, ucp, indice, clima, valor, client) {
     try {
       await client.connect();
       const column = `p${parseInt(indice, 10)}_${clima}`;
@@ -1033,8 +989,7 @@ export default class ConfiguracionModel {
     }
   }
 
-  async buscarTipicidad(ucp, fecha) {
-    const client = this.createClient();
+  async buscarTipicidad(ucp, fecha, client) {
     try {
       await client.connect();
       const res = await client.query(querys.buscarTipicidad, [ucp, fecha]);
@@ -1050,8 +1005,12 @@ export default class ConfiguracionModel {
     }
   }
 
-  async cargarVariablesClimaticasxFechaPeriodos(ucp, fechainicio, fechafin) {
-    const client = this.createClient();
+  async cargarVariablesClimaticasxFechaPeriodos(
+    ucp,
+    fechainicio,
+    fechafin,
+    client,
+  ) {
     try {
       await client.connect();
       const res = await client.query(
@@ -1064,8 +1023,7 @@ export default class ConfiguracionModel {
     }
   }
 
-  async buscarIcono(id, dia, noche) {
-    const client = this.createClient();
+  async buscarIcono(id, dia, noche, client) {
     try {
       await client.connect();
       const res = await client.query(querys.buscarIcono, [id, dia, noche]);
@@ -1075,8 +1033,7 @@ export default class ConfiguracionModel {
     }
   }
 
-  async buscarIcono2(id) {
-    const client = this.createClient();
+  async buscarIcono2(id, client) {
     try {
       await client.connect();
       const res = await client.query(querys.buscarIcono2, [id]);
@@ -1086,8 +1043,7 @@ export default class ConfiguracionModel {
     }
   }
 
-  listarTipoModeloPorRango = async (fechaInicio, fechaFin, ucp) => {
-    const client = this.createClient();
+  listarTipoModeloPorRango = async (fechaInicio, fechaFin, ucp, client) => {
     try {
       await client.connect();
       const result = await client.query(querys.listarTipoModeloPorRango, [
@@ -1107,8 +1063,7 @@ export default class ConfiguracionModel {
     }
   };
 
-  insertarTipoPronostico = async (ucp, fecha, tipopronostico) => {
-    const client = this.createClient();
+  insertarTipoPronostico = async (ucp, fecha, tipopronostico, client) => {
     try {
       await client.connect();
 
@@ -1130,15 +1085,10 @@ export default class ConfiguracionModel {
     }
   };
 
-  cargarPeriodosDinamico = async ({
-    ucp,
-    fechaInicio,
-    fechaFin,
-    diasSemana,
-    festivo,
-  }) => {
-    const client = this.createClient();
-
+  cargarPeriodosDinamico = async (
+    { ucp, fechaInicio, fechaFin, diasSemana, festivo },
+    client,
+  ) => {
     try {
       await client.connect();
 
@@ -1190,15 +1140,10 @@ export default class ConfiguracionModel {
     }
   };
 
-  cargarHistoricosPronosticosDinamico = async ({
-    ucp,
-    fechaInicio,
-    fechaFin,
-    diasSemana,
-    festivo,
-  }) => {
-    const client = this.createClient();
-
+  cargarHistoricosPronosticosDinamico = async (
+    { ucp, fechaInicio, fechaFin, diasSemana, festivo },
+    client,
+  ) => {
     try {
       await client.connect();
 
@@ -1262,9 +1207,10 @@ WHERE pr.rn = 1
     }
   };
 
-  cargarPronosticosEHistoricos = async ({ ucp, fechaInicio, fechaFin }) => {
-    const client = this.createClient();
-
+  cargarPronosticosEHistoricos = async (
+    { ucp, fechaInicio, fechaFin },
+    client,
+  ) => {
     try {
       await client.connect();
 
@@ -1350,8 +1296,7 @@ WHERE pr.rn = 1
     }
   };
 
-  listarTodosLosFestivos = async (ucp) => {
-    const client = this.createClient();
+  listarTodosLosFestivos = async (ucp, client) => {
     try {
       await client.connect();
       const result = await client.query(querys.listarTodosLosFestivos, [ucp]);

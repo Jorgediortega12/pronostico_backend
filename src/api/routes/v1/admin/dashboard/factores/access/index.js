@@ -12,7 +12,8 @@ const service = FactoresService.getInstance();
 
 export const guardarBarra = async (req, res) => {
   try {
-    const result = await service.guardarBarra(req.body);
+    const { session } = req.user;
+    const result = await service.guardarBarra(req.body, session);
 
     if (!result.success) {
       return responseError(200, result.message, 500, res);
@@ -28,13 +29,13 @@ export const consultarBarrasIndex_xMC = async (req, res) => {
   try {
     //tomamos el parametro
     const { mc } = req.params;
-
+    const { session } = req.user;
     //sino tenemos el parametro lo que lanzamos es un error
     if (!mc) {
       return responseError(200, "Parametro mc no proporcionado", 400, res);
     }
 
-    const result = await service.consultarBarrasIndex_xMC(mc);
+    const result = await service.consultarBarrasIndex_xMC(mc, session);
 
     if (!result.success) {
       return responseError(200, result.message, 404, res);
@@ -49,13 +50,14 @@ export const consultarBarrasIndex_xMC = async (req, res) => {
 
 export const actualizarBarra = async (req, res) => {
   try {
+    const { session } = req.user;
     const { id } = req.params;
 
     if (!id) {
       return responseError(200, "Id no proporcionado", 400, res);
     }
 
-    const result = await service.actualizarBarra(id, req.body);
+    const result = await service.actualizarBarra(id, req.body, session);
 
     if (!result.success) {
       return responseError(200, result.message, 500, res);
@@ -69,7 +71,8 @@ export const actualizarBarra = async (req, res) => {
 
 export const guardarAgrupacion = async (req, res) => {
   try {
-    const result = await service.guardarAgrupacion(req.body);
+    const { session } = req.user;
+    const result = await service.guardarAgrupacion(req.body, session);
 
     if (!result.success) {
       return responseError(200, result.message, 500, res);
@@ -85,6 +88,7 @@ export const consultarAgrupacionesIndex_xBarraId = async (req, res) => {
   try {
     //tomamos el parametro
     const { barra_id } = req.params;
+    const { session } = req.user;
 
     //sino tenemos el parametro lo que lanzamos es un error
     if (!barra_id) {
@@ -96,7 +100,10 @@ export const consultarAgrupacionesIndex_xBarraId = async (req, res) => {
       );
     }
 
-    const result = await service.consultarAgrupacionesIndex_xBarraId(barra_id);
+    const result = await service.consultarAgrupacionesIndex_xBarraId(
+      barra_id,
+      session,
+    );
 
     if (!result.success) {
       return responseError(200, result.message, 404, res);
@@ -112,12 +119,13 @@ export const consultarAgrupacionesIndex_xBarraId = async (req, res) => {
 export const actualizarAgrupacion = async (req, res) => {
   try {
     const { id } = req.params;
+    const { session } = req.user;
 
     if (!id) {
       return responseError(200, "Id no proporcionado", 400, res);
     }
 
-    const result = await service.actualizarAgrupacion(id, req.body);
+    const result = await service.actualizarAgrupacion(id, req.body, session);
 
     if (!result.success) {
       return responseError(200, result.message, 500, res);
@@ -132,12 +140,13 @@ export const actualizarAgrupacion = async (req, res) => {
 export const eliminarBarra = async (req, res) => {
   try {
     const { id } = req.params;
+    const { session } = req.user;
 
     if (!id) {
       return responseError(200, "Id no proporcionado", 400, res);
     }
 
-    const result = await service.eliminarBarraConAgrupaciones(id);
+    const result = await service.eliminarBarraConAgrupaciones(id, session);
 
     if (!result.success) {
       return responseError(200, result.message, 500, res);
@@ -152,12 +161,13 @@ export const eliminarBarra = async (req, res) => {
 export const eliminarAgrupacion = async (req, res) => {
   try {
     const { id } = req.params;
+    const { session } = req.user;
 
     if (!id) {
       return responseError(200, "Id no proporcionado", 400, res);
     }
 
-    const result = await service.eliminarAgrupacion(id);
+    const result = await service.eliminarAgrupacion(id, session);
 
     if (!result.success) {
       return responseError(200, result.message, 500, res);
@@ -170,25 +180,29 @@ export const eliminarAgrupacion = async (req, res) => {
 };
 
 export const eliminarMedidasRapido = async (req, res) => {
-  const result = await service.eliminarRapido(req.body.medidas);
+  const { session } = req.user;
+  const result = await service.eliminarRapido(req.body.medidas, session);
   if (!result.success) return responseError(200, result.message, 500, res);
   return SuccessResponse(res, null, result.message);
 };
 
 export const actualizarMedidasRapido = async (req, res) => {
-  const result = await service.actualizarRapido(req.body.medidas);
+  const { session } = req.user;
+  const result = await service.actualizarRapido(req.body.medidas, session);
   if (!result.success) return responseError(200, result.message, 500, res);
   return SuccessResponse(res, null, result.message);
 };
 
 export const insertarMedidasRapido = async (req, res) => {
-  const result = await service.insertarRapido(req.body.medidas);
+  const { session } = req.user;
+  const result = await service.insertarRapido(req.body.medidas, session);
   if (!result.success) return responseError(200, result.message, 500, res);
   return SuccessResponse(res, null, result.message);
 };
 
 export const cargarMedidasDesdeExcel = async (req, res) => {
   try {
+    const { session } = req.user;
     const { ucp } = req.body;
 
     if (!ucp) {
@@ -231,8 +245,8 @@ export const cargarMedidasDesdeExcel = async (req, res) => {
       medidas.push(medida);
     }
 
-    await service.eliminarRapido(medidas);
-    await service.insertarRapido(medidas);
+    await service.eliminarRapido(medidas, session);
+    await service.insertarRapido(medidas, session);
 
     return SuccessResponse(res, null, "Datos cargados correctamente");
   } catch (error) {
@@ -261,21 +275,24 @@ export const descargarPlantillaMedidas = async (req, res) => {
 
 export const eliminarFechasIngresadasTodos = async (req, res) => {
   const { ucp } = req.params;
-  const result = await service.eliminarFechasIngresadasTodos(ucp);
+  const { session } = req.user;
+  const result = await service.eliminarFechasIngresadasTodos(ucp, session);
   return result.success
     ? SuccessResponse(res, null, result.message)
     : responseError(200, result.message, 500, res);
 };
 
 export const guardarRangoFecha = async (req, res) => {
-  const result = await service.guardarRangoFecha(req.body);
+  const { session } = req.user;
+  const result = await service.guardarRangoFecha(req.body, session);
   return result.success
     ? SuccessResponse(res, null, result.message)
     : responseError(200, result.message, 500, res);
 };
 
 export const reiniciarMedidas = async (req, res) => {
-  const result = await service.reiniciarMedidas();
+  const { session } = req.user;
+  const result = await service.reiniciarMedidas(session);
   return result.success
     ? SuccessResponse(res, null, result.message)
     : responseError(200, result.message, 500, res);
@@ -283,7 +300,8 @@ export const reiniciarMedidas = async (req, res) => {
 
 export const consultarBarraNombre = async (req, res) => {
   const { barra } = req.params;
-  const result = await service.consultarBarraNombre(barra);
+  const { session } = req.user;
+  const result = await service.consultarBarraNombre(barra, session);
   return result.success
     ? SuccessResponse(res, result.data, "Consulta exitosa")
     : responseError(200, result.message, 500, res);
@@ -291,7 +309,12 @@ export const consultarBarraNombre = async (req, res) => {
 
 export const consultarBarraFlujoNombreInicial = async (req, res) => {
   const { barra, tipo } = req.params;
-  const result = await service.consultarBarraFlujoNombreInicial(barra, tipo);
+  const { session } = req.user;
+  const result = await service.consultarBarraFlujoNombreInicial(
+    barra,
+    tipo,
+    session,
+  );
   return result.success
     ? SuccessResponse(res, result.data, "Consulta exitosa")
     : responseError(200, result.message, 500, res);
@@ -299,10 +322,9 @@ export const consultarBarraFlujoNombreInicial = async (req, res) => {
 
 export const consultarBarraFactorNombre = async (req, res) => {
   try {
-    console.log("PARAMS:", req.params); // ← agrega esto
-    console.log("BODY:", req.body); // ← agrega esto
     const { barra, tipo } = req.params;
     const { codigo_rpm } = req.body;
+    const { session } = req.user;
 
     // Validar params manualmente
     if (!barra || !tipo) {
@@ -317,6 +339,7 @@ export const consultarBarraFactorNombre = async (req, res) => {
       barra,
       tipo,
       codigo_rpm,
+      session,
     );
 
     if (!result.success) {
@@ -331,7 +354,11 @@ export const consultarBarraFactorNombre = async (req, res) => {
 
 export const consultarMedidasCalcularCompleto = async (req, res) => {
   try {
-    const result = await service.consultarMedidasCalcularCompleto(req.body);
+    const { session } = req.user;
+    const result = await service.consultarMedidasCalcularCompleto(
+      req.body,
+      session,
+    );
 
     if (!result.success) {
       return responseError(200, result.message, 500, res);
@@ -345,6 +372,7 @@ export const consultarMedidasCalcularCompleto = async (req, res) => {
 
 export const exportarMedidasExcel = async (req, res) => {
   try {
+    const { session } = req.user;
     const { fecha_inicial, fecha_final, mc, tipo_dia, tipo_energia } = req.body;
 
     if (!fecha_inicial || !fecha_final || !mc || !tipo_dia || !tipo_energia) {
@@ -352,7 +380,7 @@ export const exportarMedidasExcel = async (req, res) => {
     }
 
     // 1️⃣ Obtener barras
-    const barrasRes = await service.consultarBarrasIndex_xMC(mc);
+    const barrasRes = await service.consultarBarrasIndex_xMC(mc, session);
     if (!barrasRes.success || !barrasRes.data?.length) {
       return responseError(200, "No hay barras", 400, res);
     }
@@ -364,7 +392,7 @@ export const exportarMedidasExcel = async (req, res) => {
       const barraNombre = barra.barra;
 
       // códigos RPM
-      const rpmRes = await service.consultarBarraNombre(barraNombre);
+      const rpmRes = await service.consultarBarraNombre(barraNombre, session);
       if (!rpmRes.success || !rpmRes.data?.length) continue;
       const codigosRPM = rpmRes.data.map((r) => r.codigo_rpm);
 
@@ -372,6 +400,7 @@ export const exportarMedidasExcel = async (req, res) => {
       const flujosRes = await service.consultarBarraFlujoNombreInicial(
         barraNombre,
         tipo_energia,
+        session,
       );
       if (!flujosRes.success || !flujosRes.data?.length) continue;
       const flujos = flujosRes.data.map((f) => f.flujo);
@@ -381,8 +410,9 @@ export const exportarMedidasExcel = async (req, res) => {
         barraNombre,
         tipo_energia,
         codigosRPM,
+        session,
       );
-      console.log("Factores Res:", factoresRes);
+
       if (!factoresRes.success) continue;
 
       const factorMap = {};
@@ -400,6 +430,7 @@ export const exportarMedidasExcel = async (req, res) => {
         codigo_rpm: codigosRPM,
         flujo: flujos,
         marcado: false,
+        session,
       });
 
       if (!medidasRes.success || !medidasRes.data?.length) continue;
@@ -475,7 +506,7 @@ export const exportarMedidasExcel = async (req, res) => {
 export const calculosCurvasTipicas = async (req, res) => {
   const { fecha_inicio, fecha_fin, ucp, tipo_dia, flujo_tipo, n_max, barra } =
     req.body;
-
+  const { session } = req.user;
   try {
     const result = await service.calculosCurvasTipicas(
       fecha_inicio,
@@ -486,6 +517,7 @@ export const calculosCurvasTipicas = async (req, res) => {
       n_max,
       barra,
       600000,
+      session,
     );
 
     if (!result.success) {
@@ -510,6 +542,7 @@ export const calculosCurvasTipicas = async (req, res) => {
 
 export const calculoFda = async (req, res) => {
   const { fecha_inicio, fecha_fin, ucp, tipo_dia, curvas_tipicas } = req.body;
+  const { session } = req.user;
 
   try {
     const result = await service.calculoFda(
@@ -519,6 +552,7 @@ export const calculoFda = async (req, res) => {
       tipo_dia,
       curvas_tipicas,
       600000,
+      session,
     );
 
     if (!result.success) {
@@ -543,15 +577,16 @@ export const calculoFda = async (req, res) => {
 
 export const calculoFdp = async (req, res) => {
   const { fecha_inicio, fecha_fin, ucp, tipo_dia, curvas_tipicas } = req.body;
-
+  const { session } = req.user;
   try {
-    const result = await service.calculoFda(
+    const result = await service.calculoFdp(
       fecha_inicio,
       fecha_fin,
       ucp,
       tipo_dia,
       curvas_tipicas,
       600000,
+      session,
     );
 
     if (!result.success) {
@@ -576,7 +611,7 @@ export const calculoFdp = async (req, res) => {
 
 export const calcularMedidas = async (req, res) => {
   const { fecha_inicio, fecha_fin, e_ar, ucp } = req.query;
-
+  const { session } = req.user;
   try {
     const result = await service.calcularMedidas(
       fecha_inicio,
@@ -584,6 +619,7 @@ export const calcularMedidas = async (req, res) => {
       e_ar,
       ucp,
       600000,
+      session,
     );
 
     if (!result.success) {

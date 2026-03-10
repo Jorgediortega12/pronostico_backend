@@ -19,6 +19,8 @@ export const exportarBulk = async (req, res) => {
     historico = [],
     datos = {},
   } = req.body;
+
+  const { session } = req.user;
   try {
     const result = await service.exportarBulk(
       fecha_inicio,
@@ -28,6 +30,7 @@ export const exportarBulk = async (req, res) => {
       pronostico,
       historico,
       datos,
+      session,
     );
     if (!result.success) return responseError(200, result.message, 404, res);
     return SuccessResponse(res, true, result.message);
@@ -39,8 +42,9 @@ export const exportarBulk = async (req, res) => {
 
 export const borrarPronosticos = async (req, res) => {
   const { ucp, finicio, ffin } = req.body;
+  const { session } = req.user;
   try {
-    const result = await service.borrarPronosticos(ucp, finicio, ffin);
+    const result = await service.borrarPronosticos(ucp, finicio, ffin, session);
     if (!result.success) return responseError(200, result.message, 404, res);
     return SuccessResponse(res, true, result.message);
   } catch (err) {
@@ -58,6 +62,7 @@ export const play = async (req, res) => {
     modelo = false,
     data,
   } = req.body;
+  const { session } = req.user;
   try {
     const result = await service.play(
       ucp,
@@ -66,6 +71,7 @@ export const play = async (req, res) => {
       force_retrain,
       modelo,
       data,
+      session,
     );
     if (!result.success) return responseError(200, result.message, 404, res);
     return SuccessResponse(res, result.data, result.message);
@@ -76,6 +82,7 @@ export const play = async (req, res) => {
 };
 
 export const retrainModel = async (req, res) => {
+  const { session } = req.user;
   try {
     // aceptar ucp por query o body (compatibilidad)
     const ucp = req.query.ucp ?? req.body?.ucp;
@@ -120,7 +127,7 @@ export const retrainModel = async (req, res) => {
 
 export const getEvents = async (req, res) => {
   const { ucp, fecha_inicio, fecha_fin } = req.body;
-
+  const { session } = req.user;
   try {
     const result = await service.getEvents(
       fecha_inicio,
@@ -152,7 +159,7 @@ export const getEvents = async (req, res) => {
 
 export const errorFeedback = async (req, res) => {
   const { ucp, end_date, force_retrain } = req.body;
-
+  const { session } = req.user;
   try {
     const result = await service.errorFeedback(end_date, force_retrain, ucp);
 
@@ -179,11 +186,13 @@ export const errorFeedback = async (req, res) => {
 export const traerDatosClimaticos = async (req, res) => {
   try {
     const { ucp, fechainicio, fechafin } = req.params;
+    const { session } = req.user;
 
     const result = await service.traerDatosClimaticos(
       ucp,
       fechainicio,
       fechafin,
+      session,
     );
 
     if (!result.success) {
@@ -199,7 +208,7 @@ export const traerDatosClimaticos = async (req, res) => {
 export const predictDay = async (req, res) => {
   try {
     const { ucp, fecha, fecha_referencia } = req.body;
-
+    const { session } = req.user;
     const result = await service.predictDay({
       ucp,
       fecha,
@@ -234,7 +243,7 @@ export const validateHourlyAdjustments = async (req, res) => {
   try {
     const { ucp, fecha, tipo_dia, predicciones_actuales, ajustes_solicitados } =
       req.body;
-
+    const { session } = req.user;
     const result = await service.validateHourlyAdjustments({
       ucp,
       fecha,
@@ -266,7 +275,7 @@ export const validateHourlyAdjustments = async (req, res) => {
 
 export const analyzeDeviation = async (req, res) => {
   const { ucp, desvios } = req.body;
-
+  const { session } = req.user;
   try {
     const result = await service.analyzeDeviation(ucp, desvios);
 

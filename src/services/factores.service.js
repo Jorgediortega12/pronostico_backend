@@ -3,6 +3,7 @@ import Logger from "../helpers/logger.js";
 import colors from "colors";
 import path from "path";
 import fs from "fs";
+import { createConectionPG } from "../helpers/connections.js";
 
 const model = FactoresModel.getInstance();
 
@@ -15,9 +16,10 @@ export default class FactoresService {
     }
     return FactoresService.instance;
   }
-  guardarBarra = async (data) => {
+  guardarBarra = async (data, session) => {
     try {
-      const res = await model.guardarBarra(data);
+      const client = createConectionPG(session);
+      const res = await model.guardarBarra(data, client);
       return {
         success: true,
         data: res,
@@ -33,9 +35,10 @@ export default class FactoresService {
     }
   };
 
-  consultarBarrasIndex_xMC = async (mc) => {
+  consultarBarrasIndex_xMC = async (mc, session) => {
     try {
-      const res = await model.consultarBarrasIndex_xMC(mc);
+      const client = createConectionPG(session);
+      const res = await model.consultarBarrasIndex_xMC(mc, client);
 
       if (!res) {
         return {
@@ -63,9 +66,10 @@ export default class FactoresService {
     }
   };
 
-  actualizarBarra = async (id, data) => {
+  actualizarBarra = async (id, data, session) => {
     try {
-      await model.actualizarBarra(id, data);
+      const client = createConectionPG(session);
+      await model.actualizarBarra(id, data, client);
       return {
         success: true,
         message: "Barra actualizada correctamente",
@@ -79,9 +83,10 @@ export default class FactoresService {
     }
   };
 
-  guardarAgrupacion = async (data) => {
+  guardarAgrupacion = async (data, session) => {
     try {
-      const res = await model.guardarAgrupacion(data);
+      const client = createConectionPG(session);
+      const res = await model.guardarAgrupacion(data, client);
       return {
         success: true,
         data: res,
@@ -97,9 +102,13 @@ export default class FactoresService {
     }
   };
 
-  consultarAgrupacionesIndex_xBarraId = async (barra_id) => {
+  consultarAgrupacionesIndex_xBarraId = async (barra_id, session) => {
     try {
-      const res = await model.consultarAgrupacionesIndex_xBarraId(barra_id);
+      const client = createConectionPG(session);
+      const res = await model.consultarAgrupacionesIndex_xBarraId(
+        barra_id,
+        client,
+      );
 
       if (!res) {
         return {
@@ -127,9 +136,10 @@ export default class FactoresService {
     }
   };
 
-  actualizarAgrupacion = async (id, data) => {
+  actualizarAgrupacion = async (id, data, session) => {
     try {
-      await model.actualizarAgrupacion(id, data);
+      const client = createConectionPG(session);
+      await model.actualizarAgrupacion(id, data, client);
       return {
         success: true,
         message: "Agrupación actualizada correctamente",
@@ -143,9 +153,10 @@ export default class FactoresService {
     }
   };
 
-  eliminarBarraConAgrupaciones = async (id) => {
+  eliminarBarraConAgrupaciones = async (id, session) => {
     try {
-      await model.eliminarBarraConAgrupaciones(id);
+      const client = createConectionPG(session);
+      await model.eliminarBarraConAgrupaciones(id, client);
       return {
         success: true,
         message: "Barra y agrupaciones eliminadas correctamente",
@@ -159,9 +170,10 @@ export default class FactoresService {
     }
   };
 
-  eliminarAgrupacion = async (id) => {
+  eliminarAgrupacion = async (id, session) => {
     try {
-      await model.eliminarAgrupacion(id);
+      const client = createConectionPG(session);
+      await model.eliminarAgrupacion(id, client);
       return {
         success: true,
         message: "Agrupación eliminada correctamente",
@@ -175,27 +187,30 @@ export default class FactoresService {
     }
   };
 
-  eliminarRapido = async (data) => {
+  eliminarRapido = async (data, session) => {
     try {
-      await model.eliminarMedidasRapido(data);
+      const client = createConectionPG(session);
+      await model.eliminarMedidasRapido(data, client);
       return { success: true, message: "Medidas eliminadas correctamente" };
     } catch {
       return { success: false, message: "Error al eliminar medidas" };
     }
   };
 
-  actualizarRapido = async (data) => {
+  actualizarRapido = async (data, session) => {
     try {
-      await model.actualizarMedidasRapido(data);
+      const client = createConectionPG(session);
+      await model.actualizarMedidasRapido(data, client);
       return { success: true, message: "Medidas actualizadas correctamente" };
     } catch {
       return { success: false, message: "Error al actualizar medidas" };
     }
   };
 
-  insertarRapido = async (data) => {
+  insertarRapido = async (data, session) => {
     try {
-      await model.insertarMedidasRapido(data);
+      const client = createConectionPG(session);
+      await model.insertarMedidasRapido(data, client);
       return { success: true, message: "Medidas insertadas correctamente" };
     } catch {
       return { success: false, message: "Error al insertar medidas" };
@@ -225,57 +240,68 @@ export default class FactoresService {
     };
   };
 
-  eliminarFechasIngresadasTodos = async (ucp) => {
+  eliminarFechasIngresadasTodos = async (ucp, session) => {
     try {
-      await model.eliminarFechasIngresadasTodos(ucp);
+      const client = createConectionPG(session);
+      await model.eliminarFechasIngresadasTodos(ucp, client);
       return { success: true, message: "Fechas eliminadas correctamente" };
     } catch {
       return { success: false, message: "Error al eliminar fechas" };
     }
   };
 
-  guardarRangoFecha = async (data) => {
+  guardarRangoFecha = async (data, session) => {
     try {
-      await model.guardarRangoFecha(data);
+      const client = createConectionPG(session);
+      await model.guardarRangoFecha(data, client);
       return { success: true, message: "Rango de fecha guardado" };
     } catch {
       return { success: false, message: "Error al guardar rango" };
     }
   };
 
-  reiniciarMedidas = async () => {
+  reiniciarMedidas = async (session) => {
     try {
-      await model.reiniciarMedidas();
+      const client = createConectionPG(session);
+      await model.reiniciarMedidas(client);
       return { success: true, message: "Medidas reiniciadas" };
     } catch {
       return { success: false, message: "Error al reiniciar medidas" };
     }
   };
 
-  consultarBarraNombre = async (barra) => {
+  consultarBarraNombre = async (barra, session) => {
     try {
-      const data = await model.consultarBarraNombre(barra);
+      const client = createConectionPG(session);
+      const data = await model.consultarBarraNombre(barra, client);
       return { success: true, data };
     } catch {
       return { success: false, message: "Error al consultar barras" };
     }
   };
 
-  consultarBarraFlujoNombreInicial = async (barra, tipo) => {
+  consultarBarraFlujoNombreInicial = async (barra, tipo, session) => {
     try {
-      const data = await model.consultarBarraFlujoNombreInicial(barra, tipo);
+      const client = createConectionPG(session);
+      const data = await model.consultarBarraFlujoNombreInicial(
+        barra,
+        tipo,
+        client,
+      );
       return { success: true, data };
     } catch {
       return { success: false, message: "Error al consultar flujos" };
     }
   };
 
-  consultarBarraFactorNombre = async (barra, tipo, codigosRPM) => {
+  consultarBarraFactorNombre = async (barra, tipo, codigosRPM, session) => {
     try {
+      const client = createConectionPG(session);
       const data = await model.consultarBarraFactorNombre(
         barra,
         tipo,
         codigosRPM,
+        client,
       );
 
       return {
@@ -292,9 +318,10 @@ export default class FactoresService {
     }
   };
 
-  consultarMedidasCalcularCompleto = async (params) => {
+  consultarMedidasCalcularCompleto = async (params, session) => {
     try {
-      const data = await model.consultarMedidasCalcularCompleto(params);
+      const client = createConectionPG(session);
+      const data = await model.consultarMedidasCalcularCompleto(params, client);
 
       return {
         success: true,
@@ -322,9 +349,9 @@ export default class FactoresService {
   ) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    const port = 8002;
+    // const port = 8002;
     //puerto desarrollo
-    // const port = 8001;
+    const port = 8001;
 
     for (const host of hostsToTry) {
       let timer;
@@ -409,9 +436,9 @@ export default class FactoresService {
   ) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    const port = 8002;
+    // const port = 8002;
     //puerto desarrollo
-    // const port = 8001;
+    const port = 8001;
 
     for (const host of hostsToTry) {
       let timer;
@@ -494,9 +521,9 @@ export default class FactoresService {
   ) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    const port = 8002;
+    // const port = 8002;
     //puerto desarrollo
-    // const port = 8001;
+    const port = 8001;
 
     for (const host of hostsToTry) {
       let timer;
@@ -572,9 +599,9 @@ export default class FactoresService {
   async calcularMedidas(inicioIso, finIso, e_ar, ucp, timeoutMs = 600000) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    const port = 8002;
+    // const port = 8002;
     //puerto desarrollo
-    // const port = 8001;
+    const port = 8001;
 
     for (const host of hostsToTry) {
       let timer;

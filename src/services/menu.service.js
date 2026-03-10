@@ -1,7 +1,8 @@
-import MenuModel from '../models/menu.model.js';
-import UserModel from '../models/user.model.js';
-import Logger from '../helpers/logger.js';
-import colors from 'colors';
+import MenuModel from "../models/menu.model.js";
+import UserModel from "../models/user.model.js";
+import Logger from "../helpers/logger.js";
+import { createConectionPG } from "../helpers/connections.js";
+import colors from "colors";
 
 const model = MenuModel.getInstance();
 const userModel = UserModel.getInstance();
@@ -16,98 +17,111 @@ export default class MenuService {
     return MenuService.instance;
   }
 
-  obtenerModulosPadres = async () => {
+  obtenerModulosPadres = async (session) => {
     try {
-      const result = await model.obtenerModulosPadres();
+      const client = createConectionPG(session);
+      const result = await model.obtenerModulosPadres(client);
 
       if (!result || result.rows.length === 0) {
         return {
           success: true,
           data: [],
-          message: 'No hay módulos disponibles.'
+          message: "No hay módulos disponibles.",
         };
       }
 
       return {
         success: true,
         data: result.rows,
-        message: 'Módulos obtenidos correctamente.'
+        message: "Módulos obtenidos correctamente.",
       };
     } catch (err) {
-      Logger.error(colors.red('Error MenuService obtenerModulosPadres'), err);
-      throw new Error('ERROR TECNICO');
+      Logger.error(colors.red("Error MenuService obtenerModulosPadres"), err);
+      throw new Error("ERROR TECNICO");
     }
   };
 
-  obtenerPerfilesDisponibles = async () => {
+  obtenerPerfilesDisponibles = async (session) => {
     try {
-      const result = await model.obtenerPerfilesDisponibles();
+      const client = createConectionPG(session);
+      const result = await model.obtenerPerfilesDisponibles(client);
 
       if (!result || result.rows.length === 0) {
         return {
           success: true,
           data: [],
-          message: 'No hay perfiles disponibles.'
+          message: "No hay perfiles disponibles.",
         };
       }
 
       return {
         success: true,
         data: result.rows,
-        message: 'Perfiles obtenidos correctamente.'
+        message: "Perfiles obtenidos correctamente.",
       };
     } catch (err) {
-      Logger.error(colors.red('Error MenuService obtenerPerfilesDisponibles'), err);
+      Logger.error(
+        colors.red("Error MenuService obtenerPerfilesDisponibles"),
+        err,
+      );
       throw err;
     }
   };
 
-  obtenerModulosPorPerfil = async (codPerfil) => {
+  obtenerModulosPorPerfil = async (codPerfil, session) => {
     try {
       if (!codPerfil) {
-        throw new Error('El código de perfil es requerido');
+        throw new Error("El código de perfil es requerido");
       }
-
-      const result = await model.obtenerModulosPorPerfil(codPerfil);
+      const client = createConectionPG(session);
+      const result = await model.obtenerModulosPorPerfil(client, codPerfil);
 
       if (!result || result.rows.length === 0) {
         return {
           success: true,
           data: [],
-          message: 'No hay módulos asignados a este perfil.'
+          message: "No hay módulos asignados a este perfil.",
         };
       }
 
       return {
         success: true,
         data: result.rows,
-        message: 'Módulos del perfil obtenidos correctamente.'
+        message: "Módulos del perfil obtenidos correctamente.",
       };
     } catch (err) {
-      Logger.error(colors.red('Error MenuService obtenerModulosPorPerfil'), err);
+      Logger.error(
+        colors.red("Error MenuService obtenerModulosPorPerfil"),
+        err,
+      );
       throw err;
     }
   };
 
-  asignarModuloAPerfil = async (codPerfil, codMenu) => {
+  asignarModuloAPerfil = async (codPerfil, codMenu, session) => {
     try {
+      const client = createConectionPG(session);
       if (!codPerfil || !codMenu) {
-        throw new Error('El código de perfil y código de menú son requeridos');
+        throw new Error("El código de perfil y código de menú son requeridos");
       }
 
-      const result = await model.asignarModuloAPerfil(codPerfil, codMenu);
+      const result = await model.asignarModuloAPerfil(
+        codPerfil,
+        codMenu,
+        client,
+      );
 
       if (!result || result.rows.length === 0) {
-        throw new Error('Error al asignar módulo al perfil');
+        throw new Error("Error al asignar módulo al perfil");
       }
 
       return {
         success: true,
         data: result.rows[0],
-        message: 'Módulo asignado al perfil exitosamente.'
+        message: "Módulo asignado al perfil exitosamente.",
       };
     } catch (err) {
-      Logger.error(colors.red('Error MenuService asignarModuloAPerfil'), err);
+      Logger.error(colors.red("Error MenuService asignarModuloAPerfil"), err);
       throw err;
     }
   };
@@ -115,113 +129,136 @@ export default class MenuService {
   /**
    * Remover módulo de un perfil
    */
-  removerModuloDePerfil = async (codPerfil, codMenu) => {
+  removerModuloDePerfil = async (codPerfil, codMenu, session) => {
     try {
+      const client = createConectionPG(session);
       if (!codPerfil || !codMenu) {
-        throw new Error('El código de perfil y código de menú son requeridos');
+        throw new Error("El código de perfil y código de menú son requeridos");
       }
 
-      const result = await model.removerModuloDePerfil(codPerfil, codMenu);
+      const result = await model.removerModuloDePerfil(
+        codPerfil,
+        codMenu,
+        client,
+      );
 
       if (!result || result.rowCount === 0) {
-        throw new Error('Asignación no encontrada');
+        throw new Error("Asignación no encontrada");
       }
 
       return {
         success: true,
-        message: 'Módulo removido del perfil exitosamente.'
+        message: "Módulo removido del perfil exitosamente.",
       };
     } catch (err) {
-      Logger.error(colors.red('Error MenuService removerModuloDePerfil'), err);
+      Logger.error(colors.red("Error MenuService removerModuloDePerfil"), err);
       throw err;
     }
   };
 
-  editarPerfil = async (codPerfil, nombre) => {
+  editarPerfil = async (codPerfil, nombre, session) => {
     try {
+      const client = createConectionPG(session);
       if (!codPerfil || !nombre) {
-        throw new Error('El código del perfil y el nombre son requeridos');
+        throw new Error("El código del perfil y el nombre son requeridos");
       }
 
-      const result = await userModel.editarPerfil(codPerfil, nombre);
+      const result = await userModel.editarPerfil(codPerfil, nombre, client);
 
       if (!result || result.rowCount === 0) {
-        throw new Error('Error al actualizar el perfil');
+        throw new Error("Error al actualizar el perfil");
       }
 
       return {
         success: true,
-        message: 'Perfil actualizado exitosamente.'
+        message: "Perfil actualizado exitosamente.",
       };
     } catch (err) {
-      Logger.error(colors.red('Error MenuService editarPerfil'), err);
+      Logger.error(colors.red("Error MenuService editarPerfil"), err);
       throw err;
     }
   };
 
-  eliminarPerfil = async (codPerfil) => {
+  eliminarPerfil = async (codPerfil, session) => {
     try {
+      const client = createConectionPG(session);
       if (!codPerfil) {
-        throw new Error('El código del perfil es requerido');
+        throw new Error("El código del perfil es requerido");
       }
 
-      const result = await userModel.eliminarPerfil(codPerfil);
+      const result = await userModel.eliminarPerfil(codPerfil, client);
 
       if (!result || result.rowCount === 0) {
-        throw new Error('Perfil no encontrado');
+        throw new Error("Perfil no encontrado");
       }
 
       return {
         success: true,
-        message: 'Perfil eliminado exitosamente.'
+        message: "Perfil eliminado exitosamente.",
       };
     } catch (err) {
-      Logger.error(colors.red('Error MenuService eliminarPerfil'), err);
+      Logger.error(colors.red("Error MenuService eliminarPerfil"), err);
       throw err;
     }
   };
 
-  crearModulo = async (nombre, nivel = null, orden = null, link, imagen = null) => {
+  crearModulo = async (
+    nombre,
+    nivel = null,
+    orden = null,
+    link,
+    imagen = null,
+    session,
+  ) => {
     try {
+      const client = createConectionPG(session);
       if (!nombre || !link) {
-        throw new Error('Los campos nombre y link son obligatorios')
+        throw new Error("Los campos nombre y link son obligatorios");
       }
-      const result = await model.crearModulo(nombre, nivel, orden, link, imagen);
+      const result = await model.crearModulo(
+        nombre,
+        nivel,
+        orden,
+        link,
+        imagen,
+        client,
+      );
       if (!result || result.rowCount === 0) {
-        throw new Error('Error al crear el modulo requerido')
+        throw new Error("Error al crear el modulo requerido");
       }
 
       return {
         success: true,
-        message: 'El modulo fue creado con exito'
-      }
+        message: "El modulo fue creado con exito",
+      };
     } catch (err) {
-      Logger.error(colors.red('Error MenuService crearModulo'));
+      Logger.error(colors.red("Error MenuService crearModulo"));
       throw err;
     }
-  }
+  };
 
-  eliminarModulo = async (cod) => {
+  eliminarModulo = async (cod, session) => {
     try {
+      const client = createConectionPG(session);
       if (!cod) {
-        throw new Error('No se pudo eliminar el modulo correctamente')
+        throw new Error("No se pudo eliminar el modulo correctamente");
       }
 
-      const result = await model.eliminarModulo(cod);
+      const result = await model.eliminarModulo(cod, client);
 
       if (!result || result.rowCount === 0) {
-        throw new Error('No se pudo eliminar el modulo requerido');
+        throw new Error("No se pudo eliminar el modulo requerido");
       }
 
       return {
         success: true,
-        message: 'Modulo eliminado correctamente'
-      }
+        message: "Modulo eliminado correctamente",
+      };
     } catch (err) {
-      Logger.error(colors.red('Error menuServices EliminarModulo'));
+      Logger.error(colors.red("Error menuServices EliminarModulo"));
       throw err;
     }
-  }
+  };
 }
 
 // Exportar instancia singleton

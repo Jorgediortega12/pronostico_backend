@@ -26,8 +26,7 @@ export default class FactoresModel {
     });
   }
 
-  guardarBarra = async (data) => {
-    const client = this.createClient();
+  guardarBarra = async (data, client) => {
     try {
       await client.connect();
       const result = await client.query(querys.guardarBarra, [
@@ -47,8 +46,7 @@ export default class FactoresModel {
     }
   };
 
-  consultarBarrasIndex_xMC = async (mc) => {
-    const client = this.createClient();
+  consultarBarrasIndex_xMC = async (mc, client) => {
     try {
       await client.connect();
       const result = await client.query(querys.consultarBarrasIndex_xMC, [mc]);
@@ -56,7 +54,7 @@ export default class FactoresModel {
     } catch (error) {
       Logger.error(
         colors.red("Error FactoresModel consultarBarrasIndex_xMC"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -64,8 +62,7 @@ export default class FactoresModel {
     }
   };
 
-  actualizarBarra = async (id, data) => {
-    const client = this.createClient();
+  actualizarBarra = async (id, data, client) => {
     try {
       await client.connect();
       await client.query(querys.actualizarBarra, [
@@ -86,9 +83,7 @@ export default class FactoresModel {
     }
   };
 
-  guardarAgrupacion = async (data) => {
-    const client = this.createClient();
-    console.log("DATA EN MODEL:", data);
+  guardarAgrupacion = async (data, client) => {
     try {
       await client.connect();
       const result = await client.query(querys.guardarAgrupacion, [
@@ -105,19 +100,18 @@ export default class FactoresModel {
     }
   };
 
-  consultarAgrupacionesIndex_xBarraId = async (barra_id) => {
-    const client = this.createClient();
+  consultarAgrupacionesIndex_xBarraId = async (barra_id, client) => {
     try {
       await client.connect();
       const result = await client.query(
         querys.consultarAgrupacionesIndex_xBarraId,
-        [barra_id]
+        [barra_id],
       );
       return result.rows.length > 0 ? result.rows : null;
     } catch (error) {
       Logger.error(
         colors.red("Error FactoresModel consultarAgrupacionesIndex_xBarraId"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -125,8 +119,7 @@ export default class FactoresModel {
     }
   };
 
-  actualizarAgrupacion = async (id, data) => {
-    const client = this.createClient();
+  actualizarAgrupacion = async (id, data, client) => {
     try {
       await client.connect();
       await client.query(querys.actualizarAgrupacion, [
@@ -144,8 +137,7 @@ export default class FactoresModel {
     }
   };
 
-  eliminarBarraConAgrupaciones = async (id) => {
-    const client = this.createClient();
+  eliminarBarraConAgrupaciones = async (id, client) => {
     try {
       await client.connect();
       await client.query("BEGIN");
@@ -166,8 +158,7 @@ export default class FactoresModel {
     }
   };
 
-  eliminarAgrupacion = async (id) => {
-    const client = this.createClient();
+  eliminarAgrupacion = async (id, client) => {
     try {
       await client.connect();
       await client.query(querys.eliminarAgrupacion, [id]);
@@ -177,8 +168,7 @@ export default class FactoresModel {
     }
   };
 
-  eliminarMedidasRapido = async (medidas) => {
-    const client = this.createClient();
+  eliminarMedidasRapido = async (medidas, client) => {
     try {
       await client.connect();
       await client.query("BEGIN");
@@ -197,7 +187,7 @@ export default class FactoresModel {
       await client.query("ROLLBACK");
       Logger.error(
         colors.red("Error MedidasModel eliminarMedidasRapido"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -205,8 +195,7 @@ export default class FactoresModel {
     }
   };
 
-  actualizarMedidasRapido = async (medidas) => {
-    const client = this.createClient();
+  actualizarMedidasRapido = async (medidas, client) => {
     try {
       await client.connect();
       await client.query("BEGIN");
@@ -249,7 +238,7 @@ export default class FactoresModel {
       await client.query("ROLLBACK");
       Logger.error(
         colors.red("Error MedidasModel actualizarMedidasRapido"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -257,8 +246,7 @@ export default class FactoresModel {
     }
   };
 
-  insertarMedidasRapido = async (medidas) => {
-    const client = this.createClient();
+  insertarMedidasRapido = async (medidas, client) => {
     try {
       await client.connect();
       await client.query("BEGIN");
@@ -301,7 +289,7 @@ export default class FactoresModel {
       await client.query("ROLLBACK");
       Logger.error(
         colors.red("Error MedidasModel insertarMedidasRapido"),
-        error
+        error,
       );
       throw error;
     } finally {
@@ -313,8 +301,7 @@ export default class FactoresModel {
      FECHAS INGRESADAS
      ========================= */
 
-  eliminarFechasIngresadasTodos = async (ucp) => {
-    const client = this.createClient();
+  eliminarFechasIngresadasTodos = async (ucp, client) => {
     try {
       await client.connect();
       await client.query(querys.eliminarFechasIngresadasTodos, [ucp]);
@@ -327,8 +314,7 @@ export default class FactoresModel {
     }
   };
 
-  guardarRangoFecha = async (data) => {
-    const client = this.createClient();
+  guardarRangoFecha = async (data, client) => {
     try {
       await client.connect();
       await client.query(querys.guardarRangoFecha, [
@@ -352,8 +338,7 @@ export default class FactoresModel {
      MEDIDAS
      ========================= */
 
-  reiniciarMedidas = async () => {
-    const client = this.createClient();
+  reiniciarMedidas = async (client) => {
     try {
       await client.connect();
       await client.query(querys.reiniciarMedidas);
@@ -370,8 +355,7 @@ export default class FactoresModel {
      CONSULTAS
      ========================= */
 
-  consultarBarraNombre = async (barra) => {
-    const client = this.createClient();
+  consultarBarraNombre = async (barra, client) => {
     try {
       await client.connect();
       const result = await client.query(querys.consultarBarraNombre, [barra]);
@@ -384,13 +368,12 @@ export default class FactoresModel {
     }
   };
 
-  consultarBarraFlujoNombreInicial = async (barra, tipo) => {
-    const client = this.createClient();
+  consultarBarraFlujoNombreInicial = async (barra, tipo, client) => {
     try {
       await client.connect();
       const result = await client.query(
         querys.consultarBarraFlujoNombreInicial,
-        [barra, tipo]
+        [barra, tipo],
       );
       return result.rows;
     } catch (error) {
@@ -401,8 +384,7 @@ export default class FactoresModel {
     }
   };
 
-  consultarBarraFactorNombre = async (barra, tipo, codigosRPM) => {
-    const client = this.createClient();
+  consultarBarraFactorNombre = async (barra, tipo, codigosRPM, client) => {
     try {
       await client.connect();
 
@@ -421,9 +403,7 @@ export default class FactoresModel {
     }
   };
 
-  consultarMedidasCalcularCompleto = async (params) => {
-    const client = this.createClient();
-
+  consultarMedidasCalcularCompleto = async (params, client) => {
     const {
       fecha_inicial,
       fecha_final,
@@ -450,7 +430,7 @@ export default class FactoresModel {
           mc,
           barra,
           marcadoBool,
-        ]
+        ],
       );
 
       return result.rows;

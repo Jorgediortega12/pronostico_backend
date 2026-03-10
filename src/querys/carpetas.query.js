@@ -1,24 +1,18 @@
-import pool from "../config/database.js";
-
 /**
  * Clase para manejar las consultas relacionadas con carpetas
  */
 class CarpetasQuery {
-  constructor() {
-    this.pool = pool;
-  }
-
   /**
    * Obtener información de un archivo por su código
    */
-  async obtenerArchivoPorCodigo(codigoArchivo) {
+  async obtenerArchivoPorCodigo(codigoArchivo, client) {
     try {
       const consulta = `
         SELECT codigo, codcarpeta, nombrearchivo, path, "contentType"
         FROM archivos
         WHERE codigo = $1
       `;
-      const result = await this.pool.query(consulta, [codigoArchivo]);
+      const result = await client.query(consulta, [codigoArchivo]);
 
       if (result.rows.length === 0) {
         return null;
@@ -34,14 +28,14 @@ class CarpetasQuery {
   /**
    * Obtener información de una carpeta por su código
    */
-  async obtenerCarpetaPorCodigo(codigoCarpeta) {
+  async obtenerCarpetaPorCodigo(codigoCarpeta, client) {
     try {
       const consulta = `
         SELECT codigo, nombre, codsuperior, nivel
         FROM carpetas
         WHERE codigo = $1
       `;
-      const result = await this.pool.query(consulta, [codigoCarpeta]);
+      const result = await client.query(consulta, [codigoCarpeta]);
 
       if (result.rows.length === 0) {
         return null;
@@ -57,7 +51,7 @@ class CarpetasQuery {
   /**
    * Obtener todos los archivos de una carpeta y sus subcarpetas
    */
-  async obtenerArchivosDeCarpeta(codigoCarpeta) {
+  async obtenerArchivosDeCarpeta(codigoCarpeta, client) {
     try {
       // Primero obtener todos los códigos de carpetas (incluidas subcarpetas)
       const consultaCarpetas = `
@@ -70,7 +64,7 @@ class CarpetasQuery {
         SELECT codigo FROM subcarpetas
       `;
 
-      const resultCarpetas = await this.pool.query(consultaCarpetas, [
+      const resultCarpetas = await client.query(consultaCarpetas, [
         codigoCarpeta,
       ]);
       const codigosCarpetas = resultCarpetas.rows.map((row) => row.codigo);
@@ -87,7 +81,7 @@ class CarpetasQuery {
         ORDER BY codcarpeta, nombrearchivo
       `;
 
-      const resultArchivos = await this.pool.query(consultaArchivos, [
+      const resultArchivos = await client.query(consultaArchivos, [
         codigosCarpetas,
       ]);
       return resultArchivos.rows;
@@ -100,7 +94,7 @@ class CarpetasQuery {
   /**
    * Obtener todas las subcarpetas de una carpeta (incluyendo vacías)
    */
-  async obtenerSubcarpetas(codigoCarpeta) {
+  async obtenerSubcarpetas(codigoCarpeta, client) {
     try {
       const consulta = `
         WITH RECURSIVE subcarpetas AS (
@@ -116,7 +110,7 @@ class CarpetasQuery {
         ORDER BY nivel, nombre
       `;
 
-      const result = await this.pool.query(consulta, [codigoCarpeta]);
+      const result = await client.query(consulta, [codigoCarpeta]);
       return result.rows;
     } catch (error) {
       console.error("Error en obtenerSubcarpetas:", error);
@@ -127,14 +121,14 @@ class CarpetasQuery {
   /**
    * Obtener árbol completo de carpetas con jerarquía y archivos asociados
    */
-  async obtenerArbolCarpetas() {
+  async obtenerArbolCarpetas(client) {
     try {
       // Consultar todas las carpetas
       const consultaCarpetas = `
       SELECT * FROM carpetas
       ORDER BY nivel ASC, nombre ASC
     `;
-      const resultCarpetas = await this.pool.query(consultaCarpetas);
+      const resultCarpetas = await client.query(consultaCarpetas);
 
       // Consultar archivos, obteniendo solo el de mayor código cuando hay duplicados
       const consultaArchivos = `
@@ -143,7 +137,7 @@ class CarpetasQuery {
       FROM archivos
       ORDER BY codcarpeta, nombrearchivo, codigo DESC
     `;
-      const resultArchivos = await this.pool.query(consultaArchivos);
+      const resultArchivos = await client.query(consultaArchivos);
 
       // Crear un mapa de archivos por carpeta
       const archivosPorCarpeta = new Map();

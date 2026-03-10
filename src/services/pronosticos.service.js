@@ -16,11 +16,11 @@ import {
 import { Pool } from "pg";
 import path from "path";
 import moment from "moment";
+import { createConectionPG } from "../helpers/connections.js";
 
 const model = PronosticosModel.getInstance();
 const configuracionModel = ConfiguracionModel.getInstance();
 const sesionModel = SesionModel.getInstance();
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 // helpers de fecha (robustos a entradas vacías y varios formatos básicos)
 function toISODateString(input) {
@@ -162,7 +162,9 @@ export default class PronosticosService {
    * @param {Array} params.historicoList - [{ fecha, p1..p24, observacion? }, ...]
    * @param {Object} [params.datos] - opcional, objeto con cuadroperiodo1..cuadroperiodo24 y otros flags (tipodatos,tipoedicion,...)
    * @param {string} [params.nombreArchivoTxt] - nombre del txt (ej 'MCAtlanticoAGTE1905.txt') (opcional, si no se pasa se construye)
-   */
+   * @param {Object} session - objeto sesión del usuario (para conexiones pg y guardado de sesión)
+
+  */
   saveSessionAndData = async ({
     model,
     ucp,
@@ -173,6 +175,7 @@ export default class PronosticosService {
     historicoList = [],
     datos = {},
     nombreArchivoTxt = null,
+    session,
   }) => {
     // helpers
     const parseMoment = (f) =>
@@ -252,9 +255,9 @@ export default class PronosticosService {
       cargaindustrial: datos.cargaindustrial ?? "",
       observacion: datos.observacion ?? "",
     };
-
+    const client = createConectionPG(session);
     // 1) buscar versión existente
-    const versionRow = await model.buscarVersionSesion(nombresesion);
+    const versionRow = await model.buscarVersionSesion(nombresesion, client);
     // versionRow puede venir como objeto { version: x } o { rows: [...] } o array
     let nroversion = 1;
     if (versionRow) {
@@ -312,7 +315,11 @@ export default class PronosticosService {
     };
 
     // Llamar a tu model.agregarVersionSesion pasando el objeto (tu model lo transforma a valores)
-    const versionInserted = await model.agregarVersionSesion(versionData);
+    const client2 = createConectionPG(session);
+    const versionInserted = await model.agregarVersionSesion(
+      versionData,
+      client2,
+    );
     if (!versionInserted) throw new Error("No se pudo crear versión de sesión");
 
     // extraer codigo de la respuesta (tu model retorna result.rows[0])
@@ -365,8 +372,8 @@ export default class PronosticosService {
         observacion: rec.observacion ?? "",
         tipo: "P",
       };
-
-      await model.agregarDatosPronosticoxSesion(datosDia);
+      const client3 = createConectionPG(session);
+      await model.agregarDatosPronosticoxSesion(datosDia, client3);
     }
 
     // 4) Insertar Histórico (tipo "D")
@@ -403,8 +410,8 @@ export default class PronosticosService {
         observacion: rec.observacion ?? "",
         tipo: "D",
       };
-
-      await model.agregarDatosPronosticoxSesion(datosDia);
+      const client4 = createConectionPG(session);
+      await model.agregarDatosPronosticoxSesion(datosDia, client4);
     }
 
     return {
@@ -423,6 +430,7 @@ export default class PronosticosService {
    * @param {string} ucp - ucp/mc (mercado comercializacion, se usa como carpeta MC{ucp})
    * @param {Array} pronosticoList - array [{fecha, p1..p24, observacion?}, ...]
    * @param {Array} historicoList - array [{fecha, p1..p24, observacion?}, ...]
+   * @param {Object} session - objeto sesión del usuario (para conexiones pg y guardado de sesión)
    */
   // Asegúrate de importar/definir al inicio del archivo:
   // import { generateTxtToFolder, generateXlsxToFolder, saveSessionAndData } from './utils/reportGenerator';
@@ -436,6 +444,7 @@ export default class PronosticosService {
     pronosticoList,
     historicoList,
     datos = {}, // <-- opcional: pasa aquí los cuadroperiodoX y metadatos si vienen
+    session,
   ) => {
     try {
       // 1) Generar archivos
@@ -471,7 +480,8 @@ export default class PronosticosService {
       const reportDirPhysicalRoot =
         process.env.REPORT_DIR || path.join(process.cwd(), "reportes");
       const monthName = monthNameSpanish(Number(mm));
-      const client = await pool.connect();
+      const client = createConectionPG(session);
+      await client.connect();
       let codcarpeta = null;
       let folderPathLogical = null;
       let folderPathPhysical = null;
@@ -487,7 +497,7 @@ export default class PronosticosService {
         folderPathLogical = folderInfo.folderPathLogical;
         folderPathPhysical = folderInfo.folderPathPhysical;
       } finally {
-        client.release();
+        await client.end();
       }
 
       // 4) Generar archivos directamente en folderPathPhysical
@@ -528,8 +538,9 @@ export default class PronosticosService {
 
       // 5) Insertar ambos archivos en una transacción y devolver los ids
       let insertIds = { xlsxId: null, txtId: null };
-      const clientFiles = await pool.connect();
+      const clientFiles = createConectionPG(session);
       try {
+        await clientFiles.connect();
         await clientFiles.query("BEGIN");
 
         const resXlsx = await insertFileRecord(clientFiles, {
@@ -557,7 +568,7 @@ export default class PronosticosService {
         );
         // continuar (igual que tu C#) o throw si prefieres abortar
       } finally {
-        clientFiles.release();
+        await clientFiles.end();
       }
 
       // 6) Guardar sesión y datos (pronóstico + histórico)
@@ -578,6 +589,7 @@ export default class PronosticosService {
             historicoList,
             datos, // objeto con cuadroperiodo1..24 y demas flags
             nombreArchivoTxt: txtResult.txtName,
+            session, // pasar session para que tu model pueda usarla si es necesario
           });
           Logger.info(
             `Sesión guardada: ${sessionResult.nombresesion} id=${sessionResult.codsesion}`,
@@ -604,12 +616,14 @@ export default class PronosticosService {
     }
   };
 
-  borrarPronosticos = async (ucp, finicio = null, ffin = null) => {
+  borrarPronosticos = async (ucp, finicio = null, ffin = null, session) => {
     try {
+      const client = createConectionPG(session);
       const result = await model.borrarPronosticosPorUCPyRango(
         ucp,
         finicio,
         ffin,
+        client,
       );
       return { success: true, message: "Pronósticos borrados." };
     } catch (err) {
@@ -621,7 +635,7 @@ export default class PronosticosService {
     }
   };
 
-  cargarTipoPronosticoxFechas = async (finicio, ffin, mc) => {
+  cargarTipoPronosticoxFechas = async (finicio, ffin, mc, session) => {
     try {
       if (!finicio || !ffin || !mc) {
         return {
@@ -645,8 +659,8 @@ export default class PronosticosService {
       // Emular: dt_fechainicio = Convert.ToDateTime(fun.convertFechaDia(finicio));
       // usamos Date con inicioIso
       let i = 0;
-
-      await sesionModel.borrarDatosTipoPronostico(mc);
+      const client = createConectionPG(session);
+      await sesionModel.borrarDatosTipoPronostico(mc, client);
 
       // Iterar mientras dt_fechainicio < dt_fechafin (igual que .NET)
       while (true) {
@@ -657,24 +671,30 @@ export default class PronosticosService {
         if (new Date(fechaEvaluarIso) >= new Date(finIso)) break;
 
         // Buscar si ya existe el tipo para esa fecha
+        const client2 = createConectionPG(session);
         const buscar = await sesionModel.buscarTipoPronostico(
           mc,
           fechaEvaluarIso,
+          client2,
         );
 
         if (!buscar || buscar.length === 0) {
           // No existe -> ingresar
+          const client3 = createConectionPG(session);
           await sesionModel.ingresarTipoPronostico(
             mc,
             fechaEvaluarIso,
             "Modelo IA",
+            client3,
           );
         } else {
           // Existe -> actualizar (tu model espera ordenar parámetros: tipopronostico, ucp, fecha)
+          const client4 = createConectionPG(session);
           await sesionModel.actualizarTipoPronostico(
             "Modelo IA",
             mc,
             fechaEvaluarIso,
+            client4,
           );
         }
 
@@ -720,10 +740,10 @@ export default class PronosticosService {
   ) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    const port = 8001;
+    // const port = 8001;
     //puerto desarrollo
-    // const port = 8000;
-
+    const port = 8000;
+    console.log("data en callPredict:", data);
     // Solo calcular n_days si es el modelo /predict-with-base-curve
     const n_days = daysBetweenISO(inicioIso, finIso) + 1;
 
@@ -821,7 +841,15 @@ export default class PronosticosService {
     return { success: false, statusCode: 0, data: null };
   }
 
-  play = async (mc, finicio, ffin, force_retrain, modelo = false, data) => {
+  play = async (
+    mc,
+    finicio,
+    ffin,
+    force_retrain,
+    modelo = false,
+    data,
+    session,
+  ) => {
     try {
       // Validaciones básicas
       if (!mc || String(mc).trim() === "") {
@@ -860,8 +888,9 @@ export default class PronosticosService {
       }
 
       // 1) Validar que la fecha inicio sea menor o igual a la fecha de actualización (verificar vFechainicial)
+      const client = createConectionPG(session);
       const vFechainicialRows =
-        await sesionModel.verificarFechaActualizaciondedatos(mc);
+        await sesionModel.verificarFechaActualizaciondedatos(mc, client);
       if (!vFechainicialRows || vFechainicialRows.length === 0) {
         return {
           success: false,
@@ -885,7 +914,11 @@ export default class PronosticosService {
       }
 
       // 2) Validar que la fecha final esté dentro de la fecha del clima
-      const vFechainicialClimaRows = await sesionModel.verificarFechaClima(mc);
+      const client2 = createConectionPG(session);
+      const vFechainicialClimaRows = await sesionModel.verificarFechaClima(
+        mc,
+        client2,
+      );
       if (!vFechainicialClimaRows || vFechainicialClimaRows.length === 0) {
         return {
           success: false,
@@ -906,14 +939,23 @@ export default class PronosticosService {
       // 3) Inicializar proceso:borrar datos, etc.
 
       // Borrar datos previos
-      await sesionModel.borrarDatosPronostico();
-      await sesionModel.eliminarFechasIngresadasTodo();
+      const client3 = createConectionPG(session);
+      await sesionModel.borrarDatosPronostico(client3);
+      const client4 = createConectionPG(session);
+      await sesionModel.eliminarFechasIngresadasTodo(client4);
 
       // Guardar las fechas que se van a pronosticar
-      await sesionModel.guardarFechasPronosticas(inicioIso, finIso, mc);
+      const client5 = createConectionPG(session);
+      await sesionModel.guardarFechasPronosticas(
+        inicioIso,
+        finIso,
+        mc,
+        client5,
+      );
 
       // Borrar datos por tipo de pronostico (si aplica)
-      await sesionModel.borrarDatosTipoPronostico(mc).catch(() => {}); // no-fatal
+      const client6 = createConectionPG(session);
+      await sesionModel.borrarDatosTipoPronostico(mc, client6).catch(() => {}); // no-fatal
 
       // Cargar tipo pronóstico por fechas (en .NET mp.cargarTipoPronosticoxFechas)
       if (
@@ -921,7 +963,12 @@ export default class PronosticosService {
         this?.cargarTipoPronosticoxFechas
       ) {
         try {
-          await this.cargarTipoPronosticoxFechas(inicioIso, finIso, mc);
+          await this.cargarTipoPronosticoxFechas(
+            inicioIso,
+            finIso,
+            mc,
+            session,
+          );
         } catch (e) {
           /* no-fatal */
         }
@@ -991,10 +1038,12 @@ export default class PronosticosService {
 
       console.log("predRes:", JSON.stringify(predRes, null, 5));
       // 4) Validar que existan los pronósticos generados
+      // const clientValidar = createConectionPG(session);
       // const validarPron = await sesionModel.cargarPeriodosPronosticosxUCPxFecha(
       //   mc,
       //   inicioIso,
-      //   finIso
+      //   finIso,
+      //   clientValidar,
       // );
       // if (!validarPron || validarPron.length === 0) {
       //   return {
@@ -1007,9 +1056,11 @@ export default class PronosticosService {
 
       // 5) Obtener historicos (ultimos registros previos a la fecha inicio)
       // En .NET usan c.cargarPeriodosxUCPxFecha(mc, convertFechaAño(finicio)) -> devuelve últimos 30 (según query)
+      const client7 = createConectionPG(session);
       const datosHistRows = await sesionModel.cargarPeriodosxUCPxFechaInicio(
         mc,
         inicioIso,
+        client7,
       ); // tu modelo definido arriba
       const PeriodosHistoricos = Array.isArray(datosHistRows)
         ? datosHistRows.map((r) => ({
@@ -1043,10 +1094,12 @@ export default class PronosticosService {
         : [];
 
       // 6) Construir PeriodosHistoricosGrafica iterando dia a dia entre inicio-fin
+      const client8 = createConectionPG(session);
       const datosDemandaRows = await sesionModel.cargarPeriodosxUCPxFecha(
         mc,
         inicioIso,
         finIso,
+        client8,
       );
       const rowsMapByDate = new Map();
       if (Array.isArray(datosDemandaRows)) {
@@ -1246,9 +1299,9 @@ export default class PronosticosService {
   retrainModel = async (ucp, timeoutMs = 600000) => {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    const port = 8001;
+    // const port = 8001;
     //puerto desarrollo
-    // const port = 8000;
+    const port = 8000;
     for (const host of hostsToTry) {
       const url = `http://${host}:${port}/retrain?ucp=${encodeURIComponent(
         String(ucp),
@@ -1329,9 +1382,9 @@ export default class PronosticosService {
   async getEvents(inicioIso, finIso, ucp, timeoutMs = 600000) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    const port = 8001;
+    // const port = 8001;
     //puerto desarrollo
-    // const port = 8000;
+    const port = 8000;
 
     for (const host of hostsToTry) {
       let timer; // <-- declarar fuera del try para que catch/finally lo vean
@@ -1429,9 +1482,9 @@ export default class PronosticosService {
   ) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    const port = 8001;
+    // const port = 8001;
     //puerto desarrollo
-    // const port = 8000;
+    const port = 8000;
 
     for (const host of hostsToTry) {
       let timer;
@@ -1502,13 +1555,15 @@ export default class PronosticosService {
     return { success: false, statusCode: 0, data: null };
   }
 
-  traerDatosClimaticos = async (ucp, fechainicio, fechafin) => {
+  traerDatosClimaticos = async (ucp, fechainicio, fechafin, session) => {
     try {
+      const client = createConectionPG(session);
       const rows =
         await configuracionModel.cargarVariablesClimaticasxFechaPeriodos(
           ucp,
           fechainicio,
           fechafin,
+          client,
         );
 
       const resultado = [];
@@ -1523,10 +1578,12 @@ export default class PronosticosService {
 
           if (iconId && iconId !== "0") {
             // 🔹 intento exacto como .NET
+            const client2 = createConectionPG(session);
             const iconRow = await configuracionModel.buscarIcono(
               iconId,
               esDia ? "si" : "no",
               esDia ? "no" : "si",
+              client2,
             );
 
             if (iconRow) {
@@ -1536,7 +1593,11 @@ export default class PronosticosService {
 
             // 🔁 fallback (.NET buscarIcono2)
             if (!icono) {
-              const fallback = await configuracionModel.buscarIcono2(iconId);
+              const client3 = createConectionPG(session);
+              const fallback = await configuracionModel.buscarIcono2(
+                iconId,
+                client3,
+              );
               if (fallback) {
                 icono = fallback.icon_dia ?? fallback.icon_noche ?? null;
               }
@@ -1583,9 +1644,9 @@ export default class PronosticosService {
   }) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    const port = 8001;
+    // const port = 8001;
     //puerto desarrollo
-    // const port = 8000;
+    const port = 8000;
     const endpoint = "/predict-day";
 
     // Normalizar fechas
@@ -1693,9 +1754,9 @@ export default class PronosticosService {
   }) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    const port = 8001;
+    // const port = 8001;
     //puerto desarrollo
-    // const port = 8000;
+    const port = 8000;
     const endpoint = "/validate-hourly-adjustments";
 
     const fechaIso = toISODateString(fecha);
@@ -1803,9 +1864,9 @@ export default class PronosticosService {
     const hostsToTry = ["127.0.0.1", "localhost"];
 
     // puerto producción
-    const port = 8001;
+    // const port = 8001;
     // puerto desarrollo
-    // const port = 8000;
+    const port = 8000;
 
     for (const host of hostsToTry) {
       let timer;

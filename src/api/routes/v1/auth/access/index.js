@@ -5,6 +5,7 @@ import {
   InternalError,
   responseError,
 } from "../../../../../helpers/api.response.js";
+
 class AuthController {
   async loginS(req, res) {
     const { usuario, password } = req.body;
@@ -24,7 +25,7 @@ class AuthController {
 
   async login(req, res) {
     try {
-      const { uuid, usuario, password } = req.body; // ← agregar uuid
+      const { uuid, usuario, password } = req.body;
 
       const result = await authService.login(uuid, usuario, password);
 
@@ -40,22 +41,26 @@ class AuthController {
       if (error.message === "Mercado no encontrado.") {
         return res.status(404).json({ success: false, message: error.message });
       }
+
       if (
         error.message === "Este mercado no tiene base de datos configurada."
       ) {
         return res.status(400).json({ success: false, message: error.message });
       }
+
       if (error.message === "Usuario o contraseña incorrectos") {
         return res
           .status(401)
           .json({ success: false, message: "Credenciales inválidas" });
       }
+
       if (error.message === "Usuario bloqueado") {
         return res.status(403).json({
           success: false,
           message: "Usuario bloqueado. Contacte al administrador",
         });
       }
+
       if (error.message === "Usuario inactivo") {
         return res.status(403).json({
           success: false,
@@ -75,8 +80,9 @@ class AuthController {
     try {
       const userData = req.body;
 
-      // Consumir el servicio de autenticacion para registrar
-      const result = await authService.register(userData);
+      const { session } = req.user;
+
+      const result = await authService.register(userData, session);
 
       return res.status(201).json({
         success: true,
@@ -87,7 +93,6 @@ class AuthController {
         },
       });
     } catch (error) {
-      // Manejo de errores específicos
       if (
         error.message.includes("ya está registrado") ||
         error.message.includes("ya está registrada")
@@ -98,7 +103,6 @@ class AuthController {
         });
       }
 
-      // Error genérico
       return res.status(500).json({
         success: false,
         message: "Error al registrar usuario",
@@ -109,8 +113,9 @@ class AuthController {
 
   async getProfile(req, res) {
     try {
-      const userId = req.user.cod;
-      const user = await authService.getUserById(userId);
+      const { cod, session } = req.user;
+
+      const user = await authService.getUserById(cod, session);
 
       return res.status(200).json({
         success: true,
@@ -136,6 +141,7 @@ class AuthController {
   async changePassword(req, res) {
     try {
       const { email, newPassword } = req.body;
+
       await authService.changePassword(email, newPassword);
 
       return res.status(200).json({
@@ -160,15 +166,15 @@ class AuthController {
 
   async changePasswordAuth(req, res) {
     try {
-      //esto seria para obtener el codigo del usuario en cuestion
-      const userId = req.user.cod;
-      //extraemos parametros
+      const { cod, session } = req.user;
+
       const { currentPassword, newPassword } = req.body;
 
       await authService.changePasswordAuthenticated(
-        userId,
+        cod,
         currentPassword,
         newPassword,
+        session,
       );
 
       return res.status(200).json({
@@ -200,10 +206,15 @@ class AuthController {
 
   async updateProfile(req, res) {
     try {
-      const userId = req.user.cod;
+      const { cod, session } = req.user;
+
       const userData = req.body;
 
-      const updatedUser = await authService.updateProfile(userId, userData);
+      const updatedUser = await authService.updateProfile(
+        cod,
+        userData,
+        session,
+      );
 
       return res.status(200).json({
         success: true,
@@ -255,7 +266,9 @@ class AuthController {
 
   async getAllUsers(req, res) {
     try {
-      const users = await authService.getAllUsers();
+      const { session } = req.user;
+
+      const users = await authService.getAllUsers(session);
 
       return res.status(200).json({
         success: true,
@@ -273,9 +286,11 @@ class AuthController {
 
   async agregarPerfile(req, res) {
     try {
+      const { session } = req.user;
+
       const { nombrePerfil } = req.body;
 
-      const result = await authService.agregarPerfile(nombrePerfil);
+      const result = await authService.agregarPerfile(nombrePerfil, session);
 
       return res.status(201).json({
         success: true,
@@ -300,7 +315,9 @@ class AuthController {
 
   async getPerfiles(req, res) {
     try {
-      const perfiles = await authService.getPerfiles();
+      const { session } = req.user;
+
+      const perfiles = await authService.getPerfiles(session);
 
       return res.status(200).json({
         success: true,
@@ -318,12 +335,16 @@ class AuthController {
 
   async editarUsuario(req, res) {
     try {
+      const { session } = req.user;
+
       const { id } = req.params;
+
       const userData = req.body;
 
       const updatedUser = await authService.editarUsuario(
         parseInt(id),
         userData,
+        session,
       );
 
       return res.status(200).json({
@@ -359,9 +380,11 @@ class AuthController {
 
   async eliminarUsuario(req, res) {
     try {
+      const { session } = req.user;
+
       const { id } = req.params;
 
-      const result = await authService.eliminarUsuario(parseInt(id));
+      const result = await authService.eliminarUsuario(parseInt(id), session);
 
       return res.status(200).json({
         success: result.success,

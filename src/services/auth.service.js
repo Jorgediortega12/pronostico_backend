@@ -6,6 +6,7 @@ import { createConectionPG } from "../helpers/connections.js";
 import config from "../config/index.js";
 import UserModel from "../models/user.model.js";
 import RedisModel from "../models/redis.model.js";
+import { createToken } from "../helpers/index.js";
 
 class AuthService {
   constructor() {
@@ -72,7 +73,6 @@ class AuthService {
         password,
         client,
       );
-      console.log("result:", result);
       if (!result || result.rows.length === 0) {
         throw new Error("Usuario o contraseña incorrectos");
       }
@@ -107,24 +107,32 @@ class AuthService {
   }
 
   generateToken(user, mercado) {
-    const payload = {
-      cod: user.cod,
-      usuario: user.usuario,
-      email: user.email,
-      pnombre: user.pnombre,
-      snombre: user.snombre,
-      papellido: user.papellido,
-      sapellido: user.sapellido,
-      perfil: user.perfil || user.codperfil,
-      identificacion: user.identificacion,
-      // ← datos del mercado en el token para peticiones posteriores
-      uuid_mercado: mercado.uuid,
-      nombre_mercado: mercado.nombre,
-    };
+    const timeStamp = new Date().getTime();
 
-    const token = jwt.sign(payload, config.secretKey, { expiresIn: "24h" });
+    // Encriptar los accesos de BD del mercado (igual que instituciones)
+    const token = createToken(mercado.accesos, user, timeStamp);
+
+    // El payload público del token solo lleva info del usuario y mercado
+    // Las credenciales van encriptadas dentro de dataEncrypt
     return token;
   }
+
+  // Datos de usuario sin credenciales que van en la respuesta al frontend
+  // buildUserResponse(user, mercado) {
+  //   return {
+  //     cod:            user.cod,
+  //     usuario:        user.usuario,
+  //     email:          user.email,
+  //     pnombre:        user.pnombre,
+  //     snombre:        user.snombre,
+  //     papellido:      user.papellido,
+  //     sapellido:      user.sapellido,
+  //     perfil:         user.perfil || user.codperfil,
+  //     identificacion: user.identificacion,
+  //     uuid_mercado:   mercado.uuid,
+  //     nombre_mercado: mercado.nombre,
+  //   };
+  // }
 
   verifyToken(token) {
     try {
@@ -135,7 +143,7 @@ class AuthService {
     }
   }
 
-  async register(userData) {
+  async register(userData, session) {
     try {
       const {
         usuario,
@@ -149,26 +157,51 @@ class AuthService {
         celular,
         email,
         codperfil,
+        uuid,
       } = userData;
+
+      // 1. Buscar el mercado en Redis por uuid
+      const resultKeys = await this.redisModel.keys(`mercados_${uuid}*`);
+      if (resultKeys.length === 0) {
+        throw new Error("Mercado no encontrado.");
+      }
+
+      const getInfoData = await this.redisModel.get(resultKeys[0]);
+      const raw = JSON.parse(getInfoData);
+      const mercado = typeof raw === "string" ? JSON.parse(raw) : raw;
+
+      // 2. Verificar que el mercado tiene accesos configurados
+      if (!mercado.accesos) {
+        throw new Error("Este mercado no tiene base de datos configurada.");
+      }
+
+      const client = createConectionPG(session);
 
       // Verificar si el usuario ya existe
       const existingUserByUsername =
-        await this.userModel.buscarUsuarioxNickname(usuario);
+        await this.userModel.buscarUsuarioxNickname(usuario, client);
       if (existingUserByUsername && existingUserByUsername.rows.length > 0) {
         throw new Error("El nombre de usuario ya está registrado");
       }
 
-      // Verificar si el email ya existe
-      const existingUserByEmail =
-        await this.userModel.buscarUsuarioxNickname(email);
-      if (existingUserByEmail && existingUserByEmail.rows.length > 0) {
-        throw new Error("El email ya está registrado");
-      }
+      // const client2 = createConectionPG(session);
+      // // Verificar si el email ya existe
+      // const existingUserByEmail = await this.userModel.buscarUsuarioxNickname(
+      //   email,
+      //   client2,
+      // );
+      // if (existingUserByEmail && existingUserByEmail.rows.length > 0) {
+      //   throw new Error("El email ya está registrado");
+      // }
 
       // Verificar si la identificación ya existe
       if (identificacion) {
+        const client3 = createConectionPG(session);
         const existingUserByIdentificacion =
-          await this.userModel.buscarUsuarioxIdentificacion(identificacion);
+          await this.userModel.buscarUsuarioxIdentificacion(
+            identificacion,
+            client3,
+          );
         if (
           existingUserByIdentificacion &&
           existingUserByIdentificacion.rows.length > 0
@@ -176,7 +209,7 @@ class AuthService {
           throw new Error("La identificación ya está registrada");
         }
       }
-
+      const client4 = createConectionPG(session);
       // Agregar usuario
       const result = await this.userModel.agregarUsuarioPG(
         usuario,
@@ -190,6 +223,7 @@ class AuthService {
         celular || "",
         email,
         codperfil || "1", // Perfil por defecto
+        client4,
       );
 
       if (!result || result.rows.length === 0) {
@@ -199,7 +233,7 @@ class AuthService {
       const newUser = result.rows[0];
 
       // Generar token JWT
-      const token = this.generateToken(newUser);
+      const token = this.generateToken(newUser, mercado);
 
       // Retornar usuario sin la contraseña
       const { pass, ...userWithoutPassword } = newUser;
@@ -214,26 +248,10 @@ class AuthService {
     }
   }
 
-  async getUserById(userId) {
+  async getUserById(userId, session) {
     try {
-      const result = await this.userModel.buscarUsuario(userId);
-
-      if (!result || result.rows.length === 0) {
-        throw new Error("Usuario no encontrado");
-      }
-
-      const user = result.rows[0];
-      const { pass, ...userWithoutPassword } = user;
-
-      return userWithoutPassword;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  async getUserByUsername(usuario) {
-    try {
-      const result = await this.userModel.buscarUsuarioxNickname(usuario);
+      const client = createConectionPG(session);
+      const result = await this.userModel.buscarUsuario(userId, client);
 
       if (!result || result.rows.length === 0) {
         throw new Error("Usuario no encontrado");
@@ -274,10 +292,16 @@ class AuthService {
     }
   }
 
-  async changePasswordAuthenticated(userId, currentPassword, newPassword) {
+  async changePasswordAuthenticated(
+    userId,
+    currentPassword,
+    newPassword,
+    session,
+  ) {
     try {
+      const client1 = createConectionPG(session);
       // Obtener el usuario por ID
-      const userResult = await this.userModel.buscarUsuario(userId);
+      const userResult = await this.userModel.buscarUsuario(userId, client1);
 
       if (!userResult || userResult.rows.length === 0) {
         throw new Error("Usuario no encontrado");
@@ -285,27 +309,36 @@ class AuthService {
 
       const user = userResult.rows[0];
 
+      const client2 = createConectionPG(session);
       // Verificar que la contraseña actual sea correcta
       const verifyResult = await this.userModel.verificarUsuario(
         user.usuario,
         currentPassword,
+        client2,
       );
 
       if (!verifyResult || verifyResult.rows.length === 0) {
         throw new Error("Contraseña actual incorrecta");
       }
 
+      const client3 = createConectionPG(session);
+
       // buscamos el email del usuario para poder confirmar el cambio de contraseña
-      const verifyUserId = await this.userModel.verificarUsuario2(user.email);
+      const verifyUserId = await this.userModel.verificarUsuario2(
+        user.email,
+        client3,
+      );
 
       if (!verifyUserId || verifyUserId.length === 0) {
         throw new Error("No se pudo cambiar la contraseña");
       }
 
+      const client4 = createConectionPG(session);
       // Actualizar la contraseña
       const updateResult = await this.userModel.editarPass(
         verifyUserId,
         newPassword,
+        client4,
       );
 
       if (!updateResult || updateResult.rowCount === 0) {
@@ -390,8 +423,23 @@ class AuthService {
     }
   }
 
-  async refreshToken(token) {
+  async refreshToken(token, uuid) {
     try {
+      // 1. Buscar el mercado en Redis por uuid
+      const resultKeys = await this.redisModel.keys(`mercados_${uuid}*`);
+      if (resultKeys.length === 0) {
+        throw new Error("Mercado no encontrado.");
+      }
+
+      const getInfoData = await this.redisModel.get(resultKeys[0]);
+      const raw = JSON.parse(getInfoData);
+      const mercado = typeof raw === "string" ? JSON.parse(raw) : raw;
+
+      // 2. Verificar que el mercado tiene accesos configurados
+      if (!mercado.accesos) {
+        throw new Error("Este mercado no tiene base de datos configurada.");
+      }
+
       // Verificar el token actual
       const decoded = this.verifyToken(token);
 
@@ -410,7 +458,7 @@ class AuthService {
       }
 
       // Generar nuevo token
-      const newToken = this.generateToken(user);
+      const newToken = this.generateToken(user, mercado);
 
       return newToken;
     } catch (error) {
@@ -418,9 +466,10 @@ class AuthService {
     }
   }
 
-  async getAllUsers() {
+  async getAllUsers(session) {
     try {
-      const result = await this.userModel.cargarUsuarios();
+      const client = createConectionPG(session);
+      const result = await this.userModel.cargarUsuarios(client);
 
       if (!result || result.rows.length === 0) {
         return [];
@@ -438,9 +487,10 @@ class AuthService {
     }
   }
 
-  async getPerfiles() {
+  async getPerfiles(session) {
     try {
-      const result = await this.userModel.cargarPerfiles();
+      const client = createConectionPG(session);
+      const result = await this.userModel.cargarPerfiles(client);
 
       if (!result || result.rows.length === 0) {
         return [];
@@ -452,9 +502,13 @@ class AuthService {
     }
   }
 
-  async agregarPerfile(nombrePerfil) {
+  async agregarPerfile(nombrePerfil, session) {
     try {
-      const response = await this.userModel.agregarPerfiles(nombrePerfil);
+      const client = createConectionPG(session);
+      const response = await this.userModel.agregarPerfiles(
+        nombrePerfil,
+        client,
+      );
       if (!nombrePerfil) {
         throw new Error("Error al insertar un nuevo perfil");
       }
@@ -465,7 +519,7 @@ class AuthService {
     }
   }
 
-  async editarUsuario(userId, userData) {
+  async editarUsuario(userId, userData, session) {
     try {
       const {
         usuario,
@@ -481,8 +535,12 @@ class AuthService {
         codperfil,
       } = userData;
 
+      const client = createConectionPG(session);
       // Verificar que el usuario existe
-      const existingUserResult = await this.userModel.buscarUsuario(userId);
+      const existingUserResult = await this.userModel.buscarUsuario(
+        userId,
+        client,
+      );
       if (!existingUserResult || existingUserResult.rows.length === 0) {
         throw new Error("Usuario no encontrado");
       }
@@ -491,8 +549,11 @@ class AuthService {
 
       // Verificar si el nuevo nombre de usuario ya existe (si se está cambiando)
       if (usuario && usuario !== currentUser.usuario) {
-        const userByUsername =
-          await this.userModel.buscarUsuarioxNickname(usuario);
+        const client2 = createConectionPG(session);
+        const userByUsername = await this.userModel.buscarUsuarioxNickname(
+          usuario,
+          client2,
+        );
         if (userByUsername && userByUsername.rows.length > 0) {
           throw new Error("El nombre de usuario ya está registrado");
         }
@@ -500,13 +561,18 @@ class AuthService {
 
       // Verificar si la nueva identificación ya existe (si se está cambiando)
       if (identificacion && identificacion !== currentUser.identificacion) {
+        const client3 = createConectionPG(session);
         const userByIdentificacion =
-          await this.userModel.buscarUsuarioxIdentificacion(identificacion);
+          await this.userModel.buscarUsuarioxIdentificacion(
+            identificacion,
+            client3,
+          );
         if (userByIdentificacion && userByIdentificacion.rows.length > 0) {
           throw new Error("La identificación ya está registrada");
         }
       }
 
+      const client4 = createConectionPG(session);
       // Actualizar usuario
       const result = await this.userModel.editarUsuario(
         usuario || currentUser.usuario,
@@ -521,14 +587,19 @@ class AuthService {
         estado || currentUser.estado,
         codperfil || currentUser.codperfil,
         userId,
+        client4,
       );
 
       if (!result || result.rowCount === 0) {
         throw new Error("Error al actualizar el usuario");
       }
 
+      const client5 = createConectionPG(session);
       // Obtener usuario actualizado
-      const updatedUserResult = await this.userModel.buscarUsuario(userId);
+      const updatedUserResult = await this.userModel.buscarUsuario(
+        userId,
+        client5,
+      );
       const updatedUser = updatedUserResult.rows[0];
       const { pass, ...userWithoutPassword } = updatedUser;
 
@@ -538,16 +609,21 @@ class AuthService {
     }
   }
 
-  async eliminarUsuario(userId) {
+  async eliminarUsuario(userId, session) {
     try {
+      const client = createConectionPG(session);
       // Verificar que el usuario existe
-      const existingUserResult = await this.userModel.buscarUsuario(userId);
+      const existingUserResult = await this.userModel.buscarUsuario(
+        userId,
+        client,
+      );
       if (!existingUserResult || existingUserResult.rows.length === 0) {
         throw new Error("Usuario no encontrado");
       }
 
+      const client2 = createConectionPG(session);
       // Eliminar usuario
-      const result = await this.userModel.eliminarUsuario(userId);
+      const result = await this.userModel.eliminarUsuario(userId, client2);
 
       if (!result || result.rowCount === 0) {
         throw new Error("Error al eliminar el usuario");

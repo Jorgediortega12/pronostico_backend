@@ -31,6 +31,8 @@ const registerSchema = Joi.object({
   celular: Joi.string().max(20).allow("").optional(),
 
   codperfil: Joi.string().allow("").optional(),
+
+  uuid: Joi.string().required(),
 });
 
 const agregarPerfilSchema = Joi.object({
