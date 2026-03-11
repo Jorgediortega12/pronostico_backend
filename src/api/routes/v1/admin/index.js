@@ -3,6 +3,7 @@ import authMiddleware from "../../../middleware/auth.js";
 import { decodeInfo } from "../../../../helpers/index.js";
 import dashboardRoutes from "./dashboard/index.js";
 import cpanelRoutes from "./cpanel/index.js";
+import configuracionPublicaRoutes from "./configuracionPublica/index.js";
 
 const router = Router();
 
@@ -24,5 +25,6 @@ export default function () {
 
   router.use("/dashboard/", authMiddleware, sessionDecrypt, dashboardRoutes());
   router.use("/cpanel/", cpanelRoutes());
+  router.use("/configuracion-interna/", configuracionPublicaRoutes()); // sin auth
   return router;
 }

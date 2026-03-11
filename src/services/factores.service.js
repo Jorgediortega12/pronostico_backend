@@ -349,9 +349,9 @@ export default class FactoresService {
   ) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    // const port = 8002;
+    // const port = 8003;
     //puerto desarrollo
-    const port = 8001;
+    const port = 8003;
 
     for (const host of hostsToTry) {
       let timer;
@@ -436,9 +436,9 @@ export default class FactoresService {
   ) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    // const port = 8002;
+    // const port = 8003;
     //puerto desarrollo
-    const port = 8001;
+    const port = 8003;
 
     for (const host of hostsToTry) {
       let timer;
@@ -521,9 +521,9 @@ export default class FactoresService {
   ) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    // const port = 8002;
+    // const port = 8003;
     //puerto desarrollo
-    const port = 8001;
+    const port = 8003;
 
     for (const host of hostsToTry) {
       let timer;
@@ -599,9 +599,9 @@ export default class FactoresService {
   async calcularMedidas(inicioIso, finIso, e_ar, ucp, timeoutMs = 600000) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    // const port = 8002;
+    const port = 8003;
     //puerto desarrollo
-    const port = 8001;
+    // const port = 8003;
 
     for (const host of hostsToTry) {
       let timer;

@@ -37,7 +37,6 @@ export default class MercadosService {
 
         arrNew.push(data);
       }
-
       return {
         success: true,
         message: "Datos del mercados.",

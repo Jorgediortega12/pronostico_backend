@@ -1,4 +1,5 @@
 import ConfiguracionService from "../../../../../../../services/configuracion.service.js";
+import RedisModel from "../../../../../../../models/redis.model.js";
 import Logger from "../../../../../../../helpers/logger.js";
 import colors from "colors";
 import {
@@ -6,8 +7,10 @@ import {
   InternalError,
   responseError,
 } from "../../../../../../../helpers/api.response.js";
+import { resolveSessionByUcp } from "../../../../../../../helpers/resolveSessionByUcp.js";
 
 const service = ConfiguracionService.getInstance();
+const redisModel = RedisModel.getInstance();
 
 export const buscarSaveDocumento = async (req, res) => {
   try {
@@ -135,12 +138,30 @@ export const buscarPotenciaDia = async (req, res) => {
 export const cargarPeriodosxUCPDesdeFecha = async (req, res) => {
   try {
     const { ucp, fechaInicio } = req.params;
-    const { session } = req.user;
-    if (!ucp || !fechaInicio) {
+
+    // Si viene con JWT usa su session, si no resuelve por ucp
+    let session = req.user?.session;
+
+    if (!session) {
+      const keys = await redisModel.keys(`mercados*`);
+
+      // keys = ["mercados_4a3442f8...", "mercados_otro..."]
+      // necesitas traer el valor de cada key
+      const mercadosParsed = await Promise.all(
+        keys.map(async (key) => {
+          const val = await redisModel.get(key);
+          return JSON.parse(val);
+        }),
+      );
+
+      session = await resolveSessionByUcp(ucp, mercadosParsed);
+    }
+
+    if (!session) {
       return responseError(
         200,
-        "Parametros de ucp y fechaInicio no proporcionados",
-        400,
+        `No se encontró cliente para el ucp ${ucp}`,
+        404,
         res,
       );
     }
@@ -165,7 +186,33 @@ export const cargarPeriodosxUCPDesdeFecha = async (req, res) => {
 export const cargarVariablesClimaticasxUCPDesdeFecha = async (req, res) => {
   try {
     const { ucp, fechaInicio } = req.params;
-    const { session } = req.user;
+    // Si viene con JWT usa su session, si no resuelve por ucp
+    let session = req.user?.session;
+
+    if (!session) {
+      const keys = await redisModel.keys(`mercados*`);
+
+      // keys = ["mercados_4a3442f8...", "mercados_otro..."]
+      // necesitas traer el valor de cada key
+      const mercadosParsed = await Promise.all(
+        keys.map(async (key) => {
+          const val = await redisModel.get(key);
+          return JSON.parse(val);
+        }),
+      );
+
+      session = await resolveSessionByUcp(ucp, mercadosParsed);
+    }
+
+    if (!session) {
+      return responseError(
+        200,
+        `No se encontró cliente para el ucp ${ucp}`,
+        404,
+        res,
+      );
+    }
+
     if (!ucp || !fechaInicio) {
       return responseError(
         200,
@@ -576,7 +623,32 @@ export const buscarDiaFestivo = async (req, res) => {
 export const listarFestivosPorRango = async (req, res) => {
   try {
     const { fechaInicio, fechaFin, ucp } = req.params;
-    const { session } = req.user;
+    // Si viene con JWT usa su session, si no resuelve por ucp
+    let session = req.user?.session;
+
+    if (!session) {
+      const keys = await redisModel.keys(`mercados*`);
+
+      // keys = ["mercados_4a3442f8...", "mercados_otro..."]
+      // necesitas traer el valor de cada key
+      const mercadosParsed = await Promise.all(
+        keys.map(async (key) => {
+          const val = await redisModel.get(key);
+          return JSON.parse(val);
+        }),
+      );
+
+      session = await resolveSessionByUcp(ucp, mercadosParsed);
+    }
+
+    if (!session) {
+      return responseError(
+        200,
+        `No se encontró cliente para el ucp ${ucp}`,
+        404,
+        res,
+      );
+    }
     const result = await service.listarFestivosPorRango(
       fechaInicio,
       fechaFin,
