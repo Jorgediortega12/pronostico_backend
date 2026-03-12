@@ -509,7 +509,6 @@ export default class PronosticosService {
           "Faltan las funciones generateTxtToFolder/generateXlsxToFolder",
         );
       }
-
       const txtResult = await generateTxtToFolder({
         pronosticoList: ordered,
         ucp,
@@ -518,8 +517,8 @@ export default class PronosticosService {
         folderPhysical: folderPathPhysical,
         fileBaseName,
         configuracionModel,
+        session, // pasar session para que tu función pueda usarla si necesita conexiones pg
       });
-
       const xlsxResult = await generateXlsxToFolder({
         pronosticoList: ordered,
         ucp,
@@ -531,6 +530,7 @@ export default class PronosticosService {
         codigoColeccionEnergia: datos.codigo_coleccion_energia || "PROENCNDHMC",
         codigoColeccionPotencia:
           datos.codigo_coleccion_potencia || "PROPOTCNDHMC",
+        session,
       });
 
       const rutaBD_xlsx = `${folderPathLogical}/${xlsxResult.xlsxName}`;
