@@ -32,6 +32,29 @@ export const agregarDatosPronosticoxSesion = `
     $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29
   ) RETURNING *
 `;
+
+//buscar version preview
+export const buscarVersionPreview = `SELECT * FROM previews WHERE nombre = $1 ORDER BY codigo DESC`;
+
+//agregar version Preview
+export const agregarVersionPreview = `
+  INSERT INTO previews (
+    fecha, ucp, fechainicio, fechafin, nombre, version, usuario
+  ) VALUES (
+    $1, $2, $3, $4, $5, $6, $7
+  ) RETURNING *
+`;
+
+//agregar datos pronostico por sesion
+export const agregarDatosPronosticoxPreview = `
+  INSERT INTO previews_periodos (
+    codpreview, fecha, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10,
+    p11, p12, p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, p23, p24, tipo
+  ) VALUES (
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+    $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27
+  ) RETURNING *
+`;
 //verificar si un dia es festivo
 export const buscarDiaFestivo = `SELECT * FROM festivos WHERE fecha=$1 AND ucp=$2;`;
 

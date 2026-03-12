@@ -12,6 +12,11 @@ export default function () {
     validator(schema.exportarBulk),
     controllers.exportarBulk,
   );
+  router.post(
+    "/exportarPreview",
+    validator(schema.exportarPreview),
+    controllers.exportarPreview,
+  );
   router.post("/borrarPronosticos", controllers.borrarPronosticos); // puedes añadir schema si quieres
   router.post("/play", validator(schema.play), controllers.play);
   // POST /retrainModel?ucp=Atlantico

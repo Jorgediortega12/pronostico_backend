@@ -9,40 +9,47 @@ export default function () {
   router.get(
     "/cargarDatosSesiones/:codsuperior",
     validator(schema.cargarDatosSesiones),
-    controllers.cargarDatosSesiones
+    controllers.cargarDatosSesiones,
   );
 
   router.get(
     "/cargarArchivoVrSesiones/:codcarpeta",
     validator(schema.cargarArchivoVrSesiones),
-    controllers.cargarArchivosVrSesiones
+    controllers.cargarArchivosVrSesiones,
   );
 
   router.get(
     "/buscarVersionSesionCod/:codigo",
     validator(schema.buscarVersionSesionCod),
-    controllers.buscarVersionSesionCod
+    controllers.buscarVersionSesionCod,
   );
 
   router.get(
     "/cargarPeriodosSesion/:codsesion/:tipo",
     validator(schema.cargarPeriodosSesion),
-    controllers.cargarPeriodosSesion
+    controllers.cargarPeriodosSesion,
   );
 
   router.get(
     "/cargarPeriodosxUCPxFecha/:ucp/:fechainicio/:fechafin",
     validator(schema.cargarPeriodosxUCPxFecha),
-    controllers.cargarPeriodosxUCPxFecha
+    controllers.cargarPeriodosxUCPxFecha,
   );
   router.get(
     "/cargarSesion/:codigo",
     validator(schema.buscarVersionSesionCod),
-    controllers.cargarSesion
+    controllers.cargarSesion,
   );
   router.get(
     "/verificarUltimaActualizacionPorUcp",
-    controllers.verificarUltimaActualizacionPorUcp
+    controllers.verificarUltimaActualizacionPorUcp,
+  );
+
+  router.get("/cargarVrPreviews", controllers.cargarVrPreviews);
+  router.get(
+    "/cargarPreview/:codigo",
+    validator(schema.buscarVersionSesionCod),
+    controllers.cargarPreview,
   );
   return router;
 }

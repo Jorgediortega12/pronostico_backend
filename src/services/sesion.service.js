@@ -521,4 +521,249 @@ export default class SesionService {
       };
     }
   };
+
+  cargarVrPreviews = async (session) => {
+    try {
+      const client = createConectionPG(session);
+      const vrPreviews = await model.cargarVrPreviews(client);
+
+      if (!vrPreviews) {
+        return {
+          success: false,
+          data: null,
+          message: "No se pudo cargar los previews",
+        };
+      }
+
+      return {
+        success: true,
+        data: vrPreviews,
+        messasge: "Versiones de previews cargados exitosamente",
+      };
+    } catch (error) {
+      Logger.error(colors.red("Error SesionServices cargarVrPreviews", error));
+      return {
+        success: false,
+        data: null,
+        messasge: "Error al cargar los previews",
+      };
+    }
+  };
+
+  cargarPreview = async (codigo, session) => {
+    try {
+      // 1) buscar version de sesion por codigo
+      const client = createConectionPG(session);
+      const versionRows = await model.buscarVersionPreviewCod(codigo, client);
+      if (!versionRows || versionRows.length === 0) {
+        return {
+          success: false,
+          data: null,
+          message:
+            "No se ha podido encontrar información acerca de este preview.",
+        };
+      }
+
+      // asumimos que model.buscarVersionPreviewCod devuelve array de rows
+      const dato = versionRows[0];
+
+      // preparar campos (converts)
+      const nomsesion = `<b>Preview cargado: </b>${dato.nombre} v${dato.version}<br/><hr />`;
+      const mc = dato.ucp;
+      const fechainicio = dato.fechainicio
+        ? toISODateString(dato.fechainicio)
+        : "";
+      const fechafin = dato.fechafin ? toISODateString(dato.fechafin) : "";
+
+      // 2) Periodos pronosticos (tipo 'P') -> usando model.cargarPeriodosPreview(codsesion, tipo)
+      const codigoPreview = dato.codigo;
+      const client2 = createConectionPG(session);
+      const pronRows = await model.cargarPeriodosPreview(
+        codigoPreview,
+        "P",
+        client2,
+      );
+      const PeriodosPronosticos = Array.isArray(pronRows)
+        ? pronRows.map((r) => ({
+            fecha: toISODateString(r.fecha),
+            p1: toNumberSafe(r.p1),
+            p2: toNumberSafe(r.p2),
+            p3: toNumberSafe(r.p3),
+            p4: toNumberSafe(r.p4),
+            p5: toNumberSafe(r.p5),
+            p6: toNumberSafe(r.p6),
+            p7: toNumberSafe(r.p7),
+            p8: toNumberSafe(r.p8),
+            p9: toNumberSafe(r.p9),
+            p10: toNumberSafe(r.p10),
+            p11: toNumberSafe(r.p11),
+            p12: toNumberSafe(r.p12),
+            p13: toNumberSafe(r.p13),
+            p14: toNumberSafe(r.p14),
+            p15: toNumberSafe(r.p15),
+            p16: toNumberSafe(r.p16),
+            p17: toNumberSafe(r.p17),
+            p18: toNumberSafe(r.p18),
+            p19: toNumberSafe(r.p19),
+            p20: toNumberSafe(r.p20),
+            p21: toNumberSafe(r.p21),
+            p22: toNumberSafe(r.p22),
+            p23: toNumberSafe(r.p23),
+            p24: toNumberSafe(r.p24),
+          }))
+        : [];
+
+      // 3) Periodos historicos (tipo 'D')
+      const client3 = createConectionPG(session);
+      const histRows = await model.cargarPeriodosPreview(
+        codigoPreview,
+        "D",
+        client3,
+      );
+      const PeriodosHistoricos = Array.isArray(histRows)
+        ? histRows.map((r) => ({
+            fecha: toISODateString(r.fecha),
+            p1: toNumberSafe(r.p1),
+            p2: toNumberSafe(r.p2),
+            p3: toNumberSafe(r.p3),
+            p4: toNumberSafe(r.p4),
+            p5: toNumberSafe(r.p5),
+            p6: toNumberSafe(r.p6),
+            p7: toNumberSafe(r.p7),
+            p8: toNumberSafe(r.p8),
+            p9: toNumberSafe(r.p9),
+            p10: toNumberSafe(r.p10),
+            p11: toNumberSafe(r.p11),
+            p12: toNumberSafe(r.p12),
+            p13: toNumberSafe(r.p13),
+            p14: toNumberSafe(r.p14),
+            p15: toNumberSafe(r.p15),
+            p16: toNumberSafe(r.p16),
+            p17: toNumberSafe(r.p17),
+            p18: toNumberSafe(r.p18),
+            p19: toNumberSafe(r.p19),
+            p20: toNumberSafe(r.p20),
+            p21: toNumberSafe(r.p21),
+            p22: toNumberSafe(r.p22),
+            p23: toNumberSafe(r.p23),
+            p24: toNumberSafe(r.p24),
+          }))
+        : [];
+
+      const client4 = createConectionPG(session);
+      const datosDemandaRows = await model.cargarPeriodosxUCPxFecha(
+        mc,
+        fechainicio,
+        fechafin,
+        client4,
+      );
+      const rowsMapByDate = new Map();
+      if (Array.isArray(datosDemandaRows)) {
+        for (const r of datosDemandaRows) {
+          const k = toISODateString(r.fecha);
+          if (!rowsMapByDate.has(k)) rowsMapByDate.set(k, r);
+        }
+      }
+
+      const PeriodosHistoricosGrafica = [];
+      if (fechainicio && fechafin) {
+        const totalDias = daysBetweenISO(fechainicio, fechafin);
+        for (let j = 0; j <= totalDias; j++) {
+          const fechaCheck = addDaysISO(fechainicio, j); // 'YYYY-MM-DD'
+          const row = rowsMapByDate.get(fechaCheck);
+          if (row) {
+            PeriodosHistoricosGrafica.push({
+              fecha: toISODateString(row.fecha),
+              p1: toNumberSafe(row.p1),
+              p2: toNumberSafe(row.p2),
+              p3: toNumberSafe(row.p3),
+              p4: toNumberSafe(row.p4),
+              p5: toNumberSafe(row.p5),
+              p6: toNumberSafe(row.p6),
+              p7: toNumberSafe(row.p7),
+              p8: toNumberSafe(row.p8),
+              p9: toNumberSafe(row.p9),
+              p10: toNumberSafe(row.p10),
+              p11: toNumberSafe(row.p11),
+              p12: toNumberSafe(row.p12),
+              p13: toNumberSafe(row.p13),
+              p14: toNumberSafe(row.p14),
+              p15: toNumberSafe(row.p15),
+              p16: toNumberSafe(row.p16),
+              p17: toNumberSafe(row.p17),
+              p18: toNumberSafe(row.p18),
+              p19: toNumberSafe(row.p19),
+              p20: toNumberSafe(row.p20),
+              p21: toNumberSafe(row.p21),
+              p22: toNumberSafe(row.p22),
+              p23: toNumberSafe(row.p23),
+              p24: toNumberSafe(row.p24),
+              observacion: row.observacion || "",
+            });
+          } else {
+            // si no hay dato, puedes optar por agregar solo la fecha (como hace el .NET: "si no encuentra nada, mostrar solo la fecha")
+            PeriodosHistoricosGrafica.push({
+              fecha: fechaCheck,
+              p1: 0,
+              p2: 0,
+              p3: 0,
+              p4: 0,
+              p5: 0,
+              p6: 0,
+              p7: 0,
+              p8: 0,
+              p9: 0,
+              p10: 0,
+              p11: 0,
+              p12: 0,
+              p13: 0,
+              p14: 0,
+              p15: 0,
+              p16: 0,
+              p17: 0,
+              p18: 0,
+              p19: 0,
+              p20: 0,
+              p21: 0,
+              p22: 0,
+              p23: 0,
+              p24: 0,
+              observacion: "",
+            });
+          }
+        }
+      }
+
+      // 5) construir la respuesta (para mantener compatibilidad con .NET devolvemos un objeto que contiene los campos)
+      const payload = {
+        success: true,
+        nomsesion,
+        mc,
+        fechainicio,
+        fechafin,
+        PeriodosPronosticos,
+        PeriodosHistoricos,
+        PeriodosHistoricosGrafica,
+      };
+
+      // según tus services anteriores, encapsular en success/data/message
+      return {
+        success: true,
+        data: payload,
+        message: "Preview cargado correctamente",
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red(
+          "Error sesionServices cargarPreview: " +
+            (error && error.message ? error.message : error),
+        ),
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al cargar preview",
+      };
+    }
+  };
 }

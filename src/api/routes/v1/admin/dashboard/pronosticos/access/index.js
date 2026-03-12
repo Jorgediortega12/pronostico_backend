@@ -40,6 +40,34 @@ export const exportarBulk = async (req, res) => {
   }
 };
 
+export const exportarPreview = async (req, res) => {
+  const {
+    fecha_inicio,
+    fecha_fin,
+    usuario,
+    ucp,
+    pronostico = [],
+    historico = [],
+  } = req.body;
+
+  const { session } = req.user;
+  try {
+    const result = await service.exportarPreview(
+      fecha_inicio,
+      fecha_fin,
+      usuario,
+      ucp,
+      pronostico,
+      historico,
+      session,
+    );
+    if (!result.success) return responseError(200, result.message, 404, res);
+    return SuccessResponse(res, true, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
 export const borrarPronosticos = async (req, res) => {
   const { ucp, finicio, ffin } = req.body;
   const { session } = req.user;

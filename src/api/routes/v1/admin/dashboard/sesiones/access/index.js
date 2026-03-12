@@ -179,3 +179,41 @@ export const verificarUltimaActualizacionPorUcp = async (req, res) => {
     return InternalError(res);
   }
 };
+
+export const cargarVrPreviews = async (req, res) => {
+  try {
+    const { session } = req.user;
+
+    const result = await service.cargarVrPreviews(session);
+
+    if (!result.success) {
+      return responseError(200, result.message, 404, res);
+    }
+
+    return SuccessResponse(res, result.data, result.message);
+  } catch (error) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+export const cargarPreview = async (req, res) => {
+  try {
+    const { codigo } = req.params;
+    const { session } = req.user;
+
+    if (!codigo) {
+      return responseError(200, "Parametro codigo", 400, res);
+    }
+
+    const result = await service.cargarPreview(codigo, session);
+
+    if (!result.success) {
+      return responseError(200, result.message, 404, res);
+    }
+
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(err);
+  }
+};

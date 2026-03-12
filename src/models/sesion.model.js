@@ -56,6 +56,25 @@ export default class SesionModel {
     }
   };
 
+  cargarVrPreviews = async (client) => {
+    try {
+      await client.connect();
+
+      // limpiar previews expirados
+      await client.query(querys.eliminarVrPreviews);
+
+      // cargar ultimos previews
+      const result = await client.query(querys.cargarVrPreviews);
+
+      return result.rows.length > 0 ? result.rows : null;
+    } catch (error) {
+      Logger.error(colors.red("Error SesionModel cargarVrPreviews"));
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
   buscarVersionSesionCod = async (codigo, client) => {
     try {
       await client.connect();
@@ -65,6 +84,21 @@ export default class SesionModel {
       return result.rows.length > 0 ? result.rows : null;
     } catch (error) {
       Logger.error(colors.red("Error SesionModel buscarVersionSesionCod"));
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  buscarVersionPreviewCod = async (codigo, client) => {
+    try {
+      await client.connect();
+      const result = await client.query(querys.buscarVersionPreviewCod, [
+        codigo,
+      ]);
+      return result.rows.length > 0 ? result.rows : null;
+    } catch (error) {
+      Logger.error(colors.red("Error SesionModel buscarVersionPreviewCod"));
       throw error;
     } finally {
       await client.end();
@@ -81,6 +115,22 @@ export default class SesionModel {
       return result.rows.length > 0 ? result.rows : null;
     } catch (error) {
       Logger.error(colors.red("Error SesionModel cargarPeriodosSesion"));
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  cargarPeriodosPreview = async (codpreview, tipo, client) => {
+    try {
+      await client.connect();
+      const result = await client.query(querys.cargarPeriodosPreview, [
+        codpreview,
+        tipo,
+      ]);
+      return result.rows.length > 0 ? result.rows : null;
+    } catch (error) {
+      Logger.error(colors.red("Error SesionModel cargarPeriodosPreview"));
       throw error;
     } finally {
       await client.end();

@@ -54,7 +54,20 @@ export default class ConfiguracionModel {
       const result = await client.query(querys.buscarVersionSesion, [nombre]);
       return result.rows;
     } catch (error) {
-      Logger.error(colors.red("Error configuracionModel bsucarVersionSesion"));
+      Logger.error(colors.red("Error configuracionModel buscarVersionSesion"));
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  buscarVersionPreview = async (nombre, client) => {
+    try {
+      await client.connect();
+      const result = await client.query(querys.buscarVersionPreview, [nombre]);
+      return result.rows;
+    } catch (error) {
+      Logger.error(colors.red("Error configuracionModel buscarVersionPreview"));
       throw error;
     } finally {
       await client.end();
@@ -121,6 +134,31 @@ export default class ConfiguracionModel {
     }
   };
 
+  agregarVersionPreview = async (datos, client) => {
+    try {
+      await client.connect();
+      const valores = [
+        datos.fecha,
+        datos.ucp,
+        datos.fechainicio,
+        datos.fechafin,
+        datos.nombre,
+        datos.version,
+        datos.usuario,
+      ];
+      const result = await client.query(querys.agregarVersionPreview, valores);
+      return result.rows.length > 0 ? result.rows[0] : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error configuracionModel agregarVersionPreview"),
+        error,
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
   agregarDatosPronosticoxSesion = async (datos, client) => {
     try {
       await client.connect();
@@ -170,6 +208,55 @@ export default class ConfiguracionModel {
       await client.end();
     }
   };
+
+  agregarDatosPronosticoxPreview = async (datos, client) => {
+    try {
+      await client.connect();
+      const valores = [
+        datos.codpreview,
+        datos.fecha,
+        datos.p1,
+        datos.p2,
+        datos.p3,
+        datos.p4,
+        datos.p5,
+        datos.p6,
+        datos.p7,
+        datos.p8,
+        datos.p9,
+        datos.p10,
+        datos.p11,
+        datos.p12,
+        datos.p13,
+        datos.p14,
+        datos.p15,
+        datos.p16,
+        datos.p17,
+        datos.p18,
+        datos.p19,
+        datos.p20,
+        datos.p21,
+        datos.p22,
+        datos.p23,
+        datos.p24,
+        datos.tipo,
+      ];
+      const result = await client.query(
+        querys.agregarDatosPronosticoxPreview,
+        valores,
+      );
+      return result.rows.length > 0 ? result.rows[0] : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error configuracionModel agregarDatosPronosticoxPreview"),
+        error,
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
   buscarDiaFestivo = async (fecha, ucp, client) => {
     try {
       await client.connect();

@@ -152,7 +152,6 @@ export default class PronosticosService {
    * Guarda sesión (versionada) y agrega datos pronóstico + histórico.
    *
    * @param {Object} params
-   * @param {Pool} params.pool - pool pg
    * @param {Object} params.model - tu model con buscarVersionSesion, agregarVersionSesion, agregarDatosPronosticoxSesion
    * @param {string} params.ucp
    * @param {string} params.fecha_inicio - 'YYYY-MM-DD' u otros formatos compatibles
@@ -162,7 +161,7 @@ export default class PronosticosService {
    * @param {Array} params.historicoList - [{ fecha, p1..p24, observacion? }, ...]
    * @param {Object} [params.datos] - opcional, objeto con cuadroperiodo1..cuadroperiodo24 y otros flags (tipodatos,tipoedicion,...)
    * @param {string} [params.nombreArchivoTxt] - nombre del txt (ej 'MCAtlanticoAGTE1905.txt') (opcional, si no se pasa se construye)
-   * @param {Object} session - objeto sesión del usuario (para conexiones pg y guardado de sesión)
+   * @param {Object} params.session - objeto sesión del usuario (para conexiones pg y guardado de sesión)
 
   */
   saveSessionAndData = async ({
@@ -423,6 +422,208 @@ export default class PronosticosService {
   };
 
   /**
+   * Guarda sesión (versionada) y agrega datos pronóstico + histórico.
+   *
+   * @param {Object} params
+   * @param {Object} params.model - tu model con buscarVersionSesion, agregarVersionSesion, agregarDatosPronosticoxSesion
+   * @param {string} params.ucp
+   * @param {string} params.fecha_inicio - 'YYYY-MM-DD' u otros formatos compatibles
+   * @param {string} params.fecha_fin
+   * @param {string} params.usuario - quien exporta
+   * @param {Array} params.pronosticoList - [{ fecha, p1..p24, observacion? }, ...]
+   * @param {Array} params.historicoList - [{ fecha, p1..p24, observacion? }, ...]
+   * @param {Object} params.session - objeto sesión del usuario (para conexiones pg y guardado de sesión)
+
+  */
+  savePreviewAndData = async ({
+    model,
+    ucp,
+    fecha_inicio,
+    fecha_fin,
+    usuario,
+    pronosticoList = [],
+    historicoList = [],
+    session,
+  }) => {
+    // helpers
+    const parseMoment = (f) =>
+      moment(
+        f,
+        ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", "YYYY/MM/DD"],
+        true,
+      ).isValid()
+        ? moment(
+            f,
+            ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", "YYYY/MM/DD"],
+            true,
+          )
+        : moment(f);
+
+    const convertFechaAño = (f) => {
+      const m = parseMoment(f);
+      return m && m.isValid() ? m.format("YYYYMMDD") : null;
+    };
+
+    // Determinar stopDate y startDate
+    const ordered = Array.isArray(pronosticoList)
+      ? [...pronosticoList].sort((a, b) => {
+          const ma = parseMoment(a.fecha);
+          const mb = parseMoment(b.fecha);
+          return ma && mb ? ma.valueOf() - mb.valueOf() : 0;
+        })
+      : [];
+
+    const lastDateStr =
+      ordered.length > 0 ? ordered[ordered.length - 1].fecha : null;
+    const mLast = moment(
+      lastDateStr,
+      ["DD/MM/YYYY", "YYYY-MM-DD", "DD-MM-YYYY"],
+      true,
+    );
+    const reportMoment = mLast.isValid()
+      ? mLast.clone().subtract(6, "days")
+      : moment().subtract(6, "days");
+    const stopDate = reportMoment;
+    const startDate =
+      parseMoment(fecha_inicio) && parseMoment(fecha_inicio).isValid()
+        ? parseMoment(fecha_inicio)
+        : moment();
+
+    // nombrepreview
+    const dd = stopDate.format("DD");
+    const mmStart = startDate.format("MM");
+
+    const nombrepreview = `PREVIEW${ucp}AGTE${dd}${mmStart}`;
+
+    const client = createConectionPG(session);
+    // 1) buscar versión existente
+    const versionRow = await model.buscarVersionPreview(nombrepreview, client);
+    // versionRow puede venir como objeto { version: x } o { rows: [...] } o array
+    let nroversion = 1;
+    if (versionRow) {
+      const v =
+        versionRow.version ??
+        (versionRow.rows && versionRow.rows[0] && versionRow.rows[0].version) ??
+        (Array.isArray(versionRow) && versionRow[0] && versionRow[0].version);
+      if (v) nroversion = 1 + parseInt(v, 10);
+    }
+
+    // 2) preparar objeto para agregarVersionPreview (firma que mostró tu model)
+    const versionData = {
+      fecha: moment().format("YYYY-MM-DD HH:mm:ss"), // tu model espera datos.fecha
+      ucp,
+      fechainicio: convertFechaAño(fecha_inicio),
+      fechafin: convertFechaAño(fecha_fin),
+      nombre: nombrepreview,
+      version: String(nroversion),
+      usuario,
+    };
+
+    // Llamar a tu model.agregarVersionPreview pasando el objeto (tu model lo transforma a valores)
+    const client2 = createConectionPG(session);
+    const versionInserted = await model.agregarVersionPreview(
+      versionData,
+      client2,
+    );
+    if (!versionInserted)
+      throw new Error("No se pudo crear versión de preview");
+
+    // extraer codigo de la respuesta (tu model retorna result.rows[0])
+    const codpreview =
+      versionInserted.codigo ??
+      (versionInserted.rows &&
+        versionInserted.rows[0] &&
+        versionInserted.rows[0].codigo) ??
+      (Array.isArray(versionInserted) &&
+        versionInserted[0] &&
+        versionInserted[0].codigo);
+    if (!codpreview) {
+      throw new Error(
+        "No se obtuvo codigo de preview desde agregarVersionPreview",
+      );
+    }
+
+    // 3) Insertar Preview Pronóstico usando model.agregarDatosPronosticoxPreview(datos)
+    for (const rec of pronosticoList) {
+      const fechaConv = convertFechaAño(rec.fecha);
+      // construir objeto con p1..p24 y demás campos que espera tu model
+      const datosDia = {
+        codpreview: String(codpreview),
+        fecha: fechaConv,
+        p1: String(rec.p1 ?? "0").replace(",", "."),
+        p2: String(rec.p2 ?? "0").replace(",", "."),
+        p3: String(rec.p3 ?? "0").replace(",", "."),
+        p4: String(rec.p4 ?? "0").replace(",", "."),
+        p5: String(rec.p5 ?? "0").replace(",", "."),
+        p6: String(rec.p6 ?? "0").replace(",", "."),
+        p7: String(rec.p7 ?? "0").replace(",", "."),
+        p8: String(rec.p8 ?? "0").replace(",", "."),
+        p9: String(rec.p9 ?? "0").replace(",", "."),
+        p10: String(rec.p10 ?? "0").replace(",", "."),
+        p11: String(rec.p11 ?? "0").replace(",", "."),
+        p12: String(rec.p12 ?? "0").replace(",", "."),
+        p13: String(rec.p13 ?? "0").replace(",", "."),
+        p14: String(rec.p14 ?? "0").replace(",", "."),
+        p15: String(rec.p15 ?? "0").replace(",", "."),
+        p16: String(rec.p16 ?? "0").replace(",", "."),
+        p17: String(rec.p17 ?? "0").replace(",", "."),
+        p18: String(rec.p18 ?? "0").replace(",", "."),
+        p19: String(rec.p19 ?? "0").replace(",", "."),
+        p20: String(rec.p20 ?? "0").replace(",", "."),
+        p21: String(rec.p21 ?? "0").replace(",", "."),
+        p22: String(rec.p22 ?? "0").replace(",", "."),
+        p23: String(rec.p23 ?? "0").replace(",", "."),
+        p24: String(rec.p24 ?? "0").replace(",", "."),
+        tipo: "P",
+      };
+      const client3 = createConectionPG(session);
+      await model.agregarDatosPronosticoxPreview(datosDia, client3);
+    }
+
+    // 4) Insertar Histórico (tipo "D")
+    for (const rec of historicoList) {
+      const fechaConv = convertFechaAño(rec.fecha);
+      const datosDia = {
+        codpreview: String(codpreview),
+        fecha: fechaConv,
+        p1: String(rec.p1 ?? "0").replace(",", "."),
+        p2: String(rec.p2 ?? "0").replace(",", "."),
+        p3: String(rec.p3 ?? "0").replace(",", "."),
+        p4: String(rec.p4 ?? "0").replace(",", "."),
+        p5: String(rec.p5 ?? "0").replace(",", "."),
+        p6: String(rec.p6 ?? "0").replace(",", "."),
+        p7: String(rec.p7 ?? "0").replace(",", "."),
+        p8: String(rec.p8 ?? "0").replace(",", "."),
+        p9: String(rec.p9 ?? "0").replace(",", "."),
+        p10: String(rec.p10 ?? "0").replace(",", "."),
+        p11: String(rec.p11 ?? "0").replace(",", "."),
+        p12: String(rec.p12 ?? "0").replace(",", "."),
+        p13: String(rec.p13 ?? "0").replace(",", "."),
+        p14: String(rec.p14 ?? "0").replace(",", "."),
+        p15: String(rec.p15 ?? "0").replace(",", "."),
+        p16: String(rec.p16 ?? "0").replace(",", "."),
+        p17: String(rec.p17 ?? "0").replace(",", "."),
+        p18: String(rec.p18 ?? "0").replace(",", "."),
+        p19: String(rec.p19 ?? "0").replace(",", "."),
+        p20: String(rec.p20 ?? "0").replace(",", "."),
+        p21: String(rec.p21 ?? "0").replace(",", "."),
+        p22: String(rec.p22 ?? "0").replace(",", "."),
+        p23: String(rec.p23 ?? "0").replace(",", "."),
+        p24: String(rec.p24 ?? "0").replace(",", "."),
+        tipo: "D",
+      };
+      const client4 = createConectionPG(session);
+      await model.agregarDatosPronosticoxPreview(datosDia, client4);
+    }
+
+    return {
+      success: true,
+      codpreview,
+      nombrepreview,
+    };
+  };
+
+  /**
    * Inserta en BD y genera archivos .txt/.xlsx (opcionalmente registra archivo en BD)
    * @param {string} fecha_inicio - fecha inicio del pronostico
    * @param {string} fecha_fin - fecha fin del pronostico
@@ -612,6 +813,76 @@ export default class PronosticosService {
       };
     } catch (err) {
       Logger.error(colors.red("Error PronosticosService exportarBulk "), err);
+      throw new Error("ERROR TECNICO");
+    }
+  };
+
+  /**
+   * @param {string} fecha_inicio - fecha inicio del pronostico
+   * @param {string} fecha_fin - fecha fin del pronostico
+   * @param {string} usuario - usuario que exporto
+   * @param {string} ucp - ucp/mc (mercado comercializacion, se usa como carpeta MC{ucp})
+   * @param {Array} pronosticoList - array [{fecha, p1..p24, observacion?}, ...]
+   * @param {Array} historicoList - array [{fecha, p1..p24, observacion?}, ...]
+   * @param {Object} session - objeto sesión del usuario (para conexiones pg y guardado de sesión)
+   */
+
+  exportarPreview = async (
+    fecha_inicio,
+    fecha_fin,
+    usuario,
+    ucp,
+    pronosticoList,
+    historicoList,
+    session,
+  ) => {
+    try {
+      const normalizeDate = (f) => {
+        if (!f) return new Date(0);
+        return new Date(f);
+      };
+
+      const ordered = Array.isArray(pronosticoList)
+        ? [...pronosticoList].sort(
+            (a, b) => normalizeDate(a.fecha) - normalizeDate(b.fecha),
+          )
+        : [];
+
+      //Guardar preview y datos (pronóstico + histórico)
+      if (typeof this.savePreviewAndData !== "function") {
+        Logger.warn("savePreviewAndData no definido - se omite preview");
+      } else {
+        try {
+          const previewResult = await this.savePreviewAndData({
+            model: configuracionModel,
+            ucp,
+            fecha_inicio,
+            fecha_fin,
+            usuario,
+            pronosticoList: ordered,
+            historicoList,
+            session, // pasar session para que tu model pueda usarla si es necesario
+          });
+          Logger.info(
+            `Preview guardado: ${previewResult.nombrepreview} id=${previewResult.codpreview}`,
+          );
+        } catch (err) {
+          Logger.error("Error guardando preview y datos:", err);
+        }
+      }
+
+      //Respuesta
+      return {
+        success: true,
+        message: `Se insertaron ${
+          pronosticoList.length
+        } pronósticos. Sesión de preview creada.`,
+      };
+    } catch (err) {
+      Logger.error(
+        colors.red("Error PronosticosService exportarPreview "),
+        err,
+      );
       throw new Error("ERROR TECNICO");
     }
   };

@@ -17,10 +17,30 @@ export const cargarArchivoVrSesiones = `
     s.nombre, 
     s.version ASC
 `;
+//cargar versiones previews
+export const cargarVrPreviews = `
+  SELECT 
+    p.codigo, 
+    CONCAT_WS('', p.nombre, ' v', p.version) AS nombre
+  FROM previews p
+  ORDER BY 
+    p.fecha DESC
+  LIMIT 4;
+`;
+
+//eliminar versiones previews
+export const eliminarVrPreviews = `
+  DELETE FROM previews
+  WHERE fecha < NOW() - INTERVAL '24 hours'
+`;
 // buscar versiones por codigo
 export const buscarVersionSesionCod = `SELECT * FROM sesiones WHERE codigo = $1`;
+// buscar previews por codigo
+export const buscarVersionPreviewCod = `SELECT * FROM previews WHERE codigo = $1`;
 // obtener sesiones periodos por código y tipo
 export const cargarPeriodosSesion = `SELECT * FROM sesiones_periodos WHERE codsesion = $1 AND tipo = $2 ORDER BY fecha ASC`;
+// obtener previews periodos por código y tipo
+export const cargarPeriodosPreview = `SELECT * FROM previews_periodos WHERE codpreview = $1 AND tipo = $2 ORDER BY fecha ASC`;
 
 export const cargarPeriodosxUCPxFecha = `
   SELECT
