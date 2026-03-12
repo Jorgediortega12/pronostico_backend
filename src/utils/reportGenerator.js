@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import moment from "moment";
 import ExcelJS from "exceljs";
+import { createConectionPG } from "../helpers/connections.js";
 
 /**
  * @param {Object} params
@@ -14,6 +15,7 @@ import ExcelJS from "exceljs";
  * @param {string} params.fileBaseName    // sin extension
  * @param {Object} params.configuracionModel // model con cargarDiasPotencias / buscarPotenciaDia / buscarDiaFestivo opcionales
  * @param {Object} [params.options]       // { truncate: true, keepDecimals: true } (no usado intensamente aquí)
+ * @param {Object} [params.session]       // sesión del usuario (para conexiones pg)
  * @returns {Object} { xlsxPath, xlsxName }
  */
 
@@ -25,6 +27,7 @@ export async function generateTxtToFolder({
   folderPhysical, // carpeta absoluta existente o se crea
   fileBaseName, // sin extension
   configuracionModel, // obj con métodos cargarDiasPotencias, buscarDiaFestivo
+  session, // para conexiones pg
 }) {
   if (!Array.isArray(pronosticoList)) pronosticoList = [];
   if (!fs.existsSync(folderPhysical))
@@ -34,12 +37,12 @@ export async function generateTxtToFolder({
   const startDT = moment(
     fecha_inicio,
     ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY"],
-    true
+    true,
   );
   const endDT = moment(
     fecha_fin,
     ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY"],
-    true
+    true,
   );
   const totalDays =
     startDT.isValid() && endDT.isValid() ? endDT.diff(startDT, "days") : null;
@@ -67,7 +70,7 @@ export async function generateTxtToFolder({
     const m = moment(
       f,
       ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", "YYYY/MM/DD"],
-      true
+      true,
     );
     return m.isValid() ? m : moment(f); // fallback
   };
@@ -130,9 +133,9 @@ export async function generateTxtToFolder({
           monthsES[moment().month()]
         } DE ${moment().year()}`;
   const headerLine = `$ PRONOSTICO DEL MC ${ucp} SEMANA DEL ${stopDate.format(
-    "DD"
+    "DD",
   )} DE ${monthsES[Number(stopDate.format("M")) - 1]} DE ${stopDate.format(
-    "YYYY"
+    "YYYY",
   )}`;
 
   // ---------- construir matrix 24 x numdias con valores truncados (igual a C# Math.Truncate)
@@ -178,7 +181,11 @@ export async function generateTxtToFolder({
     // Si no existe el model, simplemente no agregamos potencias (o podrías lanzar)
     // Para compatibilidad, dejamos que la función siga y devuelva TXT sin potencias.
   } else {
-    const potenciaRows = await configuracionModel.cargarDiasPotencias(ucp);
+    const client = createConectionPG(session);
+    const potenciaRows = await configuracionModel.cargarDiasPotencias(
+      ucp,
+      client,
+    );
     // potenciaRows esperado: array de objetos [{ dia: '1', potencia1: 100, potencia2: 80, ... }, ...]
     if (Array.isArray(potenciaRows) && potenciaRows.length > 0) {
       for (let k = 0; k < potenciaRows.length; k++) {
@@ -203,16 +210,18 @@ export async function generateTxtToFolder({
           }
           // valor del periodo en el pronóstico
           let vPeriodo = Number(
-            String(rec[`p${diaPeriodo}`] ?? 0).replace(",", ".")
+            String(rec[`p${diaPeriodo}`] ?? 0).replace(",", "."),
           );
           if (isNaN(vPeriodo)) vPeriodo = 0;
 
           // buscar si es festivo: configuracionModel.buscarDiaFestivo(fecha, ucp)
           let isFestivo = false;
           if (typeof configuracionModel.buscarDiaFestivo === "function") {
+            const client2 = createConectionPG(session);
             const ff = await configuracionModel.buscarDiaFestivo(
               mdate.format("YYYY-MM-DD"),
-              ucp
+              ucp,
+              client2,
             );
             if (ff) isFestivo = true;
           }
@@ -223,8 +232,8 @@ export async function generateTxtToFolder({
           const potenciaColName = isFestivo
             ? `potencia1`
             : diaSemanaIndex === 7
-            ? `potencia1`
-            : `potencia${diaSemanaIndex + 1}`;
+              ? `potencia1`
+              : `potencia${diaSemanaIndex + 1}`;
           // obtener valor vPotencia
           let vPotencia = 0;
           if (prow && prow[potenciaColName] != null) {
@@ -265,6 +274,7 @@ export async function generateTxtToFolder({
  * @param {string} params.fileBaseName    // sin extension
  * @param {Object} params.configuracionModel // model con cargarDiasPotencias / buscarPotenciaDia / buscarDiaFestivo opcionales
  * @param {Object} [params.options]       // { truncate: true, keepDecimals: true } (no usado intensamente aquí)
+ * @param {Object} [params.session]       // sesión del usuario (para conexiones pg)
  * @returns {Object} { xlsxPath, xlsxName }
  */
 
@@ -279,6 +289,7 @@ export async function generateXlsxToFolder({
   options = { truncate: true, keepDecimals: true },
   codigoColeccionEnergia = "PROENCNDHMC",
   codigoColeccionPotencia = "PROPOTCNDHMC",
+  session,
 }) {
   if (!Array.isArray(pronosticoList)) pronosticoList = [];
   if (!fs.existsSync(folderPhysical))
@@ -293,7 +304,7 @@ export async function generateXlsxToFolder({
     const m = moment(
       f,
       ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", "YYYY/MM/DD"],
-      true
+      true,
     );
     return m.isValid() ? m : moment(f);
   };
@@ -370,9 +381,11 @@ export async function generateXlsxToFolder({
         // fetch per period 1..24
         for (let p = 1; p <= 24; p++) {
           try {
+            const client = createConectionPG(session);
             const res = await configuracionModel.buscarPotenciaDia(
               ucp,
-              String(p)
+              String(p),
+              client,
             );
             const rec = res && res.rows ? res.rows[0] : res;
             if (rec) potenciasMapByPeriod[String(p)] = rec;
@@ -382,12 +395,18 @@ export async function generateXlsxToFolder({
           }
         }
       } else if (typeof configuracionModel.cargarDiasPotencias === "function") {
-        const carg = await configuracionModel.cargarDiasPotencias(ucp);
+        const client2 = createConectionPG(session);
+        const carg = await configuracionModel.cargarDiasPotencias(ucp, client2);
         const arr = carg && carg.rows ? carg.rows : carg || [];
         for (const r of arr) {
           if (!r) continue;
           const dia = String(
-            r.dia || r.DIA || r.periodo || r.period || r.periodo_id || r.PERIODO
+            r.dia ||
+              r.DIA ||
+              r.periodo ||
+              r.period ||
+              r.periodo_id ||
+              r.PERIODO,
           );
           potenciasMapByPeriod[dia] = r;
         }
@@ -494,9 +513,11 @@ export async function generateXlsxToFolder({
         typeof configuracionModel.buscarDiaFestivo === "function"
       ) {
         try {
+          const client3 = createConectionPG(session);
           const ff = await configuracionModel.buscarDiaFestivo(
             mDate.format("YYYY-MM-DD"),
-            ucp
+            ucp,
+            client3,
           );
           if (ff) isFestivo = true;
         } catch (err) {
@@ -511,18 +532,18 @@ export async function generateXlsxToFolder({
       const potenciaColName = isFestivo
         ? "potencia1"
         : diaNumero === 7
-        ? "potencia1"
-        : `potencia${diaNumero + 1}`;
+          ? "potencia1"
+          : `potencia${diaNumero + 1}`;
 
       // buscar potencia en potenciaRow (case-insensitive)
       let vPotencia = 0;
       if (potenciaRow[potenciaColName] != null) {
         vPotencia = Number(
-          String(potenciaRow[potenciaColName]).replace(",", ".")
+          String(potenciaRow[potenciaColName]).replace(",", "."),
         );
       } else {
         const altKey = Object.keys(potenciaRow).find(
-          (k) => k.toLowerCase() === potenciaColName.toLowerCase()
+          (k) => k.toLowerCase() === potenciaColName.toLowerCase(),
         );
         if (altKey)
           vPotencia = Number(String(potenciaRow[altKey]).replace(",", "."));
@@ -571,7 +592,7 @@ export async function generateXlsxToFolder({
  * @param {string} params.nombreArchivo - nombre del archivo (ej. MCATLANTICOAGT1907.txt)
  * @param {string} params.rutaArchivo - ruta absoluta en disco o url (ej. /var/www/reportes/...)
  * @param {number} params.codcarpeta - id de la carpeta en tu sistema
- * @param {string|null} params.contentType - mime type opcional; si no se pasa se intenta inferir
+ * @param {string|null} params.contentType - mime type opcional; si no se pasa se intenta inferir     // sesión del usuario (para conexiones pg)
  * @returns {Object} fila insertada { codigo: <id> }
  */
 export async function insertFileRecord(client, params = {}) {
@@ -580,7 +601,7 @@ export async function insertFileRecord(client, params = {}) {
   if (!client) throw new Error("insertFileRecord: client de BD requerido");
   if (!nombreArchivo || !rutaArchivo)
     throw new Error(
-      "insertFileRecord: nombreArchivo y rutaArchivo son obligatorios"
+      "insertFileRecord: nombreArchivo y rutaArchivo son obligatorios",
     );
 
   const ext = path.extname(nombreArchivo || "").toLowerCase();
