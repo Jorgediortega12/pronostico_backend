@@ -19,4 +19,9 @@ export default {
     fechainicio: Joi.string().required(),
     fechafin: Joi.string().required(),
   }),
+  actualizarEstadoDemanda: Joi.object().keys({
+    codigo: Joi.number().required(),
+    estado: Joi.string().required(),
+    observacion: Joi.string().allow(""),
+  }),
 };

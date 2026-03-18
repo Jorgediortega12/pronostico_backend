@@ -384,4 +384,21 @@ export default class SesionModel {
       await client.end();
     }
   };
+
+  actualizarEstadoDemanda = async (codigo, estado, observacion, client) => {
+    try {
+      await client.connect();
+      const result = await client.query(querys.actualizarEstadoDemanda, [
+        codigo,
+        estado,
+        observacion,
+      ]);
+      return result.rows.length > 0 ? result.rows[0] : null;
+    } catch (error) {
+      Logger.error(colors.red("Error sesionModel actualizarEstadoDemanda"));
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
 }

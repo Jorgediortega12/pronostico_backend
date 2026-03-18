@@ -766,4 +766,37 @@ export default class SesionService {
       };
     }
   };
+
+  actualizarEstadoDemanda = async (codigo, estado, observacion, session) => {
+    try {
+      const client = createConectionPG(session);
+      const datoDemanda = await model.actualizarEstadoDemanda(
+        codigo,
+        estado,
+        observacion,
+        client,
+      );
+
+      if (!datoDemanda) {
+        return {
+          success: false,
+          data: null,
+          message: "No se pudo actualizar los datos de la demanda",
+        };
+      }
+
+      return {
+        success: true,
+        data: datoDemanda,
+        message: "Actualizacion de datos demanda exitosamente",
+      };
+    } catch (error) {
+      Logger.error(colors.red("Error SesionServices actualizarEstadoDemanda"));
+      return {
+        success: false,
+        data: null,
+        message: "Error al actualizar los datos de demanda",
+      };
+    }
+  };
 }

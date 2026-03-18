@@ -51,5 +51,10 @@ export default function () {
     validator(schema.buscarVersionSesionCod),
     controllers.cargarPreview,
   );
+  router.post(
+    "/actualizarEstadoDemanda",
+    validator(schema.actualizarEstadoDemanda),
+    controllers.actualizarEstadoDemanda,
+  );
   return router;
 }

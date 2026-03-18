@@ -217,3 +217,30 @@ export const cargarPreview = async (req, res) => {
     return InternalError(err);
   }
 };
+
+export const actualizarEstadoDemanda = async (req, res) => {
+  try {
+    const { codigo, estado, observacion } = req.body;
+    const { session } = req.user;
+
+    if (!codigo || !estado) {
+      return responseError(200, "Falta de Parametros", 400, res);
+    }
+
+    const result = await service.actualizarEstadoDemanda(
+      codigo,
+      estado,
+      observacion,
+      session,
+    );
+
+    if (!result.success) {
+      return responseError(200, result.message, 404, res);
+    }
+
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(err);
+  }
+};

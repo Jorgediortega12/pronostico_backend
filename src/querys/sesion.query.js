@@ -43,11 +43,11 @@ export const cargarPeriodosSesion = `SELECT * FROM sesiones_periodos WHERE codse
 export const cargarPeriodosPreview = `SELECT * FROM previews_periodos WHERE codpreview = $1 AND tipo = $2 ORDER BY fecha ASC`;
 
 export const cargarPeriodosxUCPxFecha = `
-  SELECT
-    fecha,
+  SELECT 
+  codigo, fecha,
     p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12,
     p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, p23, p24,
-    observacion
+    observacion, estado
   FROM actualizaciondatos
   WHERE ucp = $1
     AND (fecha BETWEEN $2 AND $3)
@@ -83,3 +83,5 @@ SELECT DISTINCT ON (ucp) *
 FROM actualizaciondatos
 ORDER BY ucp, fecha DESC
 `;
+
+export const actualizarEstadoDemanda = `UPDATE actualizaciondatos SET estado=$2, observacion=$3 WHERE codigo=$1 RETURNING * ;`;
