@@ -632,3 +632,20 @@ export const calcularMedidas = async (req, res) => {
     return InternalError(res);
   }
 };
+
+export const buscarUltimaFechaMedida = async (req, res) => {
+  const { session } = req.user;
+  try {
+    const result = await service.buscarUltimaFechaMedida(session);
+    if (!result.success)
+      return res.status(500).json({ success: false, message: result.message });
+    return res
+      .status(200)
+      .json({ success: true, data: result.data, message: result.message });
+  } catch (err) {
+    Logger.error(colors.red("Error controller buscarUltimaFechaMedida"), err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  }
+};

@@ -2,7 +2,6 @@ import * as querys from "../querys/factores.querys.js";
 import Logger from "../helpers/logger.js";
 import colors from "colors";
 import pkg from "pg";
-const { Client } = pkg;
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -14,16 +13,6 @@ export default class FactoresModel {
       FactoresModel.instance = new FactoresModel();
     }
     return FactoresModel.instance;
-  }
-
-  createClient() {
-    return new Client({
-      user: process.env.POSTGRES_USER,
-      host: process.env.POSTGRES_HOST || "localhost",
-      database: process.env.POSTGRES_DB,
-      password: process.env.POSTGRES_PASSWORD,
-      port: process.env.POSTGRES_PORT || 5432,
-    });
   }
 
   guardarBarra = async (data, client) => {
@@ -441,4 +430,17 @@ export default class FactoresModel {
       await client.end();
     }
   };
+
+  async buscarUltimaFechaMedida(client) {
+    try {
+      await client.connect();
+      const result = await client.query(querys.buscarUltimaFechaMedida);
+      return result.rows.length > 0 ? result.rows[0] : null;
+    } catch (error) {
+      Logger.error(colors.red("Error buscarUltimaFechaMedida"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  }
 }

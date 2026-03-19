@@ -154,5 +154,7 @@ export default function () {
     controllers.calcularMedidas,
   );
 
+  router.get("/buscarUltimaFechaMedida", controllers.buscarUltimaFechaMedida);
+
   return router;
 }

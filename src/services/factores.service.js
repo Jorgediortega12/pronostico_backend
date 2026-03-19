@@ -673,4 +673,22 @@ export default class FactoresService {
 
     return { success: false, statusCode: 0, data: null };
   }
+
+  buscarUltimaFechaMedida = async (session) => {
+    try {
+      const client = createConectionPG(session);
+      const row = await model.buscarUltimaFechaMedida(client);
+      return { success: true, data: row, message: "Búsqueda completada." };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error FactoresService buscarUltimaFechaMedida"),
+        error,
+      );
+      return {
+        success: false,
+        data: null,
+        message: `Error al buscar la ultima fecha medidas.`,
+      };
+    }
+  };
 }

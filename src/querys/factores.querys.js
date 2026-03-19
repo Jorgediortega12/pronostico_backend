@@ -222,3 +222,5 @@ GROUP BY
 
 ORDER BY ME.fecha ASC
 `;
+
+export const buscarUltimaFechaMedida = `SELECT * FROM medidas ORDER BY fecha DESC LIMIT 1`;
