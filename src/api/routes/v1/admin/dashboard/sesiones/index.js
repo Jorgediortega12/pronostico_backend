@@ -13,6 +13,12 @@ export default function () {
   );
 
   router.get(
+    "/cargarDatosSesionesFactores/:nombre",
+    validator(schema.cargarDatosSesionesFactores),
+    controllers.cargarDatosSesionesFactores,
+  );
+
+  router.get(
     "/cargarArchivoVrSesiones/:codcarpeta",
     validator(schema.cargarArchivoVrSesiones),
     controllers.cargarArchivosVrSesiones,

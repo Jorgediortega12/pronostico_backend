@@ -940,7 +940,7 @@ export default class FactoresService {
         const root = await findOrCreateFolder(clientCarpeta, "reportes", 0, 1);
         const factores = await findOrCreateFolder(
           clientCarpeta,
-          "factores",
+          "Factores",
           root.codigo,
           2,
         );
@@ -1035,6 +1035,103 @@ export default class FactoresService {
       return {
         success: false,
         message: err.message || "Error al guardar sesión de factores",
+      };
+    }
+  };
+
+  cargarSesionFactoresPorCodigo = async (codArchivo, session) => {
+    try {
+      const client1 = createConectionPG(session);
+      // 1. Obtener la sesión a través del archivo
+      const sesionRows = await model.buscarSesionPorArchivo(
+        codArchivo,
+        client1,
+      );
+      if (!sesionRows?.length)
+        return { success: false, message: "Sesión no encontrada" };
+      const sesion = sesionRows[0];
+
+      // 2. Obtener sumasRef
+      const client2 = createConectionPG(session);
+      const refRows = await model.buscarRefPorSesion(sesion.codigo, client2);
+
+      // 3. Obtener FDA/FDP
+      const client3 = createConectionPG(session);
+      const factorRows = await model.buscarFactoresPorSesion(
+        sesion.codigo,
+        client3,
+      );
+
+      // 4. Armar sumasRef
+      const PERIODOS = Array.from({ length: 24 }, (_, i) => `p${i + 1}`);
+      const sumasRef = refRows.map((r) => ({
+        tipo_dia: r.tipo_dia,
+        tipo_energia: r.tipo_energia,
+        periodos: Object.fromEntries(
+          PERIODOS.map((p) => [p, Number(r[p]) || 0]),
+        ),
+      }));
+
+      // 5. Armar resultadosFdaFdp
+      const resultadosFdaFdp = factorRows.map((f) => ({
+        tipoDia: f.tipo_dia,
+        tipo: f.tipo_factor, // "FDA" | "FDP"
+        barra: f.barra,
+        periodos: Object.fromEntries(
+          PERIODOS.map((p) => [p, Number(f[p]) || 0]),
+        ),
+      }));
+
+      return {
+        success: true,
+        data: {
+          codsesion: sesion.codigo,
+          ucp: sesion.ucp,
+          fecha_inicio: sesion.fecha_inicio,
+          fecha_fin: sesion.fecha_fin,
+          usuario: sesion.usuario,
+          nombre: sesion.nombre,
+          version: sesion.version,
+          nombrearchivo: sesion.nombrearchivo,
+          observacion: sesion.observacion ?? "",
+          sumasRef,
+          resultadosFdaFdp,
+        },
+      };
+    } catch (err) {
+      Logger.error("Error cargarSesionFactoresPorCodigo service", err);
+      return { success: false, message: err.message };
+    }
+  };
+  cargarArchivoVrSesionesFactores = async (codcarpeta, session) => {
+    try {
+      const client = createConectionPG(session);
+      const rows = await model.cargarArchivoVrSesionesFactores(
+        codcarpeta,
+        client,
+      );
+
+      if (!rows) {
+        return {
+          success: false,
+          data: null,
+          message: "No se encontraron versiones de sesiones de factores",
+        };
+      }
+
+      return {
+        success: true,
+        data: rows,
+        message: "Versiones de sesiones de factores cargadas exitosamente",
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error FactoresService cargarArchivoVrSesionesFactores"),
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al cargar versiones de sesiones de factores",
       };
     }
   };

@@ -720,3 +720,53 @@ export const guardarSesionReporteFactores = async (req, res) => {
       .json({ success: false, message: "Internal server error" });
   }
 };
+
+// controller
+export const cargarSesionFactoresPorCodigo = async (req, res) => {
+  const { codArchivo } = req.params;
+  const { session } = req.user;
+  try {
+    const result = await service.cargarSesionFactoresPorCodigo(
+      codArchivo,
+      session,
+    );
+    if (!result.success)
+      return res.status(404).json({ success: false, message: result.message });
+    return res.status(200).json({ success: true, data: result.data });
+  } catch (err) {
+    Logger.error("Error cargarSesionFactoresPorCodigo", err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  }
+};
+
+export const cargarArchivoVrSesionesFactores = async (req, res) => {
+  try {
+    const { codcarpeta } = req.params;
+    const { session } = req.user;
+
+    if (!codcarpeta) {
+      return responseError(
+        200,
+        "Parámetro codcarpeta no proporcionado",
+        400,
+        res,
+      );
+    }
+
+    const result = await service.cargarArchivoVrSesionesFactores(
+      codcarpeta,
+      session,
+    );
+
+    if (!result.success) {
+      return responseError(200, result.message, 404, res);
+    }
+
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};

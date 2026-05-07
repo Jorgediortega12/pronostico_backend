@@ -168,5 +168,14 @@ export default function () {
     controllers.guardarSesionReporteFactores,
   );
 
+  router.get(
+    "/cargarSesionFactoresPorCodigo/:codArchivo",
+    controllers.cargarSesionFactoresPorCodigo,
+  );
+  router.get(
+    "/cargarArchivoVrSesionesFactores/:codcarpeta",
+    validator(schema.cargarArchivoVrSesionesFactores),
+    controllers.cargarArchivoVrSesionesFactores,
+  );
   return router;
 }

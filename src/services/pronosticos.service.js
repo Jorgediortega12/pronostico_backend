@@ -1058,9 +1058,9 @@ export default class PronosticosService {
   ) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    const port = 8001;
+    //const port = 8001;
     //puerto desarrollo
-    // const port = 8000;
+    const port = 8000;
     // Solo calcular n_days si es el modelo /predict-with-base-curve
     const n_days = daysBetweenISO(inicioIso, finIso) + 1;
 
@@ -1611,9 +1611,9 @@ export default class PronosticosService {
   retrainModel = async (ucp, timeoutMs = 600000) => {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    const port = 8001;
+    //const port = 8001;
     //puerto desarrollo
-    // const port = 8000;
+    const port = 8000;
     for (const host of hostsToTry) {
       const url = `http://${host}:${port}/retrain?ucp=${encodeURIComponent(
         String(ucp),
@@ -1694,9 +1694,9 @@ export default class PronosticosService {
   async getEvents(inicioIso, finIso, ucp, timeoutMs = 600000) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    const port = 8001;
+    //const port = 8001;
     //puerto desarrollo
-    // const port = 8000;
+    const port = 8000;
 
     for (const host of hostsToTry) {
       let timer; // <-- declarar fuera del try para que catch/finally lo vean
@@ -1794,9 +1794,9 @@ export default class PronosticosService {
   ) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    const port = 8001;
+    //const port = 8001;
     //puerto desarrollo
-    // const port = 8000;
+    const port = 8000;
 
     for (const host of hostsToTry) {
       let timer;
@@ -1954,9 +1954,9 @@ export default class PronosticosService {
   }) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    const port = 8001;
+    //const port = 8001;
     //puerto desarrollo
-    // const port = 8000;
+    const port = 8000;
     const endpoint = "/predict-day";
 
     // Normalizar fechas
@@ -2064,9 +2064,9 @@ export default class PronosticosService {
   }) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    const port = 8001;
+    //const port = 8001;
     //puerto desarrollo
-    // const port = 8000;
+    const port = 8000;
     const endpoint = "/validate-hourly-adjustments";
 
     const fechaIso = toISODateString(fecha);
@@ -2174,9 +2174,9 @@ export default class PronosticosService {
     const hostsToTry = ["127.0.0.1", "localhost"];
 
     // puerto producción
-    const port = 8001;
+    //const port = 8001;
     // puerto desarrollo
-    // const port = 8000;
+    const port = 8000;
 
     for (const host of hostsToTry) {
       let timer;
@@ -2256,9 +2256,9 @@ export default class PronosticosService {
   }) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
-    const port = 8001;
+    //const port = 8001;
     //puerto desarrollo
-    // const port = 8000;
+    const port = 8000;
     const endpoint = "/predict-day-scaled";
 
     // Normalizar fechas

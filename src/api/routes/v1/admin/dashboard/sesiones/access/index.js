@@ -34,6 +34,27 @@ export const cargarDatosSesiones = async (req, res) => {
     return InternalError(res);
   }
 };
+export const cargarDatosSesionesFactores = async (req, res) => {
+  try {
+    const { nombre } = req.params;
+    const { session } = req.user;
+
+    if (!nombre) {
+      return responseError(200, "Parametro nombre no proporcionado", 400, res);
+    }
+
+    const result = await service.cargarDatosSesionesFactores(nombre, session);
+
+    if (!result.success) {
+      return responseError(200, result.message, 404, res);
+    }
+
+    return SuccessResponse(res, result.data, result.messasge);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
 
 export const cargarArchivosVrSesiones = async (req, res) => {
   try {

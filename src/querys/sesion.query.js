@@ -1,5 +1,16 @@
 //cargar datos de las sesiones
 export const cargarDatosSesiones = `SELECT * FROM carpetas WHERE codsuperior = $1 ORDER BY nombre ASC`;
+export const cargarDatosSesionesFactores = `
+  SELECT *
+  FROM carpetas
+  WHERE codsuperior = (
+    SELECT codigo
+    FROM carpetas
+    WHERE nombre = $1
+    LIMIT 1
+  )
+  ORDER BY nombre ASC
+`;
 //cargar archivos versiones sesiones
 export const cargarArchivoVrSesiones = `
   SELECT 

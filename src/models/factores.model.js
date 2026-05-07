@@ -89,6 +89,26 @@ export default class FactoresModel {
     }
   };
 
+  // En FactoresModel
+  consultarAgrupacion_xCodigoRpm = async (codigoRpm, client) => {
+    try {
+      await client.connect();
+      const { rows } = await client.query(
+        querys.consultarAgrupacion_xCodigoRpm,
+        [codigoRpm],
+      );
+      return rows[0] ?? null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error FactoresModel consultarAgrupacionesIndex_xBarraId"),
+        error,
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
   consultarAgrupacionesIndex_xBarraId = async (barra_id, client) => {
     try {
       await client.connect();
@@ -283,6 +303,123 @@ export default class FactoresModel {
       throw error;
     } finally {
       await client.end();
+    }
+  };
+
+  // InsersarmedidasEPM
+  procesarYInsertarMedidasEPM = async (datosEPM, barraId, client) => {
+    try {
+      // 1. Consultar agrupaciones por barra_id
+      const { rows: agrupaciones } = await client.query(
+        querys.consultarAgrupacionesIndex_xBarraId,
+        [barraId],
+      );
+
+      // Mapa rápido: codigo_rpm -> flujo
+      const mapaAgrupaciones = new Map(
+        agrupaciones.map((a) => [a.codigo_rpm, a.flujo]),
+      );
+
+      // 2. Agrupar datos EPM por (codigo_rpm, fecha_dia)
+      const grupos = new Map();
+
+      for (const item of datosEPM) {
+        const codigoRpm = construirCodigoRpm(
+          item.ESTACION,
+          item.NIVEL_TENSION,
+          item.CAMPO,
+        );
+
+        const fechaCompleta = new Date(item.FECHA);
+        const fechaDia = fechaCompleta.toISOString().split("T")[0]; // "2026-04-20"
+        const hora = fechaCompleta.getUTCHours(); // 0-23
+        const periodo = hora + 1; // p1-p24
+
+        // Determinar flujo
+        const flujo = mapaAgrupaciones.has(codigoRpm)
+          ? mapaAgrupaciones.get(codigoRpm)
+          : mapearFlujo(item.NOMBRE);
+
+        const key = `${codigoRpm}||${fechaDia}||${flujo}`;
+
+        if (!grupos.has(key)) {
+          grupos.set(key, {
+            flujo,
+            fecha: fechaDia,
+            codigo_rpm: codigoRpm,
+            p1: null,
+            p2: null,
+            p3: null,
+            p4: null,
+            p5: null,
+            p6: null,
+            p7: null,
+            p8: null,
+            p9: null,
+            p10: null,
+            p11: null,
+            p12: null,
+            p13: null,
+            p14: null,
+            p15: null,
+            p16: null,
+            p17: null,
+            p18: null,
+            p19: null,
+            p20: null,
+            p21: null,
+            p22: null,
+            p23: null,
+            p24: null,
+          });
+        }
+
+        // Asignar INTEGRAL al periodo correspondiente
+        const medida = grupos.get(key);
+        medida[`p${periodo}`] = item.INTEGRAL;
+      }
+
+      // 3. Insertar medidas
+      await client.query("BEGIN");
+
+      for (const medida of grupos.values()) {
+        await client.query(querys.insertarMedida, [
+          medida.flujo,
+          medida.fecha,
+          medida.codigo_rpm,
+          medida.p1,
+          medida.p2,
+          medida.p3,
+          medida.p4,
+          medida.p5,
+          medida.p6,
+          medida.p7,
+          medida.p8,
+          medida.p9,
+          medida.p10,
+          medida.p11,
+          medida.p12,
+          medida.p13,
+          medida.p14,
+          medida.p15,
+          medida.p16,
+          medida.p17,
+          medida.p18,
+          medida.p19,
+          medida.p20,
+          medida.p21,
+          medida.p22,
+          medida.p23,
+          medida.p24,
+        ]);
+      }
+
+      await client.query("COMMIT");
+      return { insertadas: grupos.size };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      Logger.error(colors.red("Error procesarYInsertarMedidasEPM"), error);
+      throw error;
     }
   };
 
@@ -532,6 +669,66 @@ export default class FactoresModel {
       return result.rows[0] ?? null;
     } catch (error) {
       Logger.error(colors.red("Error agregarArchivoSesionFactores"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  buscarSesionPorArchivo = async (codArchivo, client) => {
+    try {
+      await client.connect();
+      const result = await client.query(querys.buscarSesionPorArchivo, [
+        codArchivo,
+      ]);
+      console.log("codArchivo:", codArchivo);
+      console.log("RESULTsESSION MODEL:", JSON.stringify(result, null, 5));
+
+      return result.rows;
+    } catch (err) {
+      throw err;
+    } finally {
+      await client.end();
+    }
+  };
+
+  buscarRefPorSesion = async (codsesion, client) => {
+    try {
+      await client.connect();
+      const result = await client.query(querys.buscarRefPorSesion, [codsesion]);
+      return result.rows;
+    } catch (err) {
+      throw err;
+    } finally {
+      await client.end();
+    }
+  };
+
+  buscarFactoresPorSesion = async (codsesion, client) => {
+    try {
+      await client.connect();
+      const result = await client.query(querys.buscarFactoresPorSesion, [
+        codsesion,
+      ]);
+      return result.rows;
+    } catch (err) {
+      throw err;
+    } finally {
+      await client.end();
+    }
+  };
+  cargarArchivoVrSesionesFactores = async (codcarpeta, client) => {
+    try {
+      await client.connect();
+      const result = await client.query(
+        querys.cargarArchivoVrSesionesFactores,
+        [codcarpeta],
+      );
+      return result.rows.length > 0 ? result.rows : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error FactoresModel cargarArchivoVrSesionesFactores"),
+      );
       throw error;
     } finally {
       await client.end();
