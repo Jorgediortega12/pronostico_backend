@@ -332,6 +332,11 @@ export default {
     diasSemana: Joi.array().items(Joi.number().min(0).max(6)).optional(),
     festivo: Joi.boolean().optional(),
   }),
+  cargarUltimoHistoricoPronosticoPorDiaSemana: Joi.object({
+    ucp: Joi.string().required(),
+    fechaInicio: Joi.string().required(),
+    fechaFin: Joi.string().required(),
+  }),
   cargarPronosticosEHistoricos: Joi.object({
     ucp: Joi.string().required(),
     fechaInicio: Joi.string().required(), // YYYY-MM-DD

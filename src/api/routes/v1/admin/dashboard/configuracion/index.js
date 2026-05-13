@@ -259,7 +259,11 @@ export default function () {
     validator(schema.cargarHistoricosPronosticosDinamico),
     controllers.cargarHistoricosPronosticosDinamico,
   );
-
+  router.post(
+    "/cargarUltimoHistoricoPronosticoPorDiaSemana",
+    validator(schema.cargarUltimoHistoricoPronosticoPorDiaSemana),
+    controllers.cargarUltimoHistoricoPronosticoPorDiaSemana,
+  );
   router.post(
     "/cargarPronosticosEHistoricos",
     validator(schema.cargarPronosticosEHistoricos),

@@ -1227,6 +1227,39 @@ export default class ConfiguracionService {
     }
   };
 
+  cargarUltimoHistoricoPronosticoPorDiaSemana = async (filters, session) => {
+    try {
+      const client = createConectionPG(session);
+      const res = await model.cargarUltimoHistoricoPronosticoPorDiaSemana(
+        filters,
+        client,
+      );
+
+      if (!res) {
+        return {
+          success: false,
+          data: null,
+          message: "No se encontraron históricos pronósticos de referencia",
+        };
+      }
+
+      return {
+        success: true,
+        data: res,
+        message: "Históricos pronósticos de referencia encontrados",
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error service cargarUltimoHistoricoPronosticoPorDiaSemana"),
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al cargar históricos pronósticos de referencia",
+      };
+    }
+  };
+
   cargarPronosticosEHistoricos = async (filters, session) => {
     try {
       const client = createConectionPG(session);

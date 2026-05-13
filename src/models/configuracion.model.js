@@ -1277,6 +1277,65 @@ WHERE pr.rn = 1
     }
   };
 
+  cargarUltimoHistoricoPronosticoPorDiaSemana = async (
+    { ucp, fechaInicio, fechaFin },
+    client,
+  ) => {
+    try {
+      await client.connect();
+
+      const query = `
+WITH rango_pronostico AS (
+  -- Genera cada fecha del rango solicitado
+  SELECT generate_series(
+    $2::date,
+    $3::date,
+    '1 day'::interval
+  )::date AS fecha_objetivo
+),
+candidatos AS (
+  -- Para cada fecha objetivo, busca todos los pronósticos históricos
+  -- que tengan el mismo día de semana y sean anteriores a esa fecha
+  SELECT
+    rp.fecha_objetivo,
+    sp.*,
+    s.fecha AS fecha_sesion,
+    ROW_NUMBER() OVER (
+      PARTITION BY rp.fecha_objetivo
+      ORDER BY sp.fecha DESC  -- el más reciente primero
+    ) AS rn
+  FROM rango_pronostico rp
+  JOIN sesiones_periodos sp
+    ON EXTRACT(DOW FROM sp.fecha) = EXTRACT(DOW FROM rp.fecha_objetivo)
+    AND sp.fecha < rp.fecha_objetivo  -- estrictamente anterior
+    AND sp.tipo = 'P'
+  JOIN sesiones s
+    ON s.codigo = sp.codsesion
+    AND s.ucp = $1
+    AND s.fechainicio <= sp.fecha
+    AND s.fechafin >= sp.fecha
+)
+SELECT
+  c.fecha_objetivo,
+  c.*
+FROM candidatos c
+WHERE c.rn = 1
+ORDER BY c.fecha_objetivo ASC
+    `;
+
+      const values = [ucp, fechaInicio, fechaFin];
+      const result = await client.query(query, values);
+      return result.rows.length ? result.rows : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error model cargarUltimoHistoricoPronosticoPorDiaSemana"),
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
   cargarPronosticosEHistoricos = async (
     { ucp, fechaInicio, fechaFin },
     client,
