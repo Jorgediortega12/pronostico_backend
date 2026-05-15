@@ -1135,4 +1135,74 @@ export default class FactoresService {
       };
     }
   };
+
+  getUltimaSesionFactores = async (ucp, session) => {
+    try {
+      const client = createConectionPG(session);
+      const data = await model.getUltimaSesionFactoresPorUcp(ucp, client);
+
+      if (!data) {
+        return {
+          success: false,
+          message: "Sin sesiones guardadas para este UCP",
+        };
+      }
+
+      const { sesion, factores } = data;
+
+      // Construir resultadosFdaFdp en el mismo formato que usa el frontend
+      // { tipoDia, tipo, barra, periodos: { p1..p24 } }
+      const resultadosFdaFdp = factores.map((f) => ({
+        tipoDia: f.tipo_dia,
+        tipo: f.tipo, // "FDA" o "FDP"
+        barra: f.barra,
+        periodos: {
+          p1: Number(f.p1) || 0,
+          p2: Number(f.p2) || 0,
+          p3: Number(f.p3) || 0,
+          p4: Number(f.p4) || 0,
+          p5: Number(f.p5) || 0,
+          p6: Number(f.p6) || 0,
+          p7: Number(f.p7) || 0,
+          p8: Number(f.p8) || 0,
+          p9: Number(f.p9) || 0,
+          p10: Number(f.p10) || 0,
+          p11: Number(f.p11) || 0,
+          p12: Number(f.p12) || 0,
+          p13: Number(f.p13) || 0,
+          p14: Number(f.p14) || 0,
+          p15: Number(f.p15) || 0,
+          p16: Number(f.p16) || 0,
+          p17: Number(f.p17) || 0,
+          p18: Number(f.p18) || 0,
+          p19: Number(f.p19) || 0,
+          p20: Number(f.p20) || 0,
+          p21: Number(f.p21) || 0,
+          p22: Number(f.p22) || 0,
+          p23: Number(f.p23) || 0,
+          p24: Number(f.p24) || 0,
+        },
+      }));
+
+      return {
+        success: true,
+        data: {
+          id: sesion.codigo,
+          nombre: sesion.nombre,
+          version: sesion.version,
+          ucp: sesion.ucp,
+          fecha_inicio: sesion.fecha_inicio,
+          fecha_fin: sesion.fecha_fin,
+          observacion: sesion.observacion,
+          created_at: sesion.fecha,
+          resultadosFdaFdp,
+        },
+      };
+    } catch {
+      return {
+        success: false,
+        message: "Error al obtener la sesión de factores",
+      };
+    }
+  };
 }

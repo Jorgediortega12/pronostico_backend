@@ -177,5 +177,6 @@ export default function () {
     validator(schema.cargarArchivoVrSesionesFactores),
     controllers.cargarArchivoVrSesionesFactores,
   );
+  router.get("/ultimaSesionFactores/:ucp", controllers.getUltimaSesionFactores);
   return router;
 }

@@ -242,7 +242,8 @@ const normalizarValor = (valor, flujo, codigoPunto) => {
   if (isNaN(num)) return null;
 
   const mw = num / 1000;
-
+  //multiplicar por factor si el booleano de multiplicar esta en true
+  // multiplicar por el facto como parametros
   if (flujo === "AS" && codigoPunto !== FRONTERA_EXCEPCION_AS) {
     return -Math.abs(mw);
   }
@@ -845,6 +846,24 @@ export const cargarArchivoVrSesionesFactores = async (req, res) => {
     return SuccessResponse(res, result.data, result.message);
   } catch (err) {
     Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const getUltimaSesionFactores = async (req, res) => {
+  try {
+    const { session } = req.user;
+    const { ucp } = req.params;
+
+    if (!ucp) return responseError(200, "UCP requerido", 400, res);
+
+    const result = await service.getUltimaSesionFactores(ucp, session);
+
+    if (!result.success) return responseError(200, result.message, 404, res);
+
+    return SuccessResponse(res, result.data, "Sesión obtenida correctamente");
+  } catch (error) {
+    console.error(error);
     return InternalError(res);
   }
 };

@@ -734,4 +734,28 @@ export default class FactoresModel {
       await client.end();
     }
   };
+
+  getUltimaSesionFactoresPorUcp = async (ucp, client) => {
+    try {
+      await client.connect();
+
+      // 1. Cabecera de la sesión más reciente
+      const resSesion = await client.query(querys.getUltimaSesionPorUcp, [ucp]);
+
+      if (!resSesion.rows.length) return null;
+      const sesion = resSesion.rows[0];
+
+      // 2. Factores FDA/FDP de esa sesión
+      const resFactores = await client.query(querys.getFactoresPorSesion, [
+        sesion.codigo,
+      ]);
+
+      return { sesion, factores: resFactores.rows };
+    } catch (error) {
+      Logger.error("Error getUltimaSesionFactoresPorUcp", error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
 }

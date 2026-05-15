@@ -315,3 +315,22 @@ export const cargarArchivoVrSesionesFactores = `
     s.nombre, 
     s.version ASC
 `;
+
+// Última sesión de factores para un UCP
+export const getUltimaSesionPorUcp = `
+  SELECT s.*
+  FROM factores_sesiones s
+  WHERE s.ucp = $1
+  ORDER BY s.fecha DESC, s.version DESC
+  LIMIT 1
+`;
+
+// Factores FDA/FDP de una sesión (todas las barras y tipos de día)
+export const getFactoresPorSesion = `
+  SELECT 
+    codsesion, tipo_dia, tipo_factor AS tipo, barra,
+    p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,
+    p13,p14,p15,p16,p17,p18,p19,p20,p21,p22,p23,p24
+  FROM factores_sesiones_factores
+  WHERE codsesion = $1
+`;
