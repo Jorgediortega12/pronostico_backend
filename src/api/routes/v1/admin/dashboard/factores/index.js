@@ -178,5 +178,9 @@ export default function () {
     controllers.cargarArchivoVrSesionesFactores,
   );
   router.get("/ultimaSesionFactores/:ucp", controllers.getUltimaSesionFactores);
+
+  router.get("/sessionVigente/:ucp", controllers.getSessionVigente);
+  router.patch("/marcarVigente/:codigo", controllers.marcarSesionVigente);
+
   return router;
 }

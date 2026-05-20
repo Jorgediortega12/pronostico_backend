@@ -1205,4 +1205,43 @@ export default class FactoresService {
       };
     }
   };
+
+  getSessionVigente = async (ucp, session) => {
+    try {
+      const client = createConectionPG(session);
+      const data = await model.getSessionVigentePorUcp(ucp, client);
+      if (!data) {
+        return { success: false, message: "Sin sesión vigente para este UCP" };
+      }
+      return {
+        success: true,
+        data: {
+          id: data.codigo,
+          nombre: data.nombre,
+          version: data.version,
+          ucp: data.ucp,
+          fecha_inicio: data.fecha_inicio,
+          fecha_fin: data.fecha_fin,
+          observacion: data.observacion,
+          created_at: data.fecha,
+          vigente: data.vigente,
+        },
+      };
+    } catch {
+      return { success: false, message: "Error al obtener sesión vigente" };
+    }
+  };
+
+  marcarSesionVigente = async (codigoSesion, ucp, session) => {
+    try {
+      const client = createConectionPG(session);
+      const data = await model.marcarSesionVigente(codigoSesion, ucp, client);
+      if (!data) {
+        return { success: false, message: "No se pudo marcar como vigente" };
+      }
+      return { success: true, data, message: "Sesión marcada como vigente" };
+    } catch {
+      return { success: false, message: "Error al marcar sesión vigente" };
+    }
+  };
 }

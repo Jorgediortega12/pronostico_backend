@@ -334,3 +334,25 @@ export const getFactoresPorSesion = `
   FROM factores_sesiones_factores
   WHERE codsesion = $1
 `;
+
+// Obtener sesión vigente por UCP
+export const getSessionVigentePorUcp = `
+  SELECT s.*
+  FROM factores_sesiones s
+  WHERE s.ucp = $1 AND s.vigente = TRUE
+  LIMIT 1
+`;
+
+// Marcar una sesión como vigente (desactiva las demás del mismo UCP primero)
+export const desactivarVigentesPorUcp = `
+  UPDATE factores_sesiones
+  SET vigente = FALSE
+  WHERE ucp = $1
+`;
+
+export const marcarSesionVigente = `
+  UPDATE factores_sesiones
+  SET vigente = TRUE
+  WHERE codigo = $1
+  RETURNING *
+`;

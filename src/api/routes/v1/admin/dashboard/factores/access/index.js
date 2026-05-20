@@ -867,3 +867,33 @@ export const getUltimaSesionFactores = async (req, res) => {
     return InternalError(res);
   }
 };
+
+export const getSessionVigente = async (req, res) => {
+  try {
+    const { session } = req.user;
+    const { ucp } = req.params;
+    if (!ucp) return responseError(200, "UCP requerido", 400, res);
+    const result = await service.getSessionVigente(ucp, session);
+    if (!result.success) return responseError(200, result.message, 404, res);
+    return SuccessResponse(res, result.data, "Sesión vigente obtenida");
+  } catch (error) {
+    console.error(error);
+    return InternalError(res);
+  }
+};
+
+export const marcarSesionVigente = async (req, res) => {
+  try {
+    const { session } = req.user;
+    const { codigo } = req.params;
+    const { ucp } = req.body;
+    if (!codigo || !ucp)
+      return responseError(200, "Código y UCP requeridos", 400, res);
+    const result = await service.marcarSesionVigente(codigo, ucp, session);
+    if (!result.success) return responseError(200, result.message, 400, res);
+    return SuccessResponse(res, result.data, result.message);
+  } catch (error) {
+    console.error(error);
+    return InternalError(res);
+  }
+};

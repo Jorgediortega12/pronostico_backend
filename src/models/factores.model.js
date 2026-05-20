@@ -758,4 +758,35 @@ export default class FactoresModel {
       await client.end();
     }
   };
+
+  getSessionVigentePorUcp = async (ucp, client) => {
+    try {
+      await client.connect();
+      const res = await client.query(querys.getSessionVigentePorUcp, [ucp]);
+      return res.rows.length ? res.rows[0] : null;
+    } catch (error) {
+      Logger.error("Error getSessionVigentePorUcp", error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  marcarSesionVigente = async (codigoSesion, ucp, client) => {
+    try {
+      await client.connect();
+      // 1. Desactivar todas las vigentes del UCP
+      await client.query(querys.desactivarVigentesPorUcp, [ucp]);
+      // 2. Activar la seleccionada
+      const res = await client.query(querys.marcarSesionVigente, [
+        codigoSesion,
+      ]);
+      return res.rows.length ? res.rows[0] : null;
+    } catch (error) {
+      Logger.error("Error marcarSesionVigente", error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
 }
