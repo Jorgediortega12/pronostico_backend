@@ -346,4 +346,29 @@ export default {
   listarTodosLosFestivos: Joi.object({
     ucp: Joi.string().required(),
   }),
+
+  // schema
+  buscarSemanaSimilar: Joi.object({
+    ucp: Joi.string().required(),
+    mes: Joi.number().min(1).max(12).optional(),
+    tipo_inicio_mes: Joi.string()
+      .valid(
+        "lunes",
+        "martes",
+        "miercoles",
+        "jueves",
+        "viernes",
+        "sabado",
+        "domingo",
+      )
+      .optional(),
+    festivos_posicion: Joi.array()
+      .items(
+        Joi.object({
+          dia_semana: Joi.number().min(0).max(6).required(), // 0=lun..6=dom dentro de la semana ISO
+          es_festivo: Joi.boolean().required(),
+        }),
+      )
+      .optional(),
+  }),
 };

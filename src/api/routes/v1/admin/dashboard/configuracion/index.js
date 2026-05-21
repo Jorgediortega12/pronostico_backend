@@ -277,5 +277,12 @@ export default function () {
     controllers.listarTodosLosFestivos,
   );
 
+  // router
+  router.post(
+    "/buscarSemanaSimilar",
+    validator(schema.buscarSemanaSimilar),
+    controllers.buscarSemanaSimilar,
+  );
+
   return router;
 }

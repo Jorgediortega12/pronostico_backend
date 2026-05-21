@@ -1323,4 +1323,30 @@ export default class ConfiguracionService {
       };
     }
   };
+
+  // service
+  buscarSemanaSimilar = async (filters, session) => {
+    try {
+      const client = createConectionPG(session);
+      const res = await model.buscarSemanaSimilar(filters, client);
+      if (!res)
+        return {
+          success: false,
+          data: null,
+          message: "No se encontraron semanas similares",
+        };
+      return {
+        success: true,
+        data: res,
+        message: "Semanas similares encontradas",
+      };
+    } catch (error) {
+      Logger.error(colors.red("Error service buscarSemanaSimilar"));
+      return {
+        success: false,
+        data: null,
+        message: "Error al buscar semanas similares",
+      };
+    }
+  };
 }

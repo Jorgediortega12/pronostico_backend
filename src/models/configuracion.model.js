@@ -1440,4 +1440,60 @@ ORDER BY c.fecha_objetivo ASC
       await client.end();
     }
   };
+
+  buscarSemanaSimilar = async (
+    { ucp, festivos_posicion, mes, tipo_inicio_mes },
+    client,
+  ) => {
+    try {
+      await client.connect();
+      const result = await client.query(querys.buscarSemanaSimilar, [ucp]);
+      let semanas = result.rows;
+
+      // Filtrar por mes (ahora mes_inicio = mes mayoritario de la semana)
+      if (mes !== undefined && mes !== null) {
+        semanas = semanas.filter((s) => Number(s.mes_inicio) === Number(mes));
+      }
+
+      // Filtrar por tipo de inicio de mes
+      if (tipo_inicio_mes) {
+        const DOW_MAP = {
+          lunes: 0,
+          martes: 1,
+          miercoles: 2,
+          jueves: 3,
+          viernes: 4,
+          sabado: 5,
+          domingo: 6,
+        };
+        const targetDow = DOW_MAP[tipo_inicio_mes.toLowerCase()];
+        if (targetDow !== undefined) {
+          semanas = semanas.filter(
+            (s) => Number(s.dow_inicio_mes) === targetDow,
+          );
+        }
+      }
+
+      // Filtrar por festivos en posiciones
+      if (festivos_posicion && festivos_posicion.length > 0) {
+        semanas = semanas.filter((s) => {
+          const mask = s.festivos_mask;
+          return festivos_posicion.every(({ dia_semana, es_festivo }) => {
+            return es_festivo
+              ? Number(mask[dia_semana]) === 1
+              : Number(mask[dia_semana]) === 0;
+          });
+        });
+      }
+
+      const top3 = semanas.slice(0, 3);
+      return top3.length > 0 ? top3 : null;
+    } catch (error) {
+      Logger.error(colors.red("Error model buscarSemanaSimilar"));
+      Logger.error(colors.red(error.message));
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
 }
