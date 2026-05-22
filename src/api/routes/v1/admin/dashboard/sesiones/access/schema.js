@@ -4,6 +4,9 @@ export default {
   cargarDatosSesiones: Joi.object().keys({
     codsuperior: Joi.number().required(),
   }),
+  cargarDatosSesionesFactores: Joi.object().keys({
+    nombre: Joi.string().required(),
+  }),
   cargarArchivoVrSesiones: Joi.object().keys({
     codcarpeta: Joi.number().required(),
   }),

@@ -237,4 +237,7 @@ export default {
       )
       .required(),
   }),
+  cargarArchivoVrSesionesFactores: Joi.object().keys({
+    codcarpeta: Joi.number().required(),
+  }),
 };

@@ -168,5 +168,19 @@ export default function () {
     controllers.guardarSesionReporteFactores,
   );
 
+  router.get(
+    "/cargarSesionFactoresPorCodigo/:codArchivo",
+    controllers.cargarSesionFactoresPorCodigo,
+  );
+  router.get(
+    "/cargarArchivoVrSesionesFactores/:codcarpeta",
+    validator(schema.cargarArchivoVrSesionesFactores),
+    controllers.cargarArchivoVrSesionesFactores,
+  );
+  router.get("/ultimaSesionFactores/:ucp", controllers.getUltimaSesionFactores);
+
+  router.get("/sessionVigente/:ucp", controllers.getSessionVigente);
+  router.patch("/marcarVigente/:codigo", controllers.marcarSesionVigente);
+
   return router;
 }

@@ -363,3 +363,59 @@ export const listarTodosLosFestivos = `
   SELECT *
   FROM festivos WHERE ucp = $1 ORDER BY fecha DESC;
   `;
+
+export const buscarSemanaSimilar = `
+WITH fechas_base AS (
+  SELECT DISTINCT fecha::date AS fecha
+  FROM actualizaciondatos
+  WHERE ucp = $1
+),
+festivos_reales AS (
+  SELECT fecha::date AS fecha
+  FROM festivos
+  WHERE ucp = $1
+),
+dias_con_pos AS (
+  SELECT
+    fb.fecha,
+    CASE WHEN fr.fecha IS NOT NULL THEN 1 ELSE 0 END AS es_festivo,
+    (EXTRACT(DOW FROM fb.fecha)::int + 6) % 7 AS pos_semana,
+    (fb.fecha - (((EXTRACT(DOW FROM fb.fecha)::int + 6) % 7) * INTERVAL '1 day'))::date AS semana_inicio
+  FROM fechas_base fb
+  LEFT JOIN festivos_reales fr ON fr.fecha = fb.fecha
+),
+semanas_agrupadas AS (
+  SELECT
+    semana_inicio,
+    COUNT(DISTINCT fecha) AS dias_con_datos,
+    -- mes_inicio: mes mayoritario de los días de esa semana
+    -- (el mes que más días tiene dentro de la semana)
+    MODE() WITHIN GROUP (ORDER BY EXTRACT(MONTH FROM fecha)::int) AS mes_inicio,
+    EXTRACT(DAY FROM semana_inicio)::int AS dia_mes_inicio,
+    (EXTRACT(DOW FROM DATE_TRUNC('month', semana_inicio))::int + 6) % 7 AS dow_inicio_mes,
+    ARRAY[
+      MAX(CASE WHEN pos_semana = 0 THEN es_festivo ELSE 0 END),
+      MAX(CASE WHEN pos_semana = 1 THEN es_festivo ELSE 0 END),
+      MAX(CASE WHEN pos_semana = 2 THEN es_festivo ELSE 0 END),
+      MAX(CASE WHEN pos_semana = 3 THEN es_festivo ELSE 0 END),
+      MAX(CASE WHEN pos_semana = 4 THEN es_festivo ELSE 0 END),
+      MAX(CASE WHEN pos_semana = 5 THEN es_festivo ELSE 0 END),
+      MAX(CASE WHEN pos_semana = 6 THEN es_festivo ELSE 0 END)
+    ] AS festivos_mask,
+    ARRAY_AGG(DISTINCT fecha ORDER BY fecha) AS dias
+  FROM dias_con_pos
+  GROUP BY semana_inicio
+)
+SELECT
+  semana_inicio,
+  dias_con_datos,
+  festivos_mask,
+  mes_inicio,
+  dia_mes_inicio,
+  dow_inicio_mes,
+  dias
+FROM semanas_agrupadas
+WHERE dias_con_datos >= 3
+  AND semana_inicio < CURRENT_DATE - INTERVAL '7 days'
+ORDER BY semana_inicio DESC
+`;

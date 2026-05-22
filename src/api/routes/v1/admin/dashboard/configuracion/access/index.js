@@ -1081,6 +1081,25 @@ export const cargarHistoricosPronosticosDinamico = async (req, res) => {
   }
 };
 
+export const cargarUltimoHistoricoPronosticoPorDiaSemana = async (req, res) => {
+  try {
+    const { session } = req.user;
+    const result = await service.cargarUltimoHistoricoPronosticoPorDiaSemana(
+      req.body,
+      session,
+    );
+
+    if (!result.success) {
+      return responseError(200, result.message, 404, res);
+    }
+
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(err);
+  }
+};
+
 export const cargarPronosticosEHistoricos = async (req, res) => {
   try {
     const { session } = req.user;
@@ -1115,5 +1134,18 @@ export const listarTodosLosFestivos = async (req, res) => {
     return res
       .status(500)
       .json({ success: false, message: "Internal server error" });
+  }
+};
+
+// controller
+export const buscarSemanaSimilar = async (req, res) => {
+  try {
+    const { session } = req.user;
+    const result = await service.buscarSemanaSimilar(req.body, session);
+    if (!result.success) return responseError(200, result.message, 404, res);
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(err);
   }
 };
