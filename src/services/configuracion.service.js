@@ -567,6 +567,192 @@ export default class ConfiguracionService {
     }
   };
 
+  // ─── FLUJOS ──────────────────────────────────────────────────────────────────
+
+  obtenerFlujosPorFuente = async (codigoFuente, session) => {
+    try {
+      const client = createConectionPG(session);
+      const rows = await model.obtenerFlujosPorFuente(codigoFuente, client);
+      return { success: true, data: rows, message: "Flujos obtenidos." };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error UCPService obtenerFlujosPorFuente"),
+        error,
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al obtener flujos.",
+      };
+    }
+  };
+
+  crearFlujo = async (payload, session) => {
+    try {
+      const client = createConectionPG(session);
+      const created = await model.crearFlujo(payload, client);
+      if (!created)
+        return {
+          success: false,
+          data: null,
+          message: "No se pudo crear el flujo.",
+        };
+      return {
+        success: true,
+        data: created,
+        message: "Flujo creado correctamente.",
+      };
+    } catch (error) {
+      Logger.error(colors.red("Error UCPService crearFlujo"), error);
+      return { success: false, data: null, message: "Error al crear flujo." };
+    }
+  };
+
+  actualizarFlujo = async (payload, session) => {
+    try {
+      const client = createConectionPG(session);
+      const updated = await model.actualizarFlujo(payload, client);
+      if (!updated)
+        return {
+          success: false,
+          data: null,
+          message: "No se encontró el flujo.",
+        };
+      return {
+        success: true,
+        data: updated,
+        message: "Flujo actualizado correctamente.",
+      };
+    } catch (error) {
+      Logger.error(colors.red("Error UCPService actualizarFlujo"), error);
+      return {
+        success: false,
+        data: null,
+        message: "Error al actualizar flujo.",
+      };
+    }
+  };
+
+  eliminarFlujo = async (id, session) => {
+    try {
+      const client = createConectionPG(session);
+      const deleted = await model.eliminarFlujo(id, client);
+      if (!deleted)
+        return {
+          success: false,
+          data: null,
+          message: "No se encontró el flujo.",
+        };
+      return {
+        success: true,
+        data: deleted,
+        message: "Flujo eliminado correctamente.",
+      };
+    } catch (error) {
+      Logger.error(colors.red("Error UCPService eliminarFlujo"), error);
+      return {
+        success: false,
+        data: null,
+        message: "Error al eliminar flujo.",
+      };
+    }
+  };
+
+  obtenerTodosLosFlujos = async (session) => {
+    try {
+      const client = createConectionPG(session);
+      const rows = await model.obtenerTodosLosFlujos(client);
+      return { success: true, data: rows, message: "Flujos obtenidos." };
+    } catch (error) {
+      Logger.error(colors.red("Error UCPService obtenerTodosLosFlujos"), error);
+      return {
+        success: false,
+        data: null,
+        message: "Error al obtener flujos.",
+      };
+    }
+  };
+
+  // ─── EQUIVALENCIA_FLUJO ───────────────────────────────────────────────────────
+
+  obtenerEquivalenciasPorFlujo = async (idFlujo, session) => {
+    try {
+      const client = createConectionPG(session);
+      const rows = await model.obtenerEquivalenciasPorFlujo(idFlujo, client);
+      return {
+        success: true,
+        data: rows,
+        message: "Equivalencias por flujo obtenidas.",
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error UCPService obtenerEquivalenciasPorFlujo"),
+        error,
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al obtener equivalencias por flujo.",
+      };
+    }
+  };
+
+  upsertEquivalenciaFlujo = async (payload, session) => {
+    try {
+      const client = createConectionPG(session);
+      const row = await model.upsertEquivalenciaFlujo(payload, client);
+      if (!row)
+        return {
+          success: false,
+          data: null,
+          message: "No se pudo guardar el valor.",
+        };
+      return {
+        success: true,
+        data: row,
+        message: "Valor guardado correctamente.",
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error UCPService upsertEquivalenciaFlujo"),
+        error,
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al guardar el valor.",
+      };
+    }
+  };
+
+  eliminarEquivalenciaFlujo = async (id, session) => {
+    try {
+      const client = createConectionPG(session);
+      const deleted = await model.eliminarEquivalenciaFlujo(id, client);
+      if (!deleted)
+        return {
+          success: false,
+          data: null,
+          message: "No se encontró el registro.",
+        };
+      return {
+        success: true,
+        data: deleted,
+        message: "Valor eliminado correctamente.",
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error UCPService eliminarEquivalenciaFlujo"),
+        error,
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al eliminar el valor.",
+      };
+    }
+  };
+
   editarMercadoCascade = async (mc, mcnuevo, session) => {
     try {
       const client = createConectionPG(session);

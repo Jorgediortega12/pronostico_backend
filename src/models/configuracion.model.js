@@ -623,6 +623,135 @@ export default class ConfiguracionModel {
     }
   }
 
+  // ─── FLUJOS ──────────────────────────────────────────────────────────────────
+
+  obtenerFlujosPorFuente = async (codigoFuente, client) => {
+    try {
+      await client.connect();
+      const result = await client.query(querys.obtenerFlujosPorFuente, [
+        codigoFuente,
+      ]);
+      return result.rows;
+    } catch (error) {
+      Logger.error(colors.red("Error ucpModel obtenerFlujosPorFuente"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  crearFlujo = async ({ nombre, codigo_fuente }, client) => {
+    try {
+      await client.connect();
+      const result = await client.query(querys.crearFlujo, [
+        nombre,
+        codigo_fuente,
+      ]);
+      return result.rows[0] ?? null;
+    } catch (error) {
+      Logger.error(colors.red("Error ucpModel crearFlujo"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  actualizarFlujo = async ({ id, nombre, codigo_fuente }, client) => {
+    try {
+      await client.connect();
+      const result = await client.query(querys.actualizarFlujo, [
+        nombre,
+        codigo_fuente,
+        id,
+      ]);
+      return result.rows[0] ?? null;
+    } catch (error) {
+      Logger.error(colors.red("Error ucpModel actualizarFlujo"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  eliminarFlujo = async (id, client) => {
+    try {
+      await client.connect();
+      const result = await client.query(querys.eliminarFlujo, [id]);
+      return result.rows[0] ?? null;
+    } catch (error) {
+      Logger.error(colors.red("Error ucpModel eliminarFlujo"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  obtenerTodosLosFlujos = async (client) => {
+    try {
+      await client.connect();
+      const result = await client.query(querys.obtenerTodosLosFlujos);
+      return result.rows;
+    } catch (error) {
+      Logger.error(colors.red("Error ucpModel obtenerTodosLosFlujos"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  // ─── EQUIVALENCIA_FLUJO ───────────────────────────────────────────────────────
+
+  obtenerEquivalenciasPorFlujo = async (idFlujo, client) => {
+    try {
+      await client.connect();
+      const result = await client.query(querys.obtenerEquivalenciasPorFlujo, [
+        idFlujo,
+      ]);
+      return result.rows;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ucpModel obtenerEquivalenciasPorFlujo"),
+        error,
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  upsertEquivalenciaFlujo = async ({ codigo_ucp, id_flujo, valor }, client) => {
+    try {
+      await client.connect();
+      const result = await client.query(querys.upsertEquivalenciaFlujo, [
+        codigo_ucp,
+        id_flujo,
+        valor,
+      ]);
+      return result.rows[0] ?? null;
+    } catch (error) {
+      Logger.error(colors.red("Error ucpModel upsertEquivalenciaFlujo"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  eliminarEquivalenciaFlujo = async (id, client) => {
+    try {
+      await client.connect();
+      const result = await client.query(querys.eliminarEquivalenciaFlujo, [id]);
+      return result.rows[0] ?? null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ucpModel eliminarEquivalenciaFlujo"),
+        error,
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
   // editarMercadoCascade: ejecuta todas las updates en transacción
   // input: mc (viejo nombre), mcnuevo (nuevo nombre)
   async editarMercadoCascade(mc, mcnuevo, client) {

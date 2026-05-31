@@ -501,6 +501,125 @@ export const cargarUCP = async (req, res) => {
   }
 };
 
+// ─── FLUJOS ──────────────────────────────────────────────────────────────────
+
+export const obtenerFlujosPorFuente = async (req, res) => {
+  try {
+    const { codigo_fuente } = req.params;
+    const { session } = req.user;
+    const result = await service.obtenerFlujosPorFuente(
+      Number(codigo_fuente),
+      session,
+    );
+    if (!result.success) return responseError(200, result.message, 400, res);
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const crearFlujo = async (req, res) => {
+  try {
+    const { nombre, codigo_fuente } = req.body;
+    const { session } = req.user;
+    const result = await service.crearFlujo({ nombre, codigo_fuente }, session);
+    if (!result.success) return responseError(200, result.message, 400, res);
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const actualizarFlujo = async (req, res) => {
+  try {
+    const { id, nombre, codigo_fuente } = req.body;
+    const { session } = req.user;
+    const result = await service.actualizarFlujo(
+      { id, nombre, codigo_fuente },
+      session,
+    );
+    if (!result.success) return responseError(200, result.message, 400, res);
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const eliminarFlujo = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { session } = req.user;
+    const result = await service.eliminarFlujo(Number(id), session);
+    if (!result.success) return responseError(200, result.message, 400, res);
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const obtenerTodosLosFlujos = async (req, res) => {
+  try {
+    const { session } = req.user;
+    const result = await service.obtenerTodosLosFlujos(session);
+    if (!result.success) return responseError(200, result.message, 400, res);
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+// ─── EQUIVALENCIA_FLUJO ───────────────────────────────────────────────────────
+
+export const obtenerEquivalenciasPorFlujo = async (req, res) => {
+  try {
+    const { id_flujo } = req.params;
+    const { session } = req.user;
+    const result = await service.obtenerEquivalenciasPorFlujo(
+      Number(id_flujo),
+      session,
+    );
+    if (!result.success) return responseError(200, result.message, 400, res);
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const upsertEquivalenciaFlujo = async (req, res) => {
+  try {
+    const { codigo_ucp, id_flujo, valor } = req.body;
+    const { session } = req.user;
+    const result = await service.upsertEquivalenciaFlujo(
+      { codigo_ucp, id_flujo, valor },
+      session,
+    );
+    if (!result.success) return responseError(200, result.message, 400, res);
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const eliminarEquivalenciaFlujo = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { session } = req.user;
+    const result = await service.eliminarEquivalenciaFlujo(Number(id), session);
+    if (!result.success) return responseError(200, result.message, 400, res);
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
 export const editarMercadoCascade = async (req, res) => {
   try {
     const { session } = req.user;

@@ -149,7 +149,7 @@ export default {
     estado: Joi.number().required(),
     aux: Joi.string().allow(null, ""),
     aux2: Joi.string().allow(null, ""),
-    aux3: Joi.string().allow(null, ""),
+    aux3: Joi.number().allow(null, ""),
     aux4: Joi.string().allow(null, ""),
   }),
   eliminarUCPMedidaParams: Joi.object().keys({
@@ -158,6 +158,22 @@ export default {
   cargarUCP: Joi.object().keys({
     codpadre: Joi.number().integer().optional().default(0),
     estado: Joi.number().integer().optional().default(1),
+  }),
+  crearFlujo: Joi.object().keys({
+    nombre: Joi.string().required(),
+    codigo_fuente: Joi.number().integer().required(),
+  }),
+
+  actualizarFlujo: Joi.object().keys({
+    id: Joi.number().integer().required(),
+    nombre: Joi.string().required(),
+    codigo_fuente: Joi.number().integer().required(),
+  }),
+
+  upsertEquivalenciaFlujo: Joi.object().keys({
+    codigo_ucp: Joi.number().integer().required(),
+    id_flujo: Joi.number().integer().required(),
+    valor: Joi.number().allow(null),
   }),
   editarMercado: Joi.object().keys({
     mc: Joi.string().trim().required(),

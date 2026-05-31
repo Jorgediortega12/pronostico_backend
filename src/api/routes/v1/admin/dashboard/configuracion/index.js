@@ -119,6 +119,39 @@ export default function () {
   // GET cargarUCP?codpadre=2&estado=1
   router.get("/cargarUCP", validator(schema.cargarUCP), controllers.cargarUCP);
 
+  // ── Flujos ────────────────────────────────────────────────────────────────────
+  router.get("/obtenerTodosLosFlujos", controllers.obtenerTodosLosFlujos);
+  router.get(
+    "/obtenerFlujosPorFuente/:codigo_fuente",
+    controllers.obtenerFlujosPorFuente,
+  );
+  router.post(
+    "/crearFlujo",
+    validator(schema.crearFlujo),
+    controllers.crearFlujo,
+  );
+  router.put(
+    "/actualizarFlujo",
+    validator(schema.actualizarFlujo),
+    controllers.actualizarFlujo,
+  );
+  router.delete("/eliminarFlujo/:id", controllers.eliminarFlujo);
+
+  // ── Equivalencia por flujo ────────────────────────────────────────────────────
+  router.get(
+    "/obtenerEquivalenciasPorFlujo/:id_flujo",
+    controllers.obtenerEquivalenciasPorFlujo,
+  );
+  router.post(
+    "/upsertEquivalenciaFlujo",
+    validator(schema.upsertEquivalenciaFlujo),
+    controllers.upsertEquivalenciaFlujo,
+  );
+  router.delete(
+    "/eliminarEquivalenciaFlujo/:id",
+    controllers.eliminarEquivalenciaFlujo,
+  );
+
   // POST editar mercado en cascada
   router.post(
     "/editarMercadoCascade",
