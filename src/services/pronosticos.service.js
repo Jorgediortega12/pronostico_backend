@@ -1053,21 +1053,40 @@ export default class PronosticosService {
     force_retrain = false,
     ucp,
     timeoutMs = 600000,
-    modelo = false, // Nuevo parámetro: false = /predict-with-base-curve, true = /base-curve
+    modelo = false, // false = /predict-with-base-curve, true = /base-curve
     data,
   ) {
     const hostsToTry = ["127.0.0.1", "localhost"];
-    //puerto produccion
+
+    // Puerto producción
     const port = 8001;
-    //puerto desarrollo
+    // Puerto desarrollo
     // const port = 8000;
-    // Solo calcular n_days si es el modelo /predict-with-base-curve
-    const n_days = daysBetweenISO(inicioIso, finIso) + 1;
+
+    // =====================================================
+    // CASO ESPECIAL:
+    // Si no viene fecha fin, usar endpoint /predict
+    // =====================================================
+    const isPredictOnly = !finIso;
+
+    // Solo calcular n_days cuando haya rango de fechas
+    const n_days = finIso ? daysBetweenISO(inicioIso, finIso) + 1 : 30;
 
     for (const host of hostsToTry) {
       try {
-        // Determinar endpoint y body según el modelo
-        const endpoint = modelo ? "/base-curve" : "/predict-with-base-curve";
+        // =====================================================
+        // DETERMINAR ENDPOINT
+        //
+        // 1. Sin fecha fin -> /predict
+        // 2. Modelo base -> /base-curve
+        // 3. Modelo IA -> /predict-with-base-curve
+        // =====================================================
+        const endpoint = isPredictOnly
+          ? "/predict"
+          : modelo
+            ? "/base-curve"
+            : "/predict-with-base-curve";
+
         const url = `http://${host}:${port}${endpoint}`;
 
         const controller = new AbortController();
@@ -1077,28 +1096,56 @@ export default class PronosticosService {
           controller.abort();
         }, timeoutMs);
 
-        // Body diferente según el modelo
+        // =====================================================
+        // CONSTRUIR BODY SEGÚN EL ENDPOINT
+        // =====================================================
         let requestBody;
-        if (modelo) {
-          // Modelo base-curve
+
+        if (isPredictOnly) {
+          // ==========================================
+          // POST /predict
+          //
+          // Usado para reentrenamiento desde frontend
+          // enviando únicamente fecha inicio.
+          // ==========================================
           requestBody = {
-            ucp: ucp,
+            ucp,
+            start_date: inicioIso,
+            n_days: 30,
+            force_retrain: true,
+            offset_scalar: 1,
+          };
+        } else if (modelo) {
+          // ==========================================
+          // POST /base-curve
+          // ==========================================
+          requestBody = {
+            ucp,
             fecha_inicio: inicioIso,
             fecha_fin: finIso,
           };
         } else {
-          // Modelo predict
+          // ==========================================
+          // POST /predict-with-base-curve
+          // ==========================================
           const endDateForApi = addDaysISO(inicioIso, -1);
+
           requestBody = {
             fecha_inicio: inicioIso,
             fecha_fin: finIso,
             end_date: endDateForApi,
-            n_days: n_days,
+            n_days,
             force_retrain,
             ucp,
             data,
           };
         }
+
+        Logger.info(
+          colors.cyan(`callPredict: Ejecutando ${endpoint} para UCP ${ucp}`),
+        );
+
+        Logger.debug?.(`Request body: ${JSON.stringify(requestBody, null, 2)}`);
 
         const res = await fetch(url, {
           method: "POST",
@@ -1114,24 +1161,34 @@ export default class PronosticosService {
 
         const statusCode = res.status;
         const json = await res.json().catch(() => null);
+
         if (!res.ok) {
           Logger.warn(
             colors.yellow(
               `callPredict: HTTP ${statusCode} desde ${host}:${port}${endpoint}`,
             ),
           );
-          return { success: false, statusCode, data: json };
+
+          return {
+            success: false,
+            statusCode,
+            data: json,
+          };
         }
 
         Logger.info(
           colors.green(
-            `callPredict: Predicción exitosa desde ${host}:${port}${endpoint} para ${inicioIso} a ${finIso}`,
+            `callPredict: Predicción exitosa desde ${host}:${port}${endpoint}`,
           ),
         );
-        return { success: true, statusCode, data: json };
+
+        return {
+          success: true,
+          statusCode,
+          data: json,
+        };
       } catch (err) {
-        clearTimeout(timer);
-        if (err && err.name === "AbortError") {
+        if (err?.name === "AbortError") {
           Logger.warn(
             colors.yellow(
               `callPredict: request abortada por timeout (${timeoutMs}ms) hacia ${host}:${port}`,
@@ -1141,7 +1198,7 @@ export default class PronosticosService {
           Logger.warn(
             colors.yellow(
               `callPredict: error conectando a ${host}:${port} — ${
-                err && err.message ? err.message : err
+                err?.message || err
               }`,
             ),
           );
@@ -1151,10 +1208,17 @@ export default class PronosticosService {
 
     Logger.error(
       colors.red(
-        `callPredict: Falló en todos los hosts para ${inicioIso} a ${finIso}`,
+        `callPredict: Falló en todos los hosts para ${inicioIso}${
+          finIso ? ` a ${finIso}` : ""
+        }`,
       ),
     );
-    return { success: false, statusCode: 0, data: null };
+
+    return {
+      success: false,
+      statusCode: 0,
+      data: null,
+    };
   }
 
   play = async (
@@ -1175,12 +1239,58 @@ export default class PronosticosService {
           message: "Seleccione el Mercado Comercializador",
         };
       }
-      if (!finicio || !ffin) {
+      if (!finicio) {
         return {
           success: false,
           data: null,
-          message: "Las fechas no pueden estar vacías",
+          message: "La de inicio no puede estar vacía",
         };
+      }
+
+      if (!ffin) {
+        const inicioIso = toISODateString(finicio);
+        try {
+          const predRes = await this.callPredict(
+            inicioIso,
+            null,
+            true,
+            mc,
+            600000,
+            modelo,
+            data,
+          );
+
+          if (!predRes?.success || predRes?.data?.status !== "success") {
+            return {
+              success: false,
+              data: null,
+              message:
+                predRes?.data?.message || "Error ejecutando el reentrenamiento",
+            };
+          }
+
+          Logger.info(
+            colors.green(`Reentrenamiento ejecutado correctamente para ${mc}`),
+          );
+
+          return {
+            success: true,
+            data: predRes.data,
+            message: predRes.data.message,
+          };
+        } catch (err) {
+          Logger.error(
+            colors.red(
+              "Error llamando a la API de predicción: " + (err?.message || err),
+            ),
+          );
+
+          return {
+            success: false,
+            data: null,
+            message: "Error conectando con la API de predicción",
+          };
+        }
       }
 
       // Normalizar/ISO de entrada (se espera 'YYYY-MM-DD' o convertible)
