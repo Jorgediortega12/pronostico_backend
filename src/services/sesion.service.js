@@ -110,6 +110,39 @@ export default class SesionService {
     }
   };
 
+  cargarDatosSesionesFactores = async (nombre, session) => {
+    try {
+      const client = createConectionPG(session);
+      const datosSesiones = await model.cargarDatosSesionesFactores(
+        nombre,
+        client,
+      );
+
+      if (!datosSesiones) {
+        return {
+          success: false,
+          data: null,
+          message: "No se pudieron cargar los datos de las sesiones",
+        };
+      }
+
+      return {
+        success: true,
+        data: datosSesiones,
+        message: "Carga de datos por sesiones cargadas exitosamente",
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error SesionServices cargarDatosSesionesFactores"),
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al cargar los datos por sesiones",
+      };
+    }
+  };
+
   cargarArchivosVrSesiones = async (codcarpeta, session) => {
     try {
       const client = createConectionPG(session);

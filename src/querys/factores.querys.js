@@ -25,6 +25,9 @@ VALUES ($1, $2, $3, $4, $5, 1, $6)
 RETURNING *
 `;
 
+export const consultarAgrupacion_xCodigoRpm = `
+  SELECT flujo FROM agrupaciones WHERE codigo_rpm = $1 AND estado = 1 LIMIT 1
+`;
 export const consultarAgrupacionesIndex_xBarraId = `SELECT id, barra_id, codigo_rpm, flujo, habilitar, revision, estado, factor FROM agrupaciones WHERE barra_id = $1 AND estado = 1 ORDER BY id`;
 
 export const actualizarAgrupacion = `
@@ -88,6 +91,13 @@ INSERT INTO medidas (
   $16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,
   0
 )
+ON CONFLICT (codigo_rpm, fecha, flujo) DO UPDATE SET
+  p1  = EXCLUDED.p1,  p2  = EXCLUDED.p2,  p3  = EXCLUDED.p3,  p4  = EXCLUDED.p4,
+  p5  = EXCLUDED.p5,  p6  = EXCLUDED.p6,  p7  = EXCLUDED.p7,  p8  = EXCLUDED.p8,
+  p9  = EXCLUDED.p9,  p10 = EXCLUDED.p10, p11 = EXCLUDED.p11, p12 = EXCLUDED.p12,
+  p13 = EXCLUDED.p13, p14 = EXCLUDED.p14, p15 = EXCLUDED.p15, p16 = EXCLUDED.p16,
+  p17 = EXCLUDED.p17, p18 = EXCLUDED.p18, p19 = EXCLUDED.p19, p20 = EXCLUDED.p20,
+  p21 = EXCLUDED.p21, p22 = EXCLUDED.p22, p23 = EXCLUDED.p23, p24 = EXCLUDED.p24
 `;
 
 /* =========================
@@ -267,5 +277,82 @@ export const agregarFactorSesion = `
 export const agregarArchivoSesionFactores = `
   INSERT INTO factores_sesiones_archivos (codsesion, codarchivo, tipo)
   VALUES ($1, $2, $3)
+  RETURNING *
+`;
+
+// queries SQL
+export const buscarSesionPorArchivo = `
+  SELECT s.*
+  FROM factores_sesiones s
+  JOIN factores_sesiones_archivos a ON a.codsesion = s.codigo
+  WHERE a.codigo = $1
+  LIMIT 1
+`;
+
+export const buscarRefPorSesion = `
+  SELECT * FROM factores_sesiones_ref
+  WHERE codsesion = $1
+`;
+
+export const buscarFactoresPorSesion = `
+  SELECT * FROM factores_sesiones_factores
+  WHERE codsesion = $1
+`;
+
+export const cargarArchivoVrSesionesFactores = `
+  SELECT 
+    s.codigo, 
+    CONCAT_WS('', s.nombre, ' v', s.version) AS nombre 
+  FROM archivos a 
+  INNER JOIN factores_sesiones s 
+    ON s.nombrearchivo = a.nombrearchivo 
+  WHERE a.codcarpeta = $1
+  GROUP BY 
+    s.codigo, 
+    s.nombre, 
+    s.version 
+  ORDER BY 
+    s.nombre, 
+    s.version ASC
+`;
+
+// Última sesión de factores para un UCP
+export const getUltimaSesionPorUcp = `
+  SELECT s.*
+  FROM factores_sesiones s
+  WHERE s.ucp = $1
+  ORDER BY s.fecha DESC, s.version DESC
+  LIMIT 1
+`;
+
+// Factores FDA/FDP de una sesión (todas las barras y tipos de día)
+export const getFactoresPorSesion = `
+  SELECT 
+    codsesion, tipo_dia, tipo_factor AS tipo, barra,
+    p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,
+    p13,p14,p15,p16,p17,p18,p19,p20,p21,p22,p23,p24
+  FROM factores_sesiones_factores
+  WHERE codsesion = $1
+`;
+
+// Obtener sesión vigente por UCP
+export const getSessionVigentePorUcp = `
+  SELECT s.*
+  FROM factores_sesiones s
+  WHERE s.ucp = $1 AND s.vigente = TRUE
+  LIMIT 1
+`;
+
+// Marcar una sesión como vigente (desactiva las demás del mismo UCP primero)
+export const desactivarVigentesPorUcp = `
+  UPDATE factores_sesiones
+  SET vigente = FALSE
+  WHERE ucp = $1
+`;
+
+export const marcarSesionVigente = `
+  UPDATE factores_sesiones
+  SET vigente = TRUE
+  WHERE codigo = $1
   RETURNING *
 `;

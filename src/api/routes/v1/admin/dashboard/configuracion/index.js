@@ -259,7 +259,11 @@ export default function () {
     validator(schema.cargarHistoricosPronosticosDinamico),
     controllers.cargarHistoricosPronosticosDinamico,
   );
-
+  router.post(
+    "/cargarUltimoHistoricoPronosticoPorDiaSemana",
+    validator(schema.cargarUltimoHistoricoPronosticoPorDiaSemana),
+    controllers.cargarUltimoHistoricoPronosticoPorDiaSemana,
+  );
   router.post(
     "/cargarPronosticosEHistoricos",
     validator(schema.cargarPronosticosEHistoricos),
@@ -271,6 +275,13 @@ export default function () {
     "/listarTodosLosFestivos/:ucp",
     validator(schema.listarTodosLosFestivos),
     controllers.listarTodosLosFestivos,
+  );
+
+  // router
+  router.post(
+    "/buscarSemanaSimilar",
+    validator(schema.buscarSemanaSimilar),
+    controllers.buscarSemanaSimilar,
   );
 
   return router;

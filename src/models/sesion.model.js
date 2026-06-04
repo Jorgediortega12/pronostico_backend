@@ -71,6 +71,21 @@ export default class SesionModel {
     }
   };
 
+  cargarDatosSesionesFactores = async (nombre, client) => {
+    try {
+      await client.connect();
+      const result = await client.query(querys.cargarDatosSesionesFactores, [
+        nombre,
+      ]);
+      return result.rows.length > 0 ? result.rows : null;
+    } catch (error) {
+      Logger.error(colors.red("Error SesionModel cargarDatosSesionesFactores"));
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
   cargarArchivosVrSesiones = async (codcarpeta, client) => {
     try {
       await client.connect();

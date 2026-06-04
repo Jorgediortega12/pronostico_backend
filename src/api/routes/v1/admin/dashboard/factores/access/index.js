@@ -200,55 +200,134 @@ export const insertarMedidasRapido = async (req, res) => {
   return SuccessResponse(res, null, result.message);
 };
 
-export const cargarMedidasDesdeExcel = async (req, res) => {
-  try {
-    const { session } = req.user;
-    const { ucp } = req.body;
+/**
+ * Parsea el Excel formato 1 (clásico):
+ * col0=flujo, col1=fecha(MM/DD/AAAA), col2=codigo_rpm, col3-26=p1-p24
+ */
+const parsearFormato1 = (rows) => {
+  const medidas = [];
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row.length < 27) continue;
 
-    if (!ucp) {
-      return responseError(200, "UCP no proporcionado", 400, res);
+    const [mes, dia, año] = String(row[1]).split("/");
+    const fecha = `${año}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`;
+
+    const medida = { flujo: row[0], fecha, codigo_rpm: row[2] };
+    for (let p = 1; p <= 24; p++) {
+      const val = row[p + 2];
+      medida[`p${p}`] =
+        val !== undefined && val !== ""
+          ? Number(String(val).replace(",", "."))
+          : null;
     }
+    medidas.push(medida);
+  }
+  return medidas;
+};
 
-    if (!req.file) {
-      return responseError(200, "Archivo no proporcionado", 400, res);
-    }
+/**
+ * Parsea el Excel formato 2 (XM expandido):
+ * Columnas fijas: Territorio(0) Naturaleza(1) Voltaje(2) CódigoPunto(3)
+ *                 DescripciónPunto(4) Origen(5) CódigoXM(6) Flujo(7)
+ * Desde col 8 en adelante: "DD/MM/AAAA HH" repetido por cada hora de cada día.
+ * 24 columnas consecutivas = 1 día completo.
+ */
+const FRONTERA_EXCEPCION_AS = "3A110";
 
-    const filePath = req.file.path;
+const normalizarValor = (valor, flujo, codigoPunto) => {
+  if (valor === null || valor === undefined || valor === "") return null;
 
-    const workbook = xlsx.readFile(filePath);
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rows = xlsx.utils.sheet_to_json(sheet, { header: 1 });
+  const num = Number(String(valor).replace(",", "."));
+  if (isNaN(num)) return null;
 
-    const medidas = [];
+  const mw = num / 1000;
+  //multiplicar por factor si el booleano de multiplicar esta en true
+  // multiplicar por el facto como parametros
+  if (flujo === "AS" && codigoPunto !== FRONTERA_EXCEPCION_AS) {
+    return -Math.abs(mw);
+  }
 
-    for (let i = 1; i < rows.length; i++) {
-      const row = rows[i];
-      if (!row || row.length < 27) continue;
+  return mw;
+};
 
-      const [mes, dia, año] = row[1].split("/");
+const parsearFormato2 = (rows) => {
+  if (rows.length < 1) return [];
+
+  const headers = rows[0];
+  const COL_FIXED = 8;
+  const totalDias = Math.floor((headers.length - COL_FIXED) / 24);
+  const medidas = [];
+
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row.length < COL_FIXED) continue;
+
+    const codigoPunto = String(row[3] ?? "").trim();
+    const flujo = String(row[7] ?? "").trim();
+
+    if (!codigoPunto || !flujo) continue;
+
+    for (let d = 0; d < totalDias; d++) {
+      const colInicio = COL_FIXED + d * 24;
+      const headerCelda = String(headers[colInicio] ?? "").trim();
+      const partesFecha = headerCelda.split(" ")[0];
+      if (!partesFecha) continue;
+
+      const [dia, mes, año] = partesFecha.split("/");
+      if (!dia || !mes || !año) continue;
       const fecha = `${año}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`;
 
-      const medida = {
-        flujo: row[0],
-        fecha,
-        codigo_rpm: row[2],
-      };
+      const medida = { flujo, fecha, codigo_rpm: codigoPunto };
 
       for (let p = 1; p <= 24; p++) {
-        const val = row[p + 2];
-        medida[`p${p}`] =
-          val !== undefined && val !== ""
-            ? Number(String(val).replace(",", "."))
-            : null;
+        medida[`p${p}`] = normalizarValor(
+          row[colInicio + p - 1],
+          flujo,
+          codigoPunto,
+        );
       }
 
       medidas.push(medida);
     }
+  }
+  return medidas;
+};
+
+export const cargarMedidasDesdeExcel = async (req, res) => {
+  try {
+    const { session } = req.user;
+    const { ucp, formato } = req.body; // formato: "1" | "2"
+
+    if (!ucp) return responseError(200, "UCP no proporcionado", 400, res);
+    if (!req.file)
+      return responseError(200, "Archivo no proporcionado", 400, res);
+    if (!["1", "2"].includes(formato))
+      return responseError(200, "Formato inválido. Use '1' o '2'", 400, res);
+
+    const workbook = xlsx.readFile(req.file.path);
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = xlsx.utils.sheet_to_json(sheet, { header: 1, raw: true });
+
+    const medidas =
+      formato === "1" ? parsearFormato1(rows) : parsearFormato2(rows);
+
+    if (medidas.length === 0)
+      return responseError(
+        200,
+        "No se encontraron medidas válidas en el archivo",
+        400,
+        res,
+      );
 
     await service.eliminarRapido(medidas, session);
     await service.insertarRapido(medidas, session);
 
-    return SuccessResponse(res, null, "Datos cargados correctamente");
+    return SuccessResponse(
+      res,
+      null,
+      `Datos cargados correctamente (${medidas.length} medidas, formato ${formato})`,
+    );
   } catch (error) {
     console.error(error);
     return InternalError(res);
@@ -718,5 +797,103 @@ export const guardarSesionReporteFactores = async (req, res) => {
     return res
       .status(500)
       .json({ success: false, message: "Internal server error" });
+  }
+};
+
+// controller
+export const cargarSesionFactoresPorCodigo = async (req, res) => {
+  const { codArchivo } = req.params;
+  const { session } = req.user;
+  try {
+    const result = await service.cargarSesionFactoresPorCodigo(
+      codArchivo,
+      session,
+    );
+    if (!result.success)
+      return res.status(404).json({ success: false, message: result.message });
+    return res.status(200).json({ success: true, data: result.data });
+  } catch (err) {
+    Logger.error("Error cargarSesionFactoresPorCodigo", err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  }
+};
+
+export const cargarArchivoVrSesionesFactores = async (req, res) => {
+  try {
+    const { codcarpeta } = req.params;
+    const { session } = req.user;
+
+    if (!codcarpeta) {
+      return responseError(
+        200,
+        "Parámetro codcarpeta no proporcionado",
+        400,
+        res,
+      );
+    }
+
+    const result = await service.cargarArchivoVrSesionesFactores(
+      codcarpeta,
+      session,
+    );
+
+    if (!result.success) {
+      return responseError(200, result.message, 404, res);
+    }
+
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const getUltimaSesionFactores = async (req, res) => {
+  try {
+    const { session } = req.user;
+    const { ucp } = req.params;
+
+    if (!ucp) return responseError(200, "UCP requerido", 400, res);
+
+    const result = await service.getUltimaSesionFactores(ucp, session);
+
+    if (!result.success) return responseError(200, result.message, 404, res);
+
+    return SuccessResponse(res, result.data, "Sesión obtenida correctamente");
+  } catch (error) {
+    console.error(error);
+    return InternalError(res);
+  }
+};
+
+export const getSessionVigente = async (req, res) => {
+  try {
+    const { session } = req.user;
+    const { ucp } = req.params;
+    if (!ucp) return responseError(200, "UCP requerido", 400, res);
+    const result = await service.getSessionVigente(ucp, session);
+    if (!result.success) return responseError(200, result.message, 404, res);
+    return SuccessResponse(res, result.data, "Sesión vigente obtenida");
+  } catch (error) {
+    console.error(error);
+    return InternalError(res);
+  }
+};
+
+export const marcarSesionVigente = async (req, res) => {
+  try {
+    const { session } = req.user;
+    const { codigo } = req.params;
+    const { ucp } = req.body;
+    if (!codigo || !ucp)
+      return responseError(200, "Código y UCP requeridos", 400, res);
+    const result = await service.marcarSesionVigente(codigo, ucp, session);
+    if (!result.success) return responseError(200, result.message, 400, res);
+    return SuccessResponse(res, result.data, result.message);
+  } catch (error) {
+    console.error(error);
+    return InternalError(res);
   }
 };
