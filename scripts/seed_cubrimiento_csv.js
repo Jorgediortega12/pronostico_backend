@@ -17,13 +17,22 @@ const createClient = () =>
     host: process.env.POSTGRES_HOST || "localhost",
     database: process.env.POSTGRES_DB,
     password: process.env.POSTGRES_PASSWORD,
-    port: parseInt(process.env.POSTGRES_PORT || "5433"),
+    port: parseInt(process.env.POSTGRES_PORT || "5432"),
   });
 
 const MONTH_MAP = {
-  JAN: "01", FEB: "02", MAR: "03", APR: "04",
-  MAY: "05", JUN: "06", JUL: "07", AUG: "08",
-  SEP: "09", OCT: "10", NOV: "11", DEC: "12",
+  JAN: "01",
+  FEB: "02",
+  MAR: "03",
+  APR: "04",
+  MAY: "05",
+  JUN: "06",
+  JUL: "07",
+  AUG: "08",
+  SEP: "09",
+  OCT: "10",
+  NOV: "11",
+  DEC: "12",
 };
 
 // "26-MAY-26" → "2026-05-26" | "17-JUN-25" → "2025-06-17"
@@ -78,20 +87,24 @@ async function main() {
           row.CODIGO_SIC,
           row.ANIO ? parseInt(row.ANIO) : null,
           parseOracleDate(row.FECHA_CREACION) || new Date(),
-        ]
+        ],
       );
       count++;
     }
     if (maxId > 0) {
       await client.query(
         `SELECT setval(pg_get_serial_sequence('"SphaerAI_contratos"', 'id'), $1)`,
-        [maxId]
+        [maxId],
       );
     }
-    console.log(`  ✓ ${count} filas insertadas/actualizadas (secuencia → ${maxId})`);
+    console.log(
+      `  ✓ ${count} filas insertadas/actualizadas (secuencia → ${maxId})`,
+    );
 
     // ── 2. SphaerAI_porcentaje_cubrimiento (porcentaje.csv) ──────────────────
-    console.log("\n📥 Migrando porcentaje.csv → SphaerAI_porcentaje_cubrimiento...");
+    console.log(
+      "\n📥 Migrando porcentaje.csv → SphaerAI_porcentaje_cubrimiento...",
+    );
     const porcentajes = await readCsv("porcentaje.csv");
     count = 0;
     maxId = 0;
@@ -113,17 +126,19 @@ async function main() {
           row.MES ? parseInt(row.MES) : null,
           row.VALOR ? parseInt(row.VALOR) : null,
           parseOracleDate(row.FECHA_CREACION) || new Date(),
-        ]
+        ],
       );
       count++;
     }
     if (maxId > 0) {
       await client.query(
         `SELECT setval(pg_get_serial_sequence('"SphaerAI_porcentaje_cubrimiento"', 'id'), $1)`,
-        [maxId]
+        [maxId],
       );
     }
-    console.log(`  ✓ ${count} filas insertadas/actualizadas (secuencia → ${maxId})`);
+    console.log(
+      `  ✓ ${count} filas insertadas/actualizadas (secuencia → ${maxId})`,
+    );
 
     await client.query("COMMIT");
     console.log("\n✅ Migración de cubrimiento completada");

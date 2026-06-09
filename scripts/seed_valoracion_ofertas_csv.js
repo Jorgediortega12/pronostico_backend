@@ -10,21 +10,37 @@ const { Client } = pkg;
 const CSV = path.resolve("scripts/cvs/oferta_valoracion.csv");
 
 const MONTHS = {
-  ENE: "01", JAN: "01", FEB: "02", MAR: "03", ABR: "04", APR: "04",
-  MAY: "05", JUN: "06", JUL: "07", AGO: "08", AUG: "08", SEP: "09",
-  OCT: "10", NOV: "11", DIC: "12", DEC: "12",
+  ENE: "01",
+  JAN: "01",
+  FEB: "02",
+  MAR: "03",
+  ABR: "04",
+  APR: "04",
+  MAY: "05",
+  JUN: "06",
+  JUL: "07",
+  AGO: "08",
+  AUG: "08",
+  SEP: "09",
+  OCT: "10",
+  NOV: "11",
+  DIC: "12",
+  DEC: "12",
 };
 
 // "04-JUN-25" → "2025-06-04"
 const parseFecha = (raw) => {
   if (!raw || !String(raw).trim()) return null;
-  const m = String(raw).trim().match(/^(\d{1,2})-([A-Za-z]{3})-(\d{2,4})$/);
+  const m = String(raw)
+    .trim()
+    .match(/^(\d{1,2})-([A-Za-z]{3})-(\d{2,4})$/);
   if (!m) return String(raw).trim();
   const dd = m[1].padStart(2, "0");
   const mon = MONTHS[m[2].toUpperCase()];
   if (!mon) return null;
   let yyyy = m[3];
-  if (yyyy.length === 2) yyyy = parseInt(yyyy, 10) >= 50 ? `19${yyyy}` : `20${yyyy}`;
+  if (yyyy.length === 2)
+    yyyy = parseInt(yyyy, 10) >= 50 ? `19${yyyy}` : `20${yyyy}`;
   return `${yyyy}-${mon}-${dd}`;
 };
 
@@ -63,7 +79,7 @@ const createClient = () =>
     host: process.env.POSTGRES_HOST || "localhost",
     database: process.env.POSTGRES_DB,
     password: process.env.POSTGRES_PASSWORD,
-    port: parseInt(process.env.POSTGRES_PORT || "5433", 10),
+    port: parseInt(process.env.POSTGRES_PORT || "5432", 10),
   });
 
 async function main() {
@@ -79,7 +95,10 @@ async function main() {
   const cols = COLS.map((c) => c.dest);
   const placeholders = cols.map((_, i) => `$${i + 1}`).join(", ");
   // UPSERT: si la oferta ya existe (id), refresca sus columnas con el CSV.
-  const updates = cols.filter((c) => c !== "id").map((c) => `${c} = EXCLUDED.${c}`).join(", ");
+  const updates = cols
+    .filter((c) => c !== "id")
+    .map((c) => `${c} = EXCLUDED.${c}`)
+    .join(", ");
   const sql = `INSERT INTO "${TABLA}" (${cols.join(", ")})
                VALUES (${placeholders})
                ON CONFLICT (id) DO UPDATE SET ${updates}`;
@@ -99,7 +118,7 @@ async function main() {
     // Ajustar la secuencia para no colisionar con ids futuros desde la app.
     await client.query(
       `SELECT setval(pg_get_serial_sequence('"${TABLA}"', 'id'),
-         COALESCE((SELECT MAX(id) FROM "${TABLA}"), 1), true)`
+         COALESCE((SELECT MAX(id) FROM "${TABLA}"), 1), true)`,
     );
     await client.query("COMMIT");
     console.log(`\n✅ Ofertas migradas/actualizadas: ${n}`);

@@ -17,13 +17,22 @@ const createClient = () =>
     host: process.env.POSTGRES_HOST || "localhost",
     database: process.env.POSTGRES_DB,
     password: process.env.POSTGRES_PASSWORD,
-    port: parseInt(process.env.POSTGRES_PORT || "5433"),
+    port: parseInt(process.env.POSTGRES_PORT || "5432"),
   });
 
 const MONTH_MAP = {
-  JAN: "01", FEB: "02", MAR: "03", APR: "04",
-  MAY: "05", JUN: "06", JUL: "07", AUG: "08",
-  SEP: "09", OCT: "10", NOV: "11", DEC: "12",
+  JAN: "01",
+  FEB: "02",
+  MAR: "03",
+  APR: "04",
+  MAY: "05",
+  JUN: "06",
+  JUL: "07",
+  AUG: "08",
+  SEP: "09",
+  OCT: "10",
+  NOV: "11",
+  DEC: "12",
 };
 
 // "01-JAN-24" → "2024-01-01" | "01-JAN-25" → "2025-01-01"
@@ -70,7 +79,7 @@ async function main() {
           parseFloat(row.VALUE),
           parseFloat(row.PERCENTAGE),
           row.CLIMATE_TYPE || "NORMAL",
-        ]
+        ],
       );
       count++;
     }
@@ -86,7 +95,7 @@ async function main() {
          VALUES ($1, $2)
          ON CONFLICT (year) DO UPDATE
            SET demand = EXCLUDED.demand`,
-        [parseInt(row.YEAR), parseFloat(row.DEMAND)]
+        [parseInt(row.YEAR), parseFloat(row.DEMAND)],
       );
       count++;
     }
@@ -107,7 +116,7 @@ async function main() {
           row.TYPE || "TIPICO",
           parseInt(row.USER_ID),
           parseInt(row.SESSION_ID),
-        ]
+        ],
       );
       count++;
     }
@@ -140,7 +149,7 @@ async function main() {
           parseOracleDate(row.END_DATE),
           parseOracleDate(row.CREATED_AT) || new Date(),
           parseOracleDate(row.UPDATED_AT) || new Date(),
-        ]
+        ],
       );
       count++;
     }
@@ -148,13 +157,17 @@ async function main() {
     if (maxId > 0) {
       await client.query(
         `SELECT setval(pg_get_serial_sequence('"SphaerAI_users_models"', 'id'), $1)`,
-        [maxId]
+        [maxId],
       );
     }
-    console.log(`  ✓ ${count} filas insertadas/actualizadas (secuencia → ${maxId})`);
+    console.log(
+      `  ✓ ${count} filas insertadas/actualizadas (secuencia → ${maxId})`,
+    );
 
     // ── 5. SphaerAI_users_models_values (user_model_value.csv) ───────────────
-    console.log("\n📥 Migrando user_model_value.csv → SphaerAI_users_models_values...");
+    console.log(
+      "\n📥 Migrando user_model_value.csv → SphaerAI_users_models_values...",
+    );
     const values = await readCsv("user_model_value.csv");
     count = 0;
     for (const row of values) {
@@ -169,7 +182,7 @@ async function main() {
           parseOracleDate(row.date),
           parseFloat(row.VALUE),
           row.CLIMATE_TYPE || "NORMAL",
-        ]
+        ],
       );
       count++;
     }
