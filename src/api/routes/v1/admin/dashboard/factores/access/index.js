@@ -897,3 +897,32 @@ export const marcarSesionVigente = async (req, res) => {
     return InternalError(res);
   }
 };
+
+export const calculosCurvasTipicasCircuitos = async (req, res) => {
+  const { medidas, n_max } = req.body;
+  try {
+    const result = await service.calculosCurvasTipicasCircuitos(
+      medidas,
+      n_max,
+      600000,
+    );
+
+    if (!result.success) {
+      return responseError(
+        200,
+        "No fue posible obtener las curvas típicas por circuito",
+        404,
+        res,
+      );
+    }
+
+    return SuccessResponse(
+      res,
+      result.data,
+      "Curvas típicas por circuito obtenidas correctamente",
+    );
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};

@@ -1244,4 +1244,61 @@ export default class FactoresService {
       return { success: false, message: "Error al marcar sesión vigente" };
     }
   };
+
+  async calculosCurvasTipicasCircuitos(medidas, n_max, timeoutMs = 600000) {
+    const hostsToTry = ["127.0.0.1", "localhost"];
+    const port = 8003;
+
+    for (const host of hostsToTry) {
+      let timer;
+      try {
+        const url = `http://${host}:${port}/factores/calculos/curvas-tipicas-circuitos`;
+        const controller = new AbortController();
+        timer = setTimeout(() => controller.abort(), timeoutMs);
+
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ medidas, n_max }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timer);
+        const statusCode = res.status;
+        const json = await res.json().catch(() => null);
+
+        if (!res.ok) {
+          Logger.warn(
+            colors.yellow(
+              `errorFeedback: HTTP ${statusCode} desde ${host}:${port} [curvas-tipicas-circuitos]`,
+            ),
+          );
+          return { success: false, statusCode, data: json };
+        }
+
+        return { success: true, statusCode, data: json };
+      } catch (err) {
+        clearTimeout(timer);
+        const msg =
+          err?.name === "AbortError"
+            ? `timeout (${timeoutMs}ms)`
+            : err?.message || err;
+        Logger.warn(
+          colors.yellow(
+            `errorFeedback: error conectando a ${host}:${port} — ${msg} [curvas-tipicas-circuitos]`,
+          ),
+        );
+      }
+    }
+
+    Logger.error(
+      colors.red(
+        "errorFeedback: Falló en todos los hosts [curvas-tipicas-circuitos]",
+      ),
+    );
+    return { success: false, statusCode: 0, data: null };
+  }
 }

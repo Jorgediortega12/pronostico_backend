@@ -240,4 +240,43 @@ export default {
   cargarArchivoVrSesionesFactores: Joi.object().keys({
     codcarpeta: Joi.number().required(),
   }),
+  calculosCurvasTipicasCircuitos: Joi.object({
+    medidas: Joi.array()
+      .items(
+        Joi.object({
+          codigo_rpm: Joi.string().required(),
+          circuito: Joi.string().required(),
+          ucp: Joi.string().required(),
+          fecha: Joi.string().required(), // YYYY-MM-DD
+          flujo: Joi.string().required(), // "AE", "RE", etc.
+          p1: Joi.number().required(),
+          p2: Joi.number().required(),
+          p3: Joi.number().required(),
+          p4: Joi.number().required(),
+          p5: Joi.number().required(),
+          p6: Joi.number().required(),
+          p7: Joi.number().required(),
+          p8: Joi.number().required(),
+          p9: Joi.number().required(),
+          p10: Joi.number().required(),
+          p11: Joi.number().required(),
+          p12: Joi.number().required(),
+          p13: Joi.number().required(),
+          p14: Joi.number().required(),
+          p15: Joi.number().required(),
+          p16: Joi.number().required(),
+          p17: Joi.number().required(),
+          p18: Joi.number().required(),
+          p19: Joi.number().required(),
+          p20: Joi.number().required(),
+          p21: Joi.number().required(),
+          p22: Joi.number().required(),
+          p23: Joi.number().required(),
+          p24: Joi.number().required(),
+        }),
+      )
+      .min(1)
+      .required(),
+    n_max: Joi.number().required(),
+  }),
 };
