@@ -12,7 +12,7 @@ const createClient = () =>
     host: process.env.POSTGRES_HOST || "localhost",
     database: process.env.POSTGRES_DB,
     password: process.env.POSTGRES_PASSWORD,
-    port: parseInt(process.env.POSTGRES_PORT || "5433"),
+    port: parseInt(process.env.POSTGRES_PORT || "5432"),
   });
 
 async function main() {
@@ -23,17 +23,19 @@ async function main() {
     // ── 1. Crear o recuperar el ítem de menú ────────────────────────────────
     const check = await client.query(
       "SELECT cod FROM usu_menu WHERE link = $1",
-      [LINK]
+      [LINK],
     );
 
     let codMenu;
 
     if (check.rows.length > 0) {
       codMenu = check.rows[0].cod;
-      console.log(`El módulo '${LINK}' ya existe con cod=${codMenu}. Saltando inserción.`);
+      console.log(
+        `El módulo '${LINK}' ya existe con cod=${codMenu}. Saltando inserción.`,
+      );
     } else {
       const maxOrden = await client.query(
-        "SELECT COALESCE(MAX(orden), 0) AS max FROM usu_menu"
+        "SELECT COALESCE(MAX(orden), 0) AS max FROM usu_menu",
       );
       const orden = maxOrden.rows[0].max + 1;
 
@@ -41,7 +43,7 @@ async function main() {
         `INSERT INTO usu_menu (nombre, nivel, orden, codsuperior, link, imagen)
          VALUES ($1, $2, $3, NULL, $4, $5)
          RETURNING *`,
-        [NOMBRE, 1, orden, LINK, null]
+        [NOMBRE, 1, orden, LINK, null],
       );
 
       codMenu = result.rows[0].cod;
@@ -51,7 +53,7 @@ async function main() {
 
     // ── 2. Asignar acceso a todos los perfiles existentes ───────────────────
     const perfiles = await client.query(
-      "SELECT cod, nombre FROM usu_usuarioperfil ORDER BY nombre"
+      "SELECT cod, nombre FROM usu_usuarioperfil ORDER BY nombre",
     );
     console.log("\nPerfiles disponibles:");
     console.table(perfiles.rows);
@@ -59,20 +61,20 @@ async function main() {
     for (const perfil of perfiles.rows) {
       const yaAsignado = await client.query(
         "SELECT 1 FROM usu_usuarioacceso WHERE codperfil = $1 AND codmenu = $2",
-        [perfil.cod, codMenu]
+        [perfil.cod, codMenu],
       );
 
       if (yaAsignado.rows.length > 0) {
         console.log(
-          `  → Perfil "${perfil.nombre}" (${perfil.cod}): ya tenía el módulo asignado.`
+          `  → Perfil "${perfil.nombre}" (${perfil.cod}): ya tenía el módulo asignado.`,
         );
       } else {
         await client.query(
           "INSERT INTO usu_usuarioacceso (codperfil, codmenu) VALUES ($1, $2)",
-          [perfil.cod, codMenu]
+          [perfil.cod, codMenu],
         );
         console.log(
-          `  ✓ Perfil "${perfil.nombre}" (${perfil.cod}): módulo asignado.`
+          `  ✓ Perfil "${perfil.nombre}" (${perfil.cod}): módulo asignado.`,
         );
       }
     }

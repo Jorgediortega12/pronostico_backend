@@ -2,7 +2,7 @@ import Logger from "../helpers/logger.js";
 import dotenv from "dotenv";
 dotenv.config();
 
-const ML_PORT = parseInt(process.env.DEMANDA_ML_PORT || "8000");
+const ML_PORT = parseInt(process.env.DEMANDA_ML_PORT || "8004");
 const ML_TIMEOUT = parseInt(process.env.DEMANDA_ML_TIMEOUT || "120000");
 const ML_HOSTS = ["127.0.0.1", "localhost"];
 const ML_USER = process.env.DEMANDA_ML_USER || "";
@@ -20,7 +20,6 @@ export default class MpmService {
   #mlToken = null;
   #mlTokenExpiry = 0;
 
-
   #getMlToken = async () => {
     if (this.#mlToken && Date.now() < this.#mlTokenExpiry) return this.#mlToken;
 
@@ -33,14 +32,19 @@ export default class MpmService {
     const errors = [];
     for (const host of ML_HOSTS) {
       try {
-        const res = await fetch(`http://${host}:${ML_PORT}/v1/autenticacion/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: `username=${encodeURIComponent(ML_USER)}&password=${encodeURIComponent(ML_PASSWORD)}`,
-        });
+        const res = await fetch(
+          `http://${host}:${ML_PORT}/v1/autenticacion/login`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: `username=${encodeURIComponent(ML_USER)}&password=${encodeURIComponent(ML_PASSWORD)}`,
+          },
+        );
         if (!res.ok) {
           const detail = await res.text();
-          errors.push(`${host}:${ML_PORT} respondio ${res.status}${detail ? ` - ${detail}` : ""}`);
+          errors.push(
+            `${host}:${ML_PORT} respondio ${res.status}${detail ? ` - ${detail}` : ""}`,
+          );
           continue;
         }
         const data = await res.json();
@@ -55,17 +59,32 @@ export default class MpmService {
         errors.push(`${host}:${ML_PORT} ${err.cause?.code || err.message}`);
       }
     }
-    const err = new Error(`No se pudo autenticar con el servicio ML (${errors.join("; ")})`);
-    err.statusCode = errors.some((error) => /respondio 401|respondio 403/.test(error)) ? 401 : 503;
+    const err = new Error(
+      `No se pudo autenticar con el servicio ML (${errors.join("; ")})`,
+    );
+    err.statusCode = errors.some((error) =>
+      /respondio 401|respondio 403/.test(error),
+    )
+      ? 401
+      : 503;
     throw err;
   };
 
-  #callMlApi = async (method, endpoint, body = null, timeoutMs = ML_TIMEOUT) => {
+  #callMlApi = async (
+    method,
+    endpoint,
+    body = null,
+    timeoutMs = ML_TIMEOUT,
+  ) => {
     let token;
     try {
       token = await this.#getMlToken();
     } catch (err) {
-      return { success: false, message: err.message, statusCode: err.statusCode || 503 };
+      return {
+        success: false,
+        message: err.message,
+        statusCode: err.statusCode || 503,
+      };
     }
     for (const host of ML_HOSTS) {
       const controller = new AbortController();
@@ -90,7 +109,10 @@ export default class MpmService {
       } catch (err) {
         clearTimeout(timer);
         if (err.name === "AbortError") {
-          return { success: false, message: "Timeout al comunicarse con el servicio ML" };
+          return {
+            success: false,
+            message: "Timeout al comunicarse con el servicio ML",
+          };
         }
         if (host === ML_HOSTS[ML_HOSTS.length - 1]) {
           return { success: false, message: err.message };
@@ -106,7 +128,11 @@ export default class MpmService {
     try {
       token = await this.#getMlToken();
     } catch (err) {
-      return { success: false, message: err.message, statusCode: err.statusCode || 503 };
+      return {
+        success: false,
+        message: err.message,
+        statusCode: err.statusCode || 503,
+      };
     }
     for (const host of ML_HOSTS) {
       const controller = new AbortController();
@@ -114,18 +140,33 @@ export default class MpmService {
       try {
         const res = await fetch(`http://${host}:${ML_PORT}${endpoint}`, {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
           body: JSON.stringify(body),
           signal: controller.signal,
         });
         clearTimeout(timer);
-        if (!res.ok) return { success: false, message: await res.text(), statusCode: res.status };
+        if (!res.ok)
+          return {
+            success: false,
+            message: await res.text(),
+            statusCode: res.status,
+          };
         const buffer = await res.arrayBuffer();
-        return { success: true, buffer, contentType: res.headers.get("content-type") };
+        return {
+          success: true,
+          buffer,
+          contentType: res.headers.get("content-type"),
+        };
       } catch (err) {
         clearTimeout(timer);
         if (host === ML_HOSTS[ML_HOSTS.length - 1]) {
-          return { success: false, message: err.name === "AbortError" ? "Timeout" : err.message };
+          return {
+            success: false,
+            message: err.name === "AbortError" ? "Timeout" : err.message,
+          };
         }
       }
     }
@@ -138,7 +179,10 @@ export default class MpmService {
   };
 
   getDemand = async (year, month, previousDays) => {
-    return this.#callMlApi("GET", `/v1/mpm/demand/${year}/${month}/${previousDays}/`);
+    return this.#callMlApi(
+      "GET",
+      `/v1/mpm/demand/${year}/${month}/${previousDays}/`,
+    );
   };
 
   predict = async (body) => {

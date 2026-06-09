@@ -3,7 +3,7 @@ import Logger from "../helpers/logger.js";
 import dotenv from "dotenv";
 dotenv.config();
 
-const ML_PORT = parseInt(process.env.DEMANDA_ML_PORT || "8000");
+const ML_PORT = parseInt(process.env.DEMANDA_ML_PORT || "8004");
 const ML_TIMEOUT = parseInt(process.env.DEMANDA_ML_TIMEOUT || "120000");
 const ML_HOSTS = ["127.0.0.1", "localhost"];
 const ML_USER = process.env.DEMANDA_ML_USER || "";
@@ -36,11 +36,14 @@ export default class DemandaService {
 
     for (const host of ML_HOSTS) {
       try {
-        const res = await fetch(`http://${host}:${ML_PORT}/v1/autenticacion/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: `username=${encodeURIComponent(ML_USER)}&password=${encodeURIComponent(ML_PASSWORD)}`,
-        });
+        const res = await fetch(
+          `http://${host}:${ML_PORT}/v1/autenticacion/login`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: `username=${encodeURIComponent(ML_USER)}&password=${encodeURIComponent(ML_PASSWORD)}`,
+          },
+        );
         if (!res.ok) continue;
         const data = await res.json();
         this.#mlToken = data.access_token;
@@ -81,7 +84,10 @@ export default class DemandaService {
       } catch (err) {
         clearTimeout(timer);
         if (err.name === "AbortError") {
-          return { success: false, message: "Timeout al comunicarse con el servicio ML" };
+          return {
+            success: false,
+            message: "Timeout al comunicarse con el servicio ML",
+          };
         }
         if (host === ML_HOSTS[ML_HOSTS.length - 1]) {
           return { success: false, message: err.message };
@@ -118,20 +124,38 @@ export default class DemandaService {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), ML_TIMEOUT);
       try {
-        const res = await fetch(`http://${host}:${ML_PORT}/v1/forecast/predict/excel/`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify(body),
-          signal: controller.signal,
-        });
+        const res = await fetch(
+          `http://${host}:${ML_PORT}/v1/forecast/predict/excel/`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(body),
+            signal: controller.signal,
+          },
+        );
         clearTimeout(timer);
-        if (!res.ok) return { success: false, message: await res.text(), statusCode: res.status };
+        if (!res.ok)
+          return {
+            success: false,
+            message: await res.text(),
+            statusCode: res.status,
+          };
         const buffer = await res.arrayBuffer();
-        return { success: true, buffer, contentType: res.headers.get("content-type") };
+        return {
+          success: true,
+          buffer,
+          contentType: res.headers.get("content-type"),
+        };
       } catch (err) {
         clearTimeout(timer);
         if (host === ML_HOSTS[ML_HOSTS.length - 1])
-          return { success: false, message: err.name === "AbortError" ? "Timeout" : err.message };
+          return {
+            success: false,
+            message: err.name === "AbortError" ? "Timeout" : err.message,
+          };
       }
     }
   };
@@ -148,20 +172,38 @@ export default class DemandaService {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), ML_TIMEOUT);
       try {
-        const res = await fetch(`http://${host}:${ML_PORT}/v1/forecast/day/behavior/excel/`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify(body),
-          signal: controller.signal,
-        });
+        const res = await fetch(
+          `http://${host}:${ML_PORT}/v1/forecast/day/behavior/excel/`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(body),
+            signal: controller.signal,
+          },
+        );
         clearTimeout(timer);
-        if (!res.ok) return { success: false, message: await res.text(), statusCode: res.status };
+        if (!res.ok)
+          return {
+            success: false,
+            message: await res.text(),
+            statusCode: res.status,
+          };
         const buffer = await res.arrayBuffer();
-        return { success: true, buffer, contentType: res.headers.get("content-type") };
+        return {
+          success: true,
+          buffer,
+          contentType: res.headers.get("content-type"),
+        };
       } catch (err) {
         clearTimeout(timer);
         if (host === ML_HOSTS[ML_HOSTS.length - 1])
-          return { success: false, message: err.name === "AbortError" ? "Timeout" : err.message };
+          return {
+            success: false,
+            message: err.name === "AbortError" ? "Timeout" : err.message,
+          };
       }
     }
   };
@@ -183,7 +225,8 @@ export default class DemandaService {
 
   getMonthlyDemandByYear = async (year) => {
     const rows = await this.#model.getMonthlyDemandByYear(year);
-    if (!rows.length) throw new Error("No se encontraron datos para el año especificado.");
+    if (!rows.length)
+      throw new Error("No se encontraron datos para el año especificado.");
     const result = {};
     for (const row of rows) {
       const key = `${row.year}-${String(row.month).padStart(2, "0")}`;
@@ -203,7 +246,7 @@ export default class DemandaService {
         await this.#model.updateMonthlyClimateType(
           parseInt(year),
           parseInt(month),
-          values[year][month]
+          values[year][month],
         );
       }
     }
@@ -214,10 +257,19 @@ export default class DemandaService {
 
   getMonthlyInfo = async (year, month, prediction) => {
     const stats = await this.#model.getMonthlyStats(year, month);
-    if (!stats) throw new Error("No se encontraron datos para el año y mes especificados.");
+    if (!stats)
+      throw new Error(
+        "No se encontraron datos para el año y mes especificados.",
+      );
 
-    const historicValue = await this.#model.getMonthlyValueForMonth(year, month);
-    const { workingDays, saturdays, sundaysHolidays } = this.#getNumberOfDays(year, month);
+    const historicValue = await this.#model.getMonthlyValueForMonth(
+      year,
+      month,
+    );
+    const { workingDays, saturdays, sundaysHolidays } = this.#getNumberOfDays(
+      year,
+      month,
+    );
 
     return {
       number_of_working_days: workingDays,
@@ -229,7 +281,9 @@ export default class DemandaService {
       error:
         historicValue && prediction != null
           ? parseFloat(
-              (Math.abs(prediction - historicValue.value) / historicValue.value).toFixed(2)
+              (
+                Math.abs(prediction - historicValue.value) / historicValue.value
+              ).toFixed(2),
             )
           : null,
     };
@@ -252,7 +306,8 @@ export default class DemandaService {
 
   createTypeYearList = async (userId, sessionId) => {
     const years = await this.#model.getAllYearsFromYearlyDemand();
-    if (!years.length) throw new Error("No se encontraron años en la base de datos.");
+    if (!years.length)
+      throw new Error("No se encontraron años en la base de datos.");
     await this.#model.insertTypeYears(years, userId, sessionId);
     return { message: "Lista de años creada exitosamente" };
   };
@@ -271,7 +326,13 @@ export default class DemandaService {
   // ─── User Models ─────────────────────────────────────────────────────────────
 
   createNewModel = async (modelName, userId, sessionId, startDate, endDate) => {
-    const row = await this.#model.createUserModel(modelName, userId, sessionId, startDate, endDate);
+    const row = await this.#model.createUserModel(
+      modelName,
+      userId,
+      sessionId,
+      startDate,
+      endDate,
+    );
     return { message: "Modelo creado exitosamente", model_id: row.id };
   };
 
@@ -292,8 +353,15 @@ export default class DemandaService {
   saveModelValues = async (userId, sessionId, modelId, dates, values) => {
     const models = await this.#model.getUserModels(userId, sessionId);
     const exists = models.some((m) => m.id === modelId);
-    if (!exists) throw new Error("El modelo especificado no existe para el usuario y sesión.");
-    await this.#model.saveModelValues(modelId, dates.map(normalizeModelDate), values);
+    if (!exists)
+      throw new Error(
+        "El modelo especificado no existe para el usuario y sesión.",
+      );
+    await this.#model.saveModelValues(
+      modelId,
+      dates.map(normalizeModelDate),
+      values,
+    );
     return { message: "Datos del modelo actualizados" };
   };
 
@@ -302,8 +370,11 @@ export default class DemandaService {
     if (!rows.length) {
       const yearlyRows = await this.#model.getYearlyDemands();
       const combined = {};
-      for (const r of yearlyRows) combined[String(r.year)] = parseFloat(r.demand);
-      const yearsSorted = Object.keys(combined).sort((a, b) => parseInt(a) - parseInt(b));
+      for (const r of yearlyRows)
+        combined[String(r.year)] = parseFloat(r.demand);
+      const yearsSorted = Object.keys(combined).sort(
+        (a, b) => parseInt(a) - parseInt(b),
+      );
       const growth = {};
       for (let i = 1; i < yearsSorted.length; i++) {
         const cur = combined[yearsSorted[i]];
@@ -330,10 +401,13 @@ export default class DemandaService {
     const startYear = startDate.getFullYear();
     const startMonth = startDate.getMonth() + 1;
 
-    const historicRows = await this.#model.getMonthlyDemandBeforeDate(startYear, startMonth);
+    const historicRows = await this.#model.getMonthlyDemandBeforeDate(
+      startYear,
+      startMonth,
+    );
     const demandValuesForTable = historicRows.map((r) => r.value);
     const dateValuesForTable = historicRows.map(
-      (r) => `${r.year}-${String(r.month).padStart(2, "0")}-01`
+      (r) => `${r.year}-${String(r.month).padStart(2, "0")}-01`,
     );
 
     // Annual totals per model year
@@ -353,7 +427,9 @@ export default class DemandaService {
       }
     }
     const combined = { ...historicYearlyMap, ...yearTotals };
-    const yearsSorted = Object.keys(combined).sort((a, b) => parseInt(a) - parseInt(b));
+    const yearsSorted = Object.keys(combined).sort(
+      (a, b) => parseInt(a) - parseInt(b),
+    );
 
     const growth = {};
     for (let i = 1; i < yearsSorted.length; i++) {
@@ -402,12 +478,16 @@ export default class DemandaService {
       const idx = normDates.indexOf(dateStr);
       if (idx !== -1) {
         const newType = types[idx];
-        const newValue = changeValue(parseFloat(row.value), row.climate_type, newType);
+        const newValue = changeValue(
+          parseFloat(row.value),
+          row.climate_type,
+          newType,
+        );
         await this.#model.updateModelValueClimateAndValue(
           modelId,
           new Date(row.date),
           newValue,
-          newType
+          newType,
         );
       }
     }
@@ -419,14 +499,19 @@ export default class DemandaService {
 
   changeModelBasedOnYear = async (modelId, year, predictYear) => {
     const yearlyDemandByMonth = await this.getMonthlyDemandByYear(year);
-    const modelRows = await this.#model.getModelValuesByYear(modelId, predictYear);
+    const modelRows = await this.#model.getModelValuesByYear(
+      modelId,
+      predictYear,
+    );
     if (!modelRows.length) {
       const allRows = await this.#model.getModelValues(modelId);
-      const years = [...new Set(allRows.map((r) => new Date(r.date).getFullYear()))].sort();
+      const years = [
+        ...new Set(allRows.map((r) => new Date(r.date).getFullYear())),
+      ].sort();
       throw new Error(
         years.length
           ? `El modelo ${modelId} no tiene valores para el año ${predictYear}. Años disponibles: ${years.join(", ")}.`
-          : `El modelo ${modelId} no tiene valores guardados. Genere y guarde una predicción antes de calcular la referencia.`
+          : `El modelo ${modelId} no tiene valores guardados. Genere y guarde una predicción antes de calcular la referencia.`,
       );
     }
 
@@ -442,7 +527,10 @@ export default class DemandaService {
       }, 0);
       for (const m of months) {
         const key = `${year}-${String(m).padStart(2, "0")}`;
-        percentages[m] = partialTotal > 0 ? (yearlyDemandByMonth[key]?.value || 0) / partialTotal : 0;
+        percentages[m] =
+          partialTotal > 0
+            ? (yearlyDemandByMonth[key]?.value || 0) / partialTotal
+            : 0;
       }
     } else {
       for (const m of months) {
@@ -460,7 +548,7 @@ export default class DemandaService {
         modelId,
         new Date(modelRows[i].date),
         newValue,
-        climateType
+        climateType,
       );
     }
 

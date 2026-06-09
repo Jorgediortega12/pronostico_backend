@@ -8,7 +8,7 @@ import { fileURLToPath } from "url";
 dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const SQL_FILE = path.join(__dirname, "cubrimiento.sql");
+const SQL_FILE = path.join(__dirname, "..", "init", "valoracion.sql");
 
 const client = new Client({
   user: process.env.POSTGRES_USER,
@@ -23,7 +23,7 @@ async function main() {
   await client.connect();
   console.log("Conexión exitosa a PostgreSQL");
   await client.query(sql);
-  console.log("Tablas de cubrimiento creadas correctamente");
+  console.log("Tablas de valoración creadas correctamente");
 }
 
 main()
