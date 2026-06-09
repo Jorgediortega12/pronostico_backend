@@ -139,7 +139,6 @@ export const cargarFuentes = `
     AND estado = 1
     AND aux IS NULL
     AND aux2 = 'Fuente'
-    AND aux3 IS NULL
   ORDER BY nombre ASC;
 `;
 
@@ -188,6 +187,96 @@ export const cargarUCP = `
     AND aux2 IS NOT NULL
     AND aux2 <> ''
   ORDER BY aux2 ASC;
+`;
+
+// ─── FLUJOS ──────────────────────────────────────────────────────────────────
+
+// Obtener flujos de una fuente
+export const obtenerFlujosPorFuente = `
+  SELECT f.*, u.nombre AS nombre_fuente
+  FROM flujo f
+  INNER JOIN ucp u ON u.codigo = f.codigo_fuente
+  WHERE f.codigo_fuente = $1
+    AND f.estado = 1
+  ORDER BY f.nombre ASC;
+`;
+
+// Crear flujo
+export const crearFlujo = `
+  INSERT INTO flujo (nombre, codigo_fuente)
+  VALUES ($1, $2)
+  RETURNING *;
+`;
+
+// Actualizar flujo
+export const actualizarFlujo = `
+  UPDATE flujo
+  SET nombre = $1,
+      codigo_fuente = $2
+  WHERE id = $3
+  RETURNING *;
+`;
+
+// Eliminar flujo (soft delete)
+export const eliminarFlujo = `
+  UPDATE flujo
+  SET estado = 0
+  WHERE id = $1
+  RETURNING *;
+`;
+
+// ─── EQUIVALENCIA_FLUJO ───────────────────────────────────────────────────────
+
+/**
+ * Carga equivalencias de una fuente con sus valores para un flujo dado.
+ * Hace LEFT JOIN para que aparezcan aunque no tengan valor aún.
+ */
+export const obtenerEquivalenciasPorFlujo = `
+  SELECT
+    u2.*,
+    u_padre.nombre  AS nombre_fuente,
+    f.id            AS id_flujo,
+    f.nombre        AS nombre_flujo,
+    ef.id           AS id_ef,
+    ef.valor        AS valor_flujo
+  FROM ucp u2
+  INNER JOIN ucp u_padre ON u_padre.codigo = u2.codpadre
+  INNER JOIN flujo f     ON f.id = $1::integer
+  LEFT  JOIN equivalencia_flujo ef
+          ON ef.codigo_ucp = u2.codigo
+         AND ef.id_flujo   = f.id
+         AND ef.estado     = 1
+  WHERE u2.estado  = 1
+    AND u2.aux3 IS NOT NULL
+    AND u2.aux3    != ''
+    AND u2.aux2    IS NOT NULL
+  ORDER BY u_padre.nombre ASC, u2.aux2 ASC;
+`;
+
+// Upsert: crear o actualizar valor de equivalencia para un flujo
+export const upsertEquivalenciaFlujo = `
+  INSERT INTO equivalencia_flujo (codigo_ucp, id_flujo, valor)
+  VALUES ($1, $2, $3)
+  ON CONFLICT (codigo_ucp, id_flujo)
+  DO UPDATE SET valor = EXCLUDED.valor, estado = 1
+  RETURNING *;
+`;
+
+// Eliminar valor (soft delete)
+export const eliminarEquivalenciaFlujo = `
+  UPDATE equivalencia_flujo
+  SET estado = 0
+  WHERE id = $1
+  RETURNING *;
+`;
+
+// Obtener todos los flujos (para el select del frontend, agrupados por fuente)
+export const obtenerTodosLosFlujos = `
+  SELECT f.*, u.nombre AS nombre_fuente
+  FROM flujo f
+  INNER JOIN ucp u ON u.codigo = f.codigo_fuente
+  WHERE f.estado = 1
+  ORDER BY u.nombre ASC, f.nombre ASC;
 `;
 
 // Query para usar en la transacción de actualización en cascada.
