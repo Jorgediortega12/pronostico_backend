@@ -6,6 +6,7 @@ import sesionesRoutes from "./sesiones/index.js";
 import MenuRoutes from "./menu/index.js";
 import FactoresRoutes from "./factores/index.js";
 import EpmRoutes from "./epm/index.js";
+import CircuitosRoutes from "./circuitos/index.js";
 
 const router = Router();
 
@@ -17,5 +18,6 @@ export default function () {
   router.use("/menu", MenuRoutes());
   router.use("/factores", FactoresRoutes());
   router.use("/epm", EpmRoutes());
+  router.use("/circuitos", CircuitosRoutes());
   return router;
 }
