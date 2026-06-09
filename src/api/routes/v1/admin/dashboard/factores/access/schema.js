@@ -279,4 +279,22 @@ export default {
       .required(),
     n_max: Joi.number().required(),
   }),
+  guardarReporteDNA: Joi.object({
+    ucp: Joi.string().required(),
+    fecha_inicio: Joi.string().required(),
+    fecha_fin: Joi.string().required(),
+    dna_total: Joi.number().required(),
+    filas: Joi.array()
+      .items(
+        Joi.object({
+          periodo: Joi.number().integer().min(1).max(24).required(),
+          pro: Joi.number().required(),
+          da: Joi.number().required(),
+          dna: Joi.number().required(),
+          dr: Joi.number().required(),
+        }),
+      )
+      .length(24)
+      .required(),
+  }),
 };

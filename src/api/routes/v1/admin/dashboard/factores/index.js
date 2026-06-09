@@ -187,6 +187,11 @@ export default function () {
     validator(schema.calculosCurvasTipicasCircuitos),
     controllers.calculosCurvasTipicasCircuitos,
   );
+  router.post(
+    "/guardarReporteDNA",
+    validator(schema.guardarReporteDNA),
+    controllers.guardarReporteDNA,
+  );
 
   return router;
 }
