@@ -3,6 +3,7 @@ import Logger from "../helpers/logger.js";
 import colors from "colors";
 import path from "path";
 import fs from "fs";
+import ExcelJS from "exceljs";
 import { createConectionPG } from "../helpers/connections.js";
 import { findOrCreateFolder } from "../utils/folders.js";
 import { insertFileRecord } from "../utils/reportGenerator.js";
@@ -1244,4 +1245,151 @@ export default class FactoresService {
       return { success: false, message: "Error al marcar sesión vigente" };
     }
   };
+
+  async calculosCurvasTipicasCircuitos(medidas, n_max, timeoutMs = 600000) {
+    const hostsToTry = ["127.0.0.1", "localhost"];
+    const port = 8003;
+
+    for (const host of hostsToTry) {
+      let timer;
+      try {
+        const url = `http://${host}:${port}/factores/calculos/curvas-tipicas-circuitos`;
+        const controller = new AbortController();
+        timer = setTimeout(() => controller.abort(), timeoutMs);
+
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ medidas, n_max }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timer);
+        const statusCode = res.status;
+        const json = await res.json().catch(() => null);
+
+        if (!res.ok) {
+          Logger.warn(
+            colors.yellow(
+              `errorFeedback: HTTP ${statusCode} desde ${host}:${port} [curvas-tipicas-circuitos]`,
+            ),
+          );
+          return { success: false, statusCode, data: json };
+        }
+
+        return { success: true, statusCode, data: json };
+      } catch (err) {
+        clearTimeout(timer);
+        const msg =
+          err?.name === "AbortError"
+            ? `timeout (${timeoutMs}ms)`
+            : err?.message || err;
+        Logger.warn(
+          colors.yellow(
+            `errorFeedback: error conectando a ${host}:${port} — ${msg} [curvas-tipicas-circuitos]`,
+          ),
+        );
+      }
+    }
+
+    Logger.error(
+      colors.red(
+        "errorFeedback: Falló en todos los hosts [curvas-tipicas-circuitos]",
+      ),
+    );
+    return { success: false, statusCode: 0, data: null };
+  }
+
+  async guardarReporteDNA({ ucp, fecha_inicio, fecha_fin, filas, dna_total }) {
+    // ── 1. Construir ruta igual que el .NET: Reportes/DNA/<UCP>/<año>/<mes>/
+    const fechaFin = new Date(fecha_fin);
+    const anio = fechaFin.getFullYear().toString();
+    const mes = String(fechaFin.getMonth() + 1).padStart(2, "0");
+    const ucpCap = ucp.charAt(0).toUpperCase() + ucp.slice(1).toLowerCase();
+    const codAbrev = `U${ucpCap}`;
+    const dd = String(fechaFin.getDate()).padStart(2, "0");
+    const mm = mes;
+    const nombreBase = `${codAbrev}dnapt${dd}${mm}`;
+
+    const carpeta = path.join(
+      process.cwd(),
+      "Reportes",
+      "DNA",
+      ucpCap,
+      anio,
+      mes,
+    );
+    if (!fs.existsSync(carpeta)) fs.mkdirSync(carpeta, { recursive: true });
+
+    const rutaXlsx = path.join(carpeta, `${nombreBase}.xlsx`);
+
+    // ── 2. Generar Excel con exceljs (mismo formato que SLDocument del .NET)
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("VECTORIAL");
+
+    // Cabecera
+    ws.columns = [
+      { header: "PERIODOS", key: "periodo", width: 12 },
+      { header: "PRO", key: "pro", width: 14 },
+      { header: "DA", key: "da", width: 14 },
+      { header: "DNA", key: "dna", width: 14 },
+      { header: "DR", key: "dr", width: 14 },
+    ];
+
+    // Estilo cabecera (gris igual que .NET)
+    const headerRow = ws.getRow(1);
+    headerRow.eachCell((cell) => {
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FF7A7A7A" },
+      };
+      cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      cell.alignment = { horizontal: "center" };
+    });
+
+    // Filas de datos (P1..P24)
+    filas.forEach((f) => ws.addRow(f));
+
+    // Fila total
+    const totalRow = ws.addRow({
+      periodo: "TOTAL",
+      pro: filas.reduce((s, f) => s + f.pro, 0),
+      da: filas.reduce((s, f) => s + f.da, 0),
+      dna: dna_total,
+      dr: filas.reduce((s, f) => s + f.dr, 0),
+    });
+    totalRow.font = { bold: true };
+    totalRow.getCell("dna").font = { bold: true, color: { argb: "FF009653" } };
+
+    // Congelar primera fila
+    ws.views = [{ state: "frozen", ySplit: 1 }];
+
+    // Formato numérico 6 decimales para columnas de valor
+    ["pro", "da", "dna", "dr"].forEach((key) => {
+      ws.getColumn(key).numFmt = "#,##0.000000";
+    });
+
+    // Metadatos del libro
+    ws.getCell("G1").value = ucp.toUpperCase();
+    ws.getCell("G2").value = fecha_fin;
+
+    await wb.xlsx.writeFile(rutaXlsx);
+
+    // ── 3. Guardar referencia en DB
+    //    Adaptar a tu ORM/query builder. Ejemplo con tu patrón de configuracion:
+    //    c.insertArchivoCarpeta(codigoMes, nombreBase + ".xlsx", rutaRelativa)
+    //    Aquí retornamos la info para que el controller la guarde:
+    return {
+      ruta: rutaXlsx,
+      nombre: `${nombreBase}.xlsx`,
+      ucp,
+      fecha_inicio,
+      fecha_fin,
+      dna_total,
+    };
+  }
 }

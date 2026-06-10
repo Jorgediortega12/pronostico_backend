@@ -7,6 +7,7 @@ import sesionesRoutes from "./sesiones/index.js";
 import MenuRoutes from "./menu/index.js";
 import FactoresRoutes from "./factores/index.js";
 import EpmRoutes from "./epm/index.js";
+import CircuitosRoutes from "./circuitos/index.js";
 import analysisRoutes from "./analysis/index.js";
 import cronRoutes from "./cron/index.js";
 import ademRoutes from "./adem/index.js";
@@ -26,6 +27,7 @@ export default function () {
   router.use("/menu", MenuRoutes());
   router.use("/factores", FactoresRoutes());
   router.use("/epm", EpmRoutes());
+  router.use("/circuitos", CircuitosRoutes());
   router.use("/analysis", analysisRoutes());
   router.use("/cron", cronRoutes());
   router.use("/adem", ademRoutes());
@@ -33,5 +35,6 @@ export default function () {
   router.use("/mpm", mpmRoutes());
   router.use("/convocatoria", convocatoriaRoutes());
   router.use("/valoracion", valoracionRoutes());
+
   return router;
 }

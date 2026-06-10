@@ -897,3 +897,53 @@ export const marcarSesionVigente = async (req, res) => {
     return InternalError(res);
   }
 };
+
+export const calculosCurvasTipicasCircuitos = async (req, res) => {
+  const { medidas, n_max } = req.body;
+  try {
+    const result = await service.calculosCurvasTipicasCircuitos(
+      medidas,
+      n_max,
+      600000,
+    );
+
+    if (!result.success) {
+      return responseError(
+        200,
+        "No fue posible obtener las curvas típicas por circuito",
+        404,
+        res,
+      );
+    }
+
+    return SuccessResponse(
+      res,
+      result.data,
+      "Curvas típicas por circuito obtenidas correctamente",
+    );
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const guardarReporteDNA = async (req, res) => {
+  const { ucp, fecha_inicio, fecha_fin, filas, dna_total } = req.body;
+  try {
+    const result = await service.guardarReporteDNA({
+      ucp,
+      fecha_inicio,
+      fecha_fin,
+      filas,
+      dna_total,
+    });
+
+    // Guardar en DB (misma lógica de carpetas del .NET):
+    // await db.insertarReporteDNA({ ucp, fecha_inicio, fecha_fin, ruta: result.ruta, nombre: result.nombre });
+
+    return SuccessResponse(res, result, "Reporte DNA guardado correctamente");
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};

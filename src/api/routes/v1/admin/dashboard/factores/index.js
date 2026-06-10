@@ -182,5 +182,16 @@ export default function () {
   router.get("/sessionVigente/:ucp", controllers.getSessionVigente);
   router.patch("/marcarVigente/:codigo", controllers.marcarSesionVigente);
 
+  router.post(
+    "/calculosCurvasTipicasCircuitos",
+    validator(schema.calculosCurvasTipicasCircuitos),
+    controllers.calculosCurvasTipicasCircuitos,
+  );
+  router.post(
+    "/guardarReporteDNA",
+    validator(schema.guardarReporteDNA),
+    controllers.guardarReporteDNA,
+  );
+
   return router;
 }
