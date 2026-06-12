@@ -1303,93 +1303,160 @@ export default class FactoresService {
     return { success: false, statusCode: 0, data: null };
   }
 
-  async guardarReporteDNA({ ucp, fecha_inicio, fecha_fin, filas, dna_total }) {
-    // ── 1. Construir ruta igual que el .NET: Reportes/DNA/<UCP>/<año>/<mes>/
-    const fechaFin = new Date(fecha_fin);
-    const anio = fechaFin.getFullYear().toString();
-    const mes = String(fechaFin.getMonth() + 1).padStart(2, "0");
-    const ucpCap = ucp.charAt(0).toUpperCase() + ucp.slice(1).toLowerCase();
-    const codAbrev = `U${ucpCap}`;
-    const dd = String(fechaFin.getDate()).padStart(2, "0");
-    const mm = mes;
-    const nombreBase = `${codAbrev}dnapt${dd}${mm}`;
+  async guardarReporteDNA(
+    { ucp, fecha_inicio, fecha_fin, registros },
+    session,
+  ) {
+    try {
+      const fechaRef = new Date(fecha_fin || fecha_inicio || new Date());
 
-    const carpeta = path.join(
-      process.cwd(),
-      "Reportes",
-      "DNA",
-      ucpCap,
-      anio,
-      mes,
-    );
-    if (!fs.existsSync(carpeta)) fs.mkdirSync(carpeta, { recursive: true });
+      const yyyy = String(fechaRef.getFullYear());
+      const mm = String(fechaRef.getMonth() + 1).padStart(2, "0");
+      const dd = String(fechaRef.getDate()).padStart(2, "0");
 
-    const rutaXlsx = path.join(carpeta, `${nombreBase}.xlsx`);
+      const ucpCap = ucp.charAt(0).toUpperCase() + ucp.slice(1).toLowerCase();
+      const codigoMercado = `MC-${ucpCap}`;
+      const nombrearchivo = `${codigoMercado}${dd}${mm}.xlsx`;
 
-    // ── 2. Generar Excel con exceljs (mismo formato que SLDocument del .NET)
-    const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet("VECTORIAL");
+      const reportDirPhysicalRoot =
+        process.env.REPORT_DIR || path.join(process.cwd(), "reportes");
 
-    // Cabecera
-    ws.columns = [
-      { header: "PERIODOS", key: "periodo", width: 12 },
-      { header: "PRO", key: "pro", width: 14 },
-      { header: "DA", key: "da", width: 14 },
-      { header: "DNA", key: "dna", width: 14 },
-      { header: "DR", key: "dr", width: 14 },
-    ];
+      // ── 1) Carpetas en DB ───────────────────────────────────────────────
+      const clientCarpeta = createConectionPG(session);
+      await clientCarpeta.connect();
 
-    // Estilo cabecera (gris igual que .NET)
-    const headerRow = ws.getRow(1);
-    headerRow.eachCell((cell) => {
-      cell.fill = {
-        type: "pattern",
-        pattern: "solid",
-        fgColor: { argb: "FF7A7A7A" },
+      let codcarpeta;
+      let folderPathPhysical;
+      let folderPathLogical;
+
+      try {
+        const root = await findOrCreateFolder(clientCarpeta, "reportes", 0, 1);
+        const dna = await findOrCreateFolder(
+          clientCarpeta,
+          "DNA",
+          root.codigo,
+          2,
+        );
+        const ucpFolder = await findOrCreateFolder(
+          clientCarpeta,
+          ucpCap,
+          dna.codigo,
+          3,
+        );
+        const yearFolder = await findOrCreateFolder(
+          clientCarpeta,
+          yyyy,
+          ucpFolder.codigo,
+          4,
+        );
+        const monthFolder = await findOrCreateFolder(
+          clientCarpeta,
+          mm,
+          yearFolder.codigo,
+          5,
+        );
+
+        codcarpeta = monthFolder.codigo;
+
+        folderPathLogical = `~/reportes/DNA/${ucpCap}/${yyyy}/${mm}`;
+        folderPathPhysical = path.join(
+          reportDirPhysicalRoot,
+          "DNA",
+          ucpCap,
+          yyyy,
+          mm,
+        );
+
+        if (!fs.existsSync(folderPathPhysical)) {
+          fs.mkdirSync(folderPathPhysical, { recursive: true });
+        }
+      } finally {
+        await clientCarpeta.end();
+      }
+
+      // ── 2) Generar Excel ────────────────────────────────────────────────
+      const rutaCompleta = path.join(folderPathPhysical, nombrearchivo);
+
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet("VECTORIAL");
+
+      ws.columns = [
+        { header: "Codabrevmc", key: "codabrevmc", width: 20 },
+        { header: "Fecha", key: "fecha", width: 14 },
+        { header: "Valor", key: "valor", width: 14 },
+        { header: "Periodo", key: "periodo", width: 10 },
+      ];
+
+      ws.getRow(1).font = { bold: true };
+      ws.getRow(1).alignment = { horizontal: "center" };
+
+      registros
+        .slice()
+        .sort((a, b) => a.fecha.localeCompare(b.fecha) || a.periodo - b.periodo)
+        .forEach((r) => {
+          ws.addRow({
+            codabrevmc: r.codabrevmc || codigoMercado,
+            fecha: r.fecha,
+            valor: Number(r.valor),
+            periodo: Number(r.periodo),
+          });
+        });
+
+      ws.views = [{ state: "frozen", ySplit: 1 }];
+
+      ws.getColumn("valor").numFmt = "#,##0.000000";
+      ws.getColumn("periodo").numFmt = "0";
+
+      await wb.xlsx.writeFile(rutaCompleta);
+
+      // ── 3) Insertar archivo en DB ───────────────────────────────────────
+      const rutaBD = `${folderPathLogical}/${nombrearchivo}`;
+
+      const clientArch = createConectionPG(session);
+      await clientArch.connect();
+
+      let codarchivo = null;
+
+      try {
+        await clientArch.query("BEGIN");
+
+        const resArch = await insertFileRecord(clientArch, {
+          nombreArchivo: nombrearchivo,
+          rutaArchivo: rutaBD,
+          codcarpeta,
+          contentType:
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        });
+
+        codarchivo = resArch?.codigo ?? null;
+
+        await clientArch.query("COMMIT");
+      } catch (err) {
+        await clientArch.query("ROLLBACK");
+        Logger.error(colors.red("Error insertando archivo DNA:"), err);
+        throw err;
+      } finally {
+        await clientArch.end();
+      }
+
+      return {
+        success: true,
+        codarchivo,
+        codcarpeta,
+        nombrearchivo,
+        ruta: rutaCompleta,
+        rutaBD,
+        ucp: ucpCap,
+        fecha_inicio,
+        fecha_fin,
+        totalRegistros: registros.length,
       };
-      cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
-      cell.alignment = { horizontal: "center" };
-    });
-
-    // Filas de datos (P1..P24)
-    filas.forEach((f) => ws.addRow(f));
-
-    // Fila total
-    const totalRow = ws.addRow({
-      periodo: "TOTAL",
-      pro: filas.reduce((s, f) => s + f.pro, 0),
-      da: filas.reduce((s, f) => s + f.da, 0),
-      dna: dna_total,
-      dr: filas.reduce((s, f) => s + f.dr, 0),
-    });
-    totalRow.font = { bold: true };
-    totalRow.getCell("dna").font = { bold: true, color: { argb: "FF009653" } };
-
-    // Congelar primera fila
-    ws.views = [{ state: "frozen", ySplit: 1 }];
-
-    // Formato numérico 6 decimales para columnas de valor
-    ["pro", "da", "dna", "dr"].forEach((key) => {
-      ws.getColumn(key).numFmt = "#,##0.000000";
-    });
-
-    // Metadatos del libro
-    ws.getCell("G1").value = ucp.toUpperCase();
-    ws.getCell("G2").value = fecha_fin;
-
-    await wb.xlsx.writeFile(rutaXlsx);
-
-    // ── 3. Guardar referencia en DB
-    //    Adaptar a tu ORM/query builder. Ejemplo con tu patrón de configuracion:
-    //    c.insertArchivoCarpeta(codigoMes, nombreBase + ".xlsx", rutaRelativa)
-    //    Aquí retornamos la info para que el controller la guarde:
-    return {
-      ruta: rutaXlsx,
-      nombre: `${nombreBase}.xlsx`,
-      ucp,
-      fecha_inicio,
-      fecha_fin,
-      dna_total,
-    };
+    } catch (err) {
+      Logger.error(colors.red("Error guardarReporteDNA"), err);
+      return {
+        success: false,
+        message: err.message || "Error al guardar reporte DNA",
+      };
+    }
   }
 }
