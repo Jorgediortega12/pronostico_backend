@@ -89,5 +89,9 @@ export default function () {
   router.post("/exportar/excel", validator(schema.exportar), controllers.exportarExcel);
   router.post("/exportar/json", validator(schema.exportar), controllers.exportarJson);
 
+  router.post("/version/save", validator(schema.guardarVersion), controllers.guardarVersion);
+  router.get("/version/list/:oferta_id", controllers.listarVersiones);
+  router.get("/version/load/:version_id", controllers.cargarVersion);
+
   return router;
 }

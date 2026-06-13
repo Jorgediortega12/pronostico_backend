@@ -70,4 +70,12 @@ export default {
   porcentajePorAnio: Joi.object({
     anio: Joi.number().integer().required(),
   }),
+
+  guardarVersion: Joi.object({
+    user_id: Joi.any().strip(),
+    session_id: Joi.any().strip(),
+    nombre: Joi.string().allow(null, "").optional(),
+    anio: Joi.number().integer().allow(null).optional(),
+    payload: Joi.object().required(),
+  }),
 };

@@ -97,6 +97,14 @@ export const getUserModels = `
   ORDER BY id
 `;
 
+// Todos los modelos del usuario, sin importar la sesión (para cubrimiento).
+export const getUserModelsByUser = `
+  SELECT id, model_name, start_date, end_date
+  FROM "SphaerAI_users_models"
+  WHERE user_id = $1
+  ORDER BY id
+`;
+
 export const getAllModels = `
   SELECT id, model_name, user_id, session_id, start_date, end_date
   FROM "SphaerAI_users_models"
@@ -141,4 +149,69 @@ export const updateModelValueClimateAndValue = `
 
 export const checkModelExists = `
   SELECT id FROM "SphaerAI_users_models_values" WHERE model_id = $1 LIMIT 1
+`;
+
+export const ensureVersionTables = `
+  CREATE TABLE IF NOT EXISTS "SphaerAI_demanda_versiones" (
+    id SERIAL PRIMARY KEY,
+    model_id INTEGER,
+    version INTEGER NOT NULL,
+    user_id INTEGER,
+    session_id INTEGER,
+    nombre VARCHAR(255),
+    start_date DATE,
+    end_date DATE,
+    observacion TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    UNIQUE (model_id, version)
+  );
+  ALTER TABLE "SphaerAI_demanda_versiones" ALTER COLUMN model_id DROP NOT NULL;
+  CREATE TABLE IF NOT EXISTS "SphaerAI_demanda_versiones_valores" (
+    id SERIAL PRIMARY KEY,
+    version_id INTEGER NOT NULL REFERENCES "SphaerAI_demanda_versiones"(id) ON DELETE CASCADE,
+    date DATE NOT NULL,
+    value NUMERIC,
+    climate_type VARCHAR(20) DEFAULT 'NORMAL'
+  );
+`;
+
+export const deleteExpiredVersions = `
+  DELETE FROM "SphaerAI_demanda_versiones"
+  WHERE created_at < NOW() - INTERVAL '24 hours'
+`;
+
+export const getNextVersion = `
+  SELECT COALESCE(MAX(version), 0) + 1 AS next
+  FROM "SphaerAI_demanda_versiones" WHERE user_id = $1
+`;
+
+export const insertVersion = `
+  INSERT INTO "SphaerAI_demanda_versiones"
+    (model_id, version, user_id, session_id, nombre, start_date, end_date, observacion)
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+  RETURNING id, version, created_at
+`;
+
+export const insertVersionValue = `
+  INSERT INTO "SphaerAI_demanda_versiones_valores" (version_id, date, value, climate_type)
+  VALUES ($1, $2, $3, $4)
+`;
+
+export const listVersionsBySession = `
+  SELECT id, model_id, version, nombre, start_date, end_date, observacion, created_at
+  FROM "SphaerAI_demanda_versiones"
+  WHERE user_id = $1
+  ORDER BY version DESC
+`;
+
+export const getVersionById = `
+  SELECT id, model_id, version, nombre, start_date, end_date, observacion, created_at
+  FROM "SphaerAI_demanda_versiones" WHERE id = $1
+`;
+
+export const getVersionValues = `
+  SELECT date, value, climate_type
+  FROM "SphaerAI_demanda_versiones_valores"
+  WHERE version_id = $1
+  ORDER BY date
 `;

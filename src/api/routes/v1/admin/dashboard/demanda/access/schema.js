@@ -108,4 +108,18 @@ export default {
     user_id: Joi.number().integer().required(),
     session_id: Joi.number().integer().required(),
   }),
+
+  // POST /demanda/version/save
+  saveVersion: Joi.object({
+    model_id: Joi.number().integer().allow(null).optional(),
+    user_id: Joi.any().strip(),
+    session_id: Joi.number().integer().required(),
+    nombre: Joi.string().allow(null, "").optional(),
+    start_date: Joi.string().allow(null, "").optional(),
+    end_date: Joi.string().allow(null, "").optional(),
+    observacion: Joi.string().allow(null, "").optional(),
+    dates: Joi.array().items(Joi.string()).required(),
+    values: Joi.array().items(Joi.number()).required(),
+    climate_type: Joi.array().items(Joi.string()).optional(),
+  }),
 };

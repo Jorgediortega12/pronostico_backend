@@ -103,4 +103,11 @@ export default {
     fecha_inicio: Joi.string().required(),
     fecha_fin: Joi.string().required(),
   }),
+
+  saveVersion: Joi.object({
+    user_id: Joi.any().strip(),
+    session_id: Joi.any().strip(),
+    nombre: Joi.string().allow(null, "").optional(),
+    payload: Joi.object().required(),
+  }),
 };

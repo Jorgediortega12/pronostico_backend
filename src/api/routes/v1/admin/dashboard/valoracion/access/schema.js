@@ -34,6 +34,14 @@ export default {
     escenario_ids: Joi.array().items(Joi.number().integer()).min(1).required(),
   }),
 
+  guardarVersion: Joi.object({
+    oferta_id: Joi.number().integer().required(),
+    user_id: Joi.any().strip(),
+    session_id: Joi.number().integer().allow(null).optional(),
+    nombre: Joi.string().allow(null, "").optional(),
+    payload: Joi.object().required(),
+  }),
+
   // ── Query ─────────────────────────────────────────────────────────────────
   listarOfertas: Joi.object({
     activas: Joi.boolean().default(true),

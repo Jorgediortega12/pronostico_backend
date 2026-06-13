@@ -89,7 +89,42 @@ export const ensureTables = `
       REFERENCES "SphaerAI_escenarios_valoracion" (id)
       ON DELETE CASCADE
   );
+  CREATE TABLE IF NOT EXISTS "SphaerAI_valoracion_versiones" (
+    id SERIAL PRIMARY KEY,
+    oferta_id INTEGER,
+    version INTEGER NOT NULL,
+    user_id INTEGER,
+    session_id INTEGER,
+    nombre VARCHAR(255),
+    payload JSONB,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  );
 `;
+
+export const getNextValoracionVersion = `
+  SELECT COALESCE(MAX(version), 0) + 1 AS next
+  FROM "SphaerAI_valoracion_versiones" WHERE oferta_id = $1
+`;
+
+export const insertValoracionVersion = `
+  INSERT INTO "SphaerAI_valoracion_versiones"
+    (oferta_id, version, user_id, session_id, nombre, payload)
+  VALUES ($1, $2, $3, $4, $5, $6)
+  RETURNING id, version, created_at
+`;
+
+export const listValoracionVersions = `
+  SELECT id, oferta_id, version, nombre, created_at
+  FROM "SphaerAI_valoracion_versiones"
+  WHERE oferta_id = $1
+  ORDER BY version DESC
+`;
+
+export const getValoracionVersionById = `
+  SELECT id, oferta_id, version, nombre, payload, created_at
+  FROM "SphaerAI_valoracion_versiones" WHERE id = $1
+`;
+
 
 // ── Ofertas ───────────────────────────────────────────────────────────────────
 export const insertOferta = `
