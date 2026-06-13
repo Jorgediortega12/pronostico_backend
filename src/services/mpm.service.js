@@ -1,4 +1,5 @@
 import Logger from "../helpers/logger.js";
+import MpmModel from "../models/mpm.model.js";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -17,6 +18,7 @@ export default class MpmService {
     return MpmService.instance;
   }
 
+  #model = MpmModel.getInstance();
   #mlToken = null;
   #mlTokenExpiry = 0;
 
@@ -172,24 +174,86 @@ export default class MpmService {
     }
   };
 
-  // ─── Endpoints MPM ───────────────────────────────────────────────────────────
-
-  verifyDocuments = async () => {
-    return this.#callMlApi("GET", "/v1/mpm/verify/documents/");
+  #generateDbUrl = (session) => {
+    const { host, usuario, contrasenia, puerto, basededatos } = session || {};
+    if (!host || !usuario || !puerto || !basededatos) {
+      throw new Error("Faltan parámetros de conexión a la base de datos en la sesión");
+    }
+    return contrasenia
+      ? `postgresql://${usuario}:${contrasenia}@${host}:${puerto}/${basededatos}`
+      : `postgresql://${usuario}@${host}:${puerto}/${basededatos}`;
   };
 
-  getDemand = async (year, month, previousDays) => {
+  // ─── Endpoints MPM ───────────────────────────────────────────────────────────
+
+  verifyDocuments = async (session) => {
+    const dbUrl = encodeURIComponent(this.#generateDbUrl(session));
+    return this.#callMlApi("GET", `/v1/mpm/verify/documents/?database_url=${dbUrl}`);
+  };
+
+  getDemand = async (session, year, month, previousDays) => {
+    const dbUrl = encodeURIComponent(this.#generateDbUrl(session));
     return this.#callMlApi(
       "GET",
-      `/v1/mpm/demand/${year}/${month}/${previousDays}/`,
+      `/v1/mpm/demand/${year}/${month}/${previousDays}/?database_url=${dbUrl}`,
     );
   };
 
-  predict = async (body) => {
-    return this.#callMlApi("POST", "/v1/mpm/predict/", body);
+  predict = async (session, body) => {
+    return this.#callMlApi("POST", "/v1/mpm/predict/", {
+      ...body,
+      database_url: this.#generateDbUrl(session),
+    });
   };
 
-  predictExcel = async (body) => {
-    return this.#callMlApiBinary("/v1/mpm/predict/excel/", body);
+  predictExcel = async (session, body) => {
+    return this.#callMlApiBinary("/v1/mpm/predict/excel/", {
+      ...body,
+      database_url: this.#generateDbUrl(session),
+    });
+  };
+
+  guardarVersion = async (session, { user_id, session_id, nombre, modelo_id, tipo_archivo, last_date, previous_days, payload }) => {
+    const result = await this.#model.insertVersion(session, {
+      userId: user_id,
+      sessionId: session_id,
+      nombre,
+      modeloId: modelo_id,
+      tipoArchivo: tipo_archivo,
+      lastDate: last_date,
+      previousDays: previous_days,
+      payload,
+    });
+    return { message: "Versión guardada exitosamente", version_id: result.id, version: result.version };
+  };
+
+  listVersions = async (session, userId) => {
+    const rows = await this.#model.listVersions(session, userId);
+    return rows.map((v) => ({
+      id: v.id,
+      version: v.version,
+      nombre: v.nombre,
+      modelo_id: v.modelo_id,
+      tipo_archivo: v.tipo_archivo,
+      last_date: v.last_date ? new Date(v.last_date).toISOString().split("T")[0] : null,
+      previous_days: v.previous_days,
+      created_at: v.created_at,
+    }));
+  };
+
+  loadVersion = async (session, versionId) => {
+    const v = await this.#model.getVersionById(session, versionId);
+    if (!v) throw new Error("La versión especificada no existe.");
+    return {
+      id: v.id,
+      version: v.version,
+      nombre: v.nombre,
+      modelo_id: v.modelo_id,
+      tipo_archivo: v.tipo_archivo,
+      last_date: v.last_date ? new Date(v.last_date).toISOString().split("T")[0] : null,
+      previous_days: v.previous_days,
+      created_at: v.created_at,
+      payload: v.payload,
+    };
   };
 }

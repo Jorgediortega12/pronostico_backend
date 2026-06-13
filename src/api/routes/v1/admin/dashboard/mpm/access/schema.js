@@ -17,4 +17,15 @@ export default {
     month: Joi.number().integer().min(1).max(12).required(),
     previous_days: Joi.number().integer().min(0).max(15).required(),
   }),
+
+  saveVersion: Joi.object({
+    user_id: Joi.any().strip(),
+    session_id: Joi.number().integer().required(),
+    nombre: Joi.string().allow(null, "").optional(),
+    modelo_id: Joi.number().integer().allow(null).optional(),
+    tipo_archivo: Joi.number().integer().allow(null).optional(),
+    last_date: Joi.string().allow(null, "").optional(),
+    previous_days: Joi.number().integer().allow(null).optional(),
+    payload: Joi.object().required(),
+  }),
 };

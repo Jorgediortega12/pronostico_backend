@@ -42,5 +42,10 @@ export default function () {
   router.get("/model/names/:user_id/:session_id", controllers.getUserModels);
   router.post("/model/type", validator(schema.changeModelType), controllers.changeModelType);
 
+  // ─── Versiones del pronóstico (expiran a 24h) ─────────────────────────────────
+  router.post("/version/save", validator(schema.saveVersion), controllers.saveVersion);
+  router.get("/version/list/:session_id", controllers.listVersions);
+  router.get("/version/load/:version_id", controllers.loadVersion);
+
   return router;
 }

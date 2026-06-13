@@ -20,5 +20,9 @@ export default function () {
 
   router.post("/predict/excel", validator(schema.predict), controllers.predictExcel);
 
+  router.post("/version/save", validator(schema.saveVersion), controllers.saveVersion);
+  router.get("/version/list/:session_id", controllers.listVersions);
+  router.get("/version/load/:version_id", controllers.loadVersion);
+
   return router;
 }

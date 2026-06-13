@@ -112,14 +112,28 @@ export default class DemandaService {
     return { workingDays, saturdays, sundaysHolidays };
   };
 
-  // ─── Predict (proxy ML) ─────────────────────────────────────────────────────
-
-  predict = async (body) => {
-    return this.#callMlApi("/v1/forecast/predict/", body);
+  #generateDbUrl = (session) => {
+    const { host, usuario, contrasenia, puerto, basededatos } = session || {};
+    if (!host || !usuario || !puerto || !basededatos) {
+      throw new Error("Faltan parámetros de conexión a la base de datos en la sesión");
+    }
+    return contrasenia
+      ? `postgresql://${usuario}:${contrasenia}@${host}:${puerto}/${basededatos}`
+      : `postgresql://${usuario}@${host}:${puerto}/${basededatos}`;
   };
 
-  predictExcel = async (body) => {
+  // ─── Predict (proxy ML) ─────────────────────────────────────────────────────
+
+  predict = async (session, body) => {
+    return this.#callMlApi("/v1/forecast/predict/", {
+      ...body,
+      database_url: this.#generateDbUrl(session),
+    });
+  };
+
+  predictExcel = async (session, body) => {
     const token = await this.#getMlToken();
+    const payload = { ...body, database_url: this.#generateDbUrl(session) };
     for (const host of ML_HOSTS) {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), ML_TIMEOUT);
@@ -132,7 +146,7 @@ export default class DemandaService {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify(body),
+            body: JSON.stringify(payload),
             signal: controller.signal,
           },
         );
@@ -162,12 +176,16 @@ export default class DemandaService {
 
   // ─── Day Behavior (proxy ML) ─────────────────────────────────────────────────
 
-  dayBehavior = async (body) => {
-    return this.#callMlApi("/v1/forecast/day/behavior/", body);
+  dayBehavior = async (session, body) => {
+    return this.#callMlApi("/v1/forecast/day/behavior/", {
+      ...body,
+      database_url: this.#generateDbUrl(session),
+    });
   };
 
-  dayBehaviorExcel = async (body) => {
+  dayBehaviorExcel = async (session, body) => {
     const token = await this.#getMlToken();
+    const payload = { ...body, database_url: this.#generateDbUrl(session) };
     for (const host of ML_HOSTS) {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), ML_TIMEOUT);
@@ -180,7 +198,7 @@ export default class DemandaService {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify(body),
+            body: JSON.stringify(payload),
             signal: controller.signal,
           },
         );
@@ -210,8 +228,8 @@ export default class DemandaService {
 
   // ─── Monthly Demand ─────────────────────────────────────────────────────────
 
-  getMonthlyDemand = async () => {
-    const rows = await this.#model.getMonthlyDemand();
+  getMonthlyDemand = async (session) => {
+    const rows = await this.#model.getMonthlyDemand(session);
     const result = {};
     for (const row of rows) {
       result[`${row.year}-${String(row.month).padStart(2, "0")}`] = {
@@ -223,8 +241,8 @@ export default class DemandaService {
     return result;
   };
 
-  getMonthlyDemandByYear = async (year) => {
-    const rows = await this.#model.getMonthlyDemandByYear(year);
+  getMonthlyDemandByYear = async (session, year) => {
+    const rows = await this.#model.getMonthlyDemandByYear(session, year);
     if (!rows.length)
       throw new Error("No se encontraron datos para el año especificado.");
     const result = {};
@@ -239,11 +257,12 @@ export default class DemandaService {
     return result;
   };
 
-  updateMonthlyType = async (values) => {
+  updateMonthlyType = async (session, values) => {
     // values: { "2023": { "1": "NIÑA", "2": "NORMAL" }, ... }
     for (const year of Object.keys(values)) {
       for (const month of Object.keys(values[year])) {
         await this.#model.updateMonthlyClimateType(
+          session,
           parseInt(year),
           parseInt(month),
           values[year][month],
@@ -255,14 +274,15 @@ export default class DemandaService {
 
   // ─── Monthly Info ───────────────────────────────────────────────────────────
 
-  getMonthlyInfo = async (year, month, prediction) => {
-    const stats = await this.#model.getMonthlyStats(year, month);
+  getMonthlyInfo = async (session, year, month, prediction) => {
+    const stats = await this.#model.getMonthlyStats(session, year, month);
     if (!stats)
       throw new Error(
         "No se encontraron datos para el año y mes especificados.",
       );
 
     const historicValue = await this.#model.getMonthlyValueForMonth(
+      session,
       year,
       month,
     );
@@ -291,42 +311,43 @@ export default class DemandaService {
 
   // ─── Yearly ─────────────────────────────────────────────────────────────────
 
-  getLastYear = async () => {
-    const row = await this.#model.getLastDateFromDemands();
+  getLastYear = async (session) => {
+    const row = await this.#model.getLastDateFromDemands(session);
     if (!row?.last_date) throw new Error("No se encontraron datos de demanda.");
     const lastYear = new Date(row.last_date).getFullYear();
     return { last_year: lastYear };
   };
 
-  listHistoricYears = async () => {
-    return this.#model.getHistoricYears();
+  listHistoricYears = async (session) => {
+    return this.#model.getHistoricYears(session);
   };
 
   // ─── Type Year ──────────────────────────────────────────────────────────────
 
-  createTypeYearList = async (userId, sessionId) => {
-    const years = await this.#model.getAllYearsFromYearlyDemand();
+  createTypeYearList = async (session, userId, sessionId) => {
+    const years = await this.#model.getAllYearsFromYearlyDemand(session);
     if (!years.length)
       throw new Error("No se encontraron años en la base de datos.");
-    await this.#model.insertTypeYears(years, userId, sessionId);
+    await this.#model.insertTypeYears(session, years, userId, sessionId);
     return { message: "Lista de años creada exitosamente" };
   };
 
-  updateTypeYearList = async (userId, sessionId, years, types) => {
-    await this.#model.updateTypeYears(years, types, userId, sessionId);
+  updateTypeYearList = async (session, userId, sessionId, years, types) => {
+    await this.#model.updateTypeYears(session, years, types, userId, sessionId);
     return { message: "Lista de años actualizada exitosamente" };
   };
 
-  getTypeYearList = async (userId, sessionId) => {
-    const rows = await this.#model.getTypeYearList(userId, sessionId);
+  getTypeYearList = async (session, userId, sessionId) => {
+    const rows = await this.#model.getTypeYearList(session, userId, sessionId);
     if (!rows.length) return [];
     return rows.sort((a, b) => a.year - b.year);
   };
 
   // ─── User Models ─────────────────────────────────────────────────────────────
 
-  createNewModel = async (modelName, userId, sessionId, startDate, endDate) => {
+  createNewModel = async (session, modelName, userId, sessionId, startDate, endDate) => {
     const row = await this.#model.createUserModel(
+      session,
       modelName,
       userId,
       sessionId,
@@ -336,10 +357,10 @@ export default class DemandaService {
     return { message: "Modelo creado exitosamente", model_id: row.id };
   };
 
-  listUserModels = async (userId, sessionId, isAdmin = false) => {
+  listUserModels = async (session, userId, sessionId, isAdmin = false) => {
     const rows = isAdmin
-      ? await this.#model.getAllModels()
-      : await this.#model.getUserModels(userId, sessionId);
+      ? await this.#model.getAllModels(session)
+      : await this.#model.getUserModels(session, userId, sessionId);
     if (!rows.length) return [];
     return rows.map((m) => ({
       id: m.id,
@@ -350,14 +371,23 @@ export default class DemandaService {
     }));
   };
 
-  saveModelValues = async (userId, sessionId, modelId, dates, values) => {
-    const models = await this.#model.getUserModels(userId, sessionId);
-    const exists = models.some((m) => m.id === modelId);
-    if (!exists)
-      throw new Error(
-        "El modelo especificado no existe para el usuario y sesión.",
-      );
+  // Todos los modelos del usuario (sin filtrar por sesión).
+  listUserModelsByUser = async (session, userId) => {
+    const rows = await this.#model.getUserModelsByUser(session, userId);
+    if (!rows.length) return [];
+    return rows.map((m) => ({
+      id: m.id,
+      model_name: m.model_name,
+      start_date: new Date(m.start_date).toISOString().split("T")[0],
+      end_date: new Date(m.end_date).toISOString().split("T")[0],
+    }));
+  };
+
+  saveModelValues = async (session, userId, sessionId, modelId, dates, values) => {
+    const model = await this.#model.getUserModelById(session, modelId);
+    if (!model) throw new Error("El modelo especificado no existe.");
     await this.#model.saveModelValues(
+      session,
       modelId,
       dates.map(normalizeModelDate),
       values,
@@ -365,10 +395,10 @@ export default class DemandaService {
     return { message: "Datos del modelo actualizados" };
   };
 
-  retrieveModelValues = async (modelId) => {
-    const rows = await this.#model.getModelValues(modelId);
+  retrieveModelValues = async (session, modelId) => {
+    const rows = await this.#model.getModelValues(session, modelId);
     if (!rows.length) {
-      const yearlyRows = await this.#model.getYearlyDemands();
+      const yearlyRows = await this.#model.getYearlyDemands(session);
       const combined = {};
       for (const r of yearlyRows)
         combined[String(r.year)] = parseFloat(r.demand);
@@ -402,6 +432,7 @@ export default class DemandaService {
     const startMonth = startDate.getMonth() + 1;
 
     const historicRows = await this.#model.getMonthlyDemandBeforeDate(
+      session,
       startYear,
       startMonth,
     );
@@ -419,7 +450,7 @@ export default class DemandaService {
     const annualTotals = yearTotals;
 
     // Historic yearly demands merged with model values
-    const yearlyRows = await this.#model.getYearlyDemands();
+    const yearlyRows = await this.#model.getYearlyDemands(session);
     const historicYearlyMap = {};
     for (const r of yearlyRows) {
       if (!yearTotals[String(r.year)]) {
@@ -454,11 +485,11 @@ export default class DemandaService {
 
   // ─── Change Model Monthly Type (climate type + factor adjustments) ───────────
 
-  changeModelMonthlyType = async (modelId, dates, types) => {
-    const exists = await this.#model.checkModelExists(modelId);
+  changeModelMonthlyType = async (session, modelId, dates, types) => {
+    const exists = await this.#model.checkModelExists(session, modelId);
     if (!exists) throw new Error("El modelo especificado no existe.");
 
-    const rows = await this.#model.getModelValues(modelId);
+    const rows = await this.#model.getModelValues(session, modelId);
     const normDates = dates.map(normalizeModelDate);
 
     const changeValue = (value, currentType, newType) => {
@@ -484,6 +515,7 @@ export default class DemandaService {
           newType,
         );
         await this.#model.updateModelValueClimateAndValue(
+          session,
           modelId,
           new Date(row.date),
           newValue,
@@ -492,19 +524,20 @@ export default class DemandaService {
       }
     }
 
-    return this.retrieveModelValues(modelId);
+    return this.retrieveModelValues(session, modelId);
   };
 
   // ─── Change Model Based on Year (redistribute totals using historical percentages) ─
 
-  changeModelBasedOnYear = async (modelId, year, predictYear) => {
-    const yearlyDemandByMonth = await this.getMonthlyDemandByYear(year);
+  changeModelBasedOnYear = async (session, modelId, year, predictYear) => {
+    const yearlyDemandByMonth = await this.getMonthlyDemandByYear(session, year);
     const modelRows = await this.#model.getModelValuesByYear(
+      session,
       modelId,
       predictYear,
     );
     if (!modelRows.length) {
-      const allRows = await this.#model.getModelValues(modelId);
+      const allRows = await this.#model.getModelValues(session, modelId);
       const years = [
         ...new Set(allRows.map((r) => new Date(r.date).getFullYear())),
       ].sort();
@@ -545,6 +578,7 @@ export default class DemandaService {
       const key = `${year}-${String(month).padStart(2, "0")}`;
       const climateType = yearlyDemandByMonth[key]?.climate_type || "NORMAL";
       await this.#model.updateModelValueClimateAndValue(
+        session,
         modelId,
         new Date(modelRows[i].date),
         newValue,
@@ -552,6 +586,89 @@ export default class DemandaService {
       );
     }
 
-    return this.retrieveModelValues(modelId);
+    return this.retrieveModelValues(session, modelId);
   };
+
+  #formatValores = (rows) => ({
+    dates: rows.map((r) => new Date(r.date).toISOString().split("T")[0]),
+    values: rows.map((r) => parseFloat(r.value)),
+    climate_type: rows.map((r) => r.climate_type),
+  });
+
+  guardarVersion = async (session, { model_id, user_id, session_id, nombre, start_date, end_date, observacion, dates, values, climate_type }) => {
+    if (model_id) {
+      const exists = await this.#model.checkModelExists(session, model_id);
+      if (!exists) throw new Error("El modelo especificado no existe.");
+    }
+
+    const result = await this.#model.insertVersion(
+      session,
+      {
+        modelId: model_id ?? null,
+        userId: user_id,
+        sessionId: session_id,
+        nombre,
+        startDate: start_date,
+        endDate: end_date,
+        observacion,
+      },
+      dates.map(normalizeModelDate),
+      values,
+      climate_type,
+    );
+    return {
+      message: "Versión guardada exitosamente",
+      version_id: result.id,
+      version: result.version,
+    };
+  };
+
+  listVersions = async (session, userId) => {
+    const rows = await this.#model.listVersionsBySession(session, userId);
+    return rows.map((v) => ({
+      id: v.id,
+      model_id: v.model_id,
+      version: v.version,
+      nombre: v.nombre,
+      start_date: v.start_date ? new Date(v.start_date).toISOString().split("T")[0] : null,
+      end_date: v.end_date ? new Date(v.end_date).toISOString().split("T")[0] : null,
+      observacion: v.observacion,
+      created_at: v.created_at,
+    }));
+  };
+
+  loadVersion = async (session, versionId) => {
+    const version = await this.#model.getVersionById(session, versionId);
+    if (!version) throw new Error("La versión especificada no existe.");
+    const rows = await this.#model.getVersionValues(session, versionId);
+
+    // Si la versión se guardó sobre un modelo creado, devolvemos también ese
+    // modelo (nombre + rango) para poder retomarlo y seguir editando.
+    let model = null;
+    if (version.model_id) {
+      model = await this.#model.getUserModelById(session, version.model_id);
+    }
+
+    return {
+      id: version.id,
+      model_id: version.model_id,
+      model_name: model?.model_name ?? null,
+      version: version.version,
+      nombre: version.nombre,
+      observacion: version.observacion,
+      start_date: version.start_date
+        ? new Date(version.start_date).toISOString().split("T")[0]
+        : model?.start_date
+          ? new Date(model.start_date).toISOString().split("T")[0]
+          : null,
+      end_date: version.end_date
+        ? new Date(version.end_date).toISOString().split("T")[0]
+        : model?.end_date
+          ? new Date(model.end_date).toISOString().split("T")[0]
+          : null,
+      created_at: version.created_at,
+      ...this.#formatValores(rows),
+    };
+  };
+
 }

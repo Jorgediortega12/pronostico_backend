@@ -12,7 +12,8 @@ const service = DemandaService.getInstance();
 
 export const predict = async (req, res) => {
   try {
-    const result = await service.predict(req.body);
+    const { session } = req.user;
+    const result = await service.predict(session, req.body);
     if (!result.success) {
       Logger.error(`[predict] ML error: ${JSON.stringify(result)}`);
       return responseError(200, result.message, 422, res);
@@ -26,7 +27,8 @@ export const predict = async (req, res) => {
 
 export const predictExcel = async (req, res) => {
   try {
-    const result = await service.predictExcel(req.body);
+    const { session } = req.user;
+    const result = await service.predictExcel(session, req.body);
     if (!result.success) return responseError(200, result.message, 422, res);
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", 'attachment; filename="Prediccion_Caribe_Mar.xlsx"');
@@ -41,7 +43,8 @@ export const predictExcel = async (req, res) => {
 
 export const dayBehavior = async (req, res) => {
   try {
-    const result = await service.dayBehavior(req.body);
+    const { session } = req.user;
+    const result = await service.dayBehavior(session, req.body);
     if (!result.success) return responseError(200, result.message, 422, res);
     return SuccessResponse(res, result.data, "Comportamiento diario generado correctamente");
   } catch (err) {
@@ -52,7 +55,8 @@ export const dayBehavior = async (req, res) => {
 
 export const dayBehaviorExcel = async (req, res) => {
   try {
-    const result = await service.dayBehaviorExcel(req.body);
+    const { session } = req.user;
+    const result = await service.dayBehaviorExcel(session, req.body);
     if (!result.success) return responseError(200, result.message, 422, res);
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader(
@@ -70,7 +74,8 @@ export const dayBehaviorExcel = async (req, res) => {
 
 export const getMonthlyDemand = async (req, res) => {
   try {
-    const data = await service.getMonthlyDemand();
+    const { session } = req.user;
+    const data = await service.getMonthlyDemand(session);
     return SuccessResponse(res, data, "Demanda mensual obtenida correctamente");
   } catch (err) {
     Logger.error(err);
@@ -80,8 +85,9 @@ export const getMonthlyDemand = async (req, res) => {
 
 export const getMonthlyDemandByYear = async (req, res) => {
   try {
+    const { session } = req.user;
     const year = parseInt(req.params.year);
-    const data = await service.getMonthlyDemandByYear(year);
+    const data = await service.getMonthlyDemandByYear(session, year);
     return SuccessResponse(res, data, "Demanda mensual por año obtenida correctamente");
   } catch (err) {
     Logger.error(err);
@@ -91,7 +97,8 @@ export const getMonthlyDemandByYear = async (req, res) => {
 
 export const updateMonthlyType = async (req, res) => {
   try {
-    const result = await service.updateMonthlyType(req.body.values);
+    const { session } = req.user;
+    const result = await service.updateMonthlyType(session, req.body.values);
     return SuccessResponse(res, result, result.message);
   } catch (err) {
     Logger.error(err);
@@ -103,8 +110,9 @@ export const updateMonthlyType = async (req, res) => {
 
 export const monthlyInfo = async (req, res) => {
   try {
+    const { session } = req.user;
     const { year, month, predicition } = req.body;
-    const data = await service.getMonthlyInfo(year, month, predicition ?? null);
+    const data = await service.getMonthlyInfo(session, year, month, predicition ?? null);
     return SuccessResponse(res, data, "Información mensual obtenida correctamente");
   } catch (err) {
     Logger.error(err);
@@ -116,7 +124,8 @@ export const monthlyInfo = async (req, res) => {
 
 export const getLastYear = async (req, res) => {
   try {
-    const data = await service.getLastYear();
+    const { session } = req.user;
+    const data = await service.getLastYear(session);
     return SuccessResponse(res, data, "Último año obtenido correctamente");
   } catch (err) {
     Logger.error(err);
@@ -126,7 +135,8 @@ export const getLastYear = async (req, res) => {
 
 export const listHistoricYears = async (req, res) => {
   try {
-    const data = await service.listHistoricYears();
+    const { session } = req.user;
+    const data = await service.listHistoricYears(session);
     return SuccessResponse(res, data, "Años históricos obtenidos correctamente");
   } catch (err) {
     Logger.error(err);
@@ -138,8 +148,9 @@ export const listHistoricYears = async (req, res) => {
 
 export const createTypeYearList = async (req, res) => {
   try {
+    const { session } = req.user;
     const { user_id, session_id } = req.body;
-    const result = await service.createTypeYearList(user_id, session_id);
+    const result = await service.createTypeYearList(session, user_id, session_id);
     return SuccessResponse(res, result, result.message);
   } catch (err) {
     Logger.error(err);
@@ -149,8 +160,9 @@ export const createTypeYearList = async (req, res) => {
 
 export const updateTypeYearList = async (req, res) => {
   try {
+    const { session } = req.user;
     const { user_id, session_id, year, type } = req.body;
-    const result = await service.updateTypeYearList(user_id, session_id, year, type);
+    const result = await service.updateTypeYearList(session, user_id, session_id, year, type);
     return SuccessResponse(res, result, result.message);
   } catch (err) {
     Logger.error(err);
@@ -160,9 +172,10 @@ export const updateTypeYearList = async (req, res) => {
 
 export const getTypeYearList = async (req, res) => {
   try {
+    const { session } = req.user;
     const user_id = parseInt(req.params.user_id);
     const session_id = parseInt(req.params.session_id);
-    const data = await service.getTypeYearList(user_id, session_id);
+    const data = await service.getTypeYearList(session, user_id, session_id);
     return SuccessResponse(res, data, "Lista de tipos de año obtenida correctamente");
   } catch (err) {
     Logger.error(err);
@@ -174,8 +187,9 @@ export const getTypeYearList = async (req, res) => {
 
 export const createModel = async (req, res) => {
   try {
+    const { session } = req.user;
     const { model_name, user_id, session_id, start_date, end_date } = req.body;
-    const result = await service.createNewModel(model_name, user_id, session_id, start_date, end_date);
+    const result = await service.createNewModel(session, model_name, user_id, session_id, start_date, end_date);
     return SuccessResponse(res, result, result.message);
   } catch (err) {
     Logger.error(err);
@@ -185,10 +199,10 @@ export const createModel = async (req, res) => {
 
 export const getUserModels = async (req, res) => {
   try {
+    const { session } = req.user;
     const user_id = parseInt(req.params.user_id);
     const session_id = parseInt(req.params.session_id);
-    const isAdmin = String(req.user?.data?.codperfil) === "1";
-    const data = await service.listUserModels(user_id, session_id, isAdmin);
+    const data = await service.listUserModels(session, user_id, session_id);
     return SuccessResponse(res, data, "Modelos obtenidos correctamente");
   } catch (err) {
     Logger.error(err);
@@ -198,8 +212,9 @@ export const getUserModels = async (req, res) => {
 
 export const saveModelValues = async (req, res) => {
   try {
+    const { session } = req.user;
     const { model_id, user_id, session_id, dates, values } = req.body;
-    const result = await service.saveModelValues(user_id, session_id, model_id, dates, values);
+    const result = await service.saveModelValues(session, user_id, session_id, model_id, dates, values);
     return SuccessResponse(res, result, result.message);
   } catch (err) {
     Logger.error(err);
@@ -209,8 +224,9 @@ export const saveModelValues = async (req, res) => {
 
 export const getModelValues = async (req, res) => {
   try {
+    const { session } = req.user;
     const model_id = parseInt(req.params.model_id);
-    const data = await service.retrieveModelValues(model_id);
+    const data = await service.retrieveModelValues(session, model_id);
     return SuccessResponse(res, data, "Valores del modelo obtenidos correctamente");
   } catch (err) {
     Logger.error(err);
@@ -220,8 +236,9 @@ export const getModelValues = async (req, res) => {
 
 export const changeModelType = async (req, res) => {
   try {
+    const { session } = req.user;
     const { model_id, dates, types } = req.body;
-    const data = await service.changeModelMonthlyType(model_id, dates, types);
+    const data = await service.changeModelMonthlyType(session, model_id, dates, types);
     return SuccessResponse(res, data, "Tipo climático actualizado correctamente");
   } catch (err) {
     Logger.error(err);
@@ -231,9 +248,58 @@ export const changeModelType = async (req, res) => {
 
 export const saveModelByYear = async (req, res) => {
   try {
+    const { session } = req.user;
     const { model_id, year, predict_year } = req.body;
-    const data = await service.changeModelBasedOnYear(model_id, year, predict_year);
+    const data = await service.changeModelBasedOnYear(session, model_id, year, predict_year);
     return SuccessResponse(res, data, "Modelo actualizado por año correctamente");
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+// ─── Versiones permanentes ─────────────────────────────────────────────────────
+
+export const saveVersion = async (req, res) => {
+  try {
+    const { session, userId } = req.user;
+    if (userId == null) {
+      return responseError(
+        200,
+        "Sesión sin identificador de usuario. Vuelva a iniciar sesión.",
+        401,
+        res,
+      );
+    }
+    const result = await service.guardarVersion(session, {
+      ...req.body,
+      user_id: userId,
+    });
+    return SuccessResponse(res, result, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const listVersions = async (req, res) => {
+  try {
+    const { session, userId } = req.user;
+    // Las versiones persisten por usuario (no por sesión), para retomarlas luego.
+    const data = await service.listVersions(session, userId);
+    return SuccessResponse(res, data, "Versiones obtenidas correctamente");
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const loadVersion = async (req, res) => {
+  try {
+    const { session } = req.user;
+    const versionId = parseInt(req.params.version_id);
+    const data = await service.loadVersion(session, versionId);
+    return SuccessResponse(res, data, "Versión cargada correctamente");
   } catch (err) {
     Logger.error(err);
     return InternalError(res);

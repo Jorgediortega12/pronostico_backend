@@ -37,5 +37,9 @@ export default function () {
   router.post("/grid",             validator(schema.gridInfo),      controllers.getGridInfo);
   router.post("/days/types",       validator(schema.daysTypes),     controllers.getDaysTypes);
 
+  router.post("/version/save",     validator(schema.saveVersion),   controllers.saveVersion);
+  router.get("/version/list/:session_id",                           controllers.listVersions);
+  router.get("/version/load/:version_id",                           controllers.loadVersion);
+
   return router;
 }

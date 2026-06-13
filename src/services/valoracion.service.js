@@ -4,7 +4,6 @@ import XLSX from "xlsx";
 import ValoracionModel from "../models/valoracion.model.js";
 import Logger from "../helpers/logger.js";
 
-// Error de negocio con código HTTP asociado (replica las HTTPException del origen).
 class ServiceError extends Error {
   constructor(message, statusCode = 500) {
     super(message);
@@ -12,13 +11,11 @@ class ServiceError extends Error {
   }
 }
 
-// ─── Utilidades numéricas (reemplazan a numpy) ─────────────────────────────────
 const sum = (arr) => arr.reduce((a, b) => a + b, 0);
 const mean = (arr) => (arr.length ? sum(arr) / arr.length : 0);
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const isClose = (a, b, rtol = 1e-3) => Math.abs(a - b) <= rtol * Math.max(1, Math.abs(b)) + 1e-9;
 
-// Gaussiana (Box-Muller). Equivalente a random.gauss(mu, sigma).
 const randGauss = (mu = 0, sigma = 1) => {
   let u1 = 0;
   let u2 = 0;
@@ -41,11 +38,8 @@ export default class ValoracionService {
 
   #model = ValoracionModel.getInstance();
 
-  // Cede el control al event loop para que el GA (CPU-bound) no bloquee el server
-  // durante la ejecución en background → permite atender el polling de /estado.
   #tick = () => new Promise((resolve) => setImmediate(resolve));
 
-  // Configuración de producción optimizada (equivale a DEFAULT_CONFIG).
   DEFAULT_CONFIG = {
     tamano_poblacion: 500,
     numero_generaciones: 200,
@@ -61,11 +55,6 @@ export default class ValoracionService {
     elitismo: 0.1,
   };
 
-  // ════════════════════════════════════════════════════════════════════════════
-  //  Helpers de restricciones por tipo / corrección (núcleo del GA)
-  // ════════════════════════════════════════════════════════════════════════════
-
-  // Convierte el vector plano a matriz (ofertas × períodos).
   #convertirAMatrizPeriodos = (individual, numOfertas, numPeriodos) => {
     const matriz = [];
     for (let i = 0; i < numOfertas; i++) {
@@ -74,7 +63,6 @@ export default class ValoracionService {
     return matriz;
   };
 
-  // Energía por contrato/período: (porcentaje/100) * En_Of.
   #energiaPorContratoPeriodo = (matrizPorcentajes, EnOf, numOfertas, numPeriodos) => {
     const res = [];
     for (let i = 0; i < numOfertas; i++) {
@@ -95,7 +83,6 @@ export default class ValoracionService {
     return res;
   };
 
-  // Valida que la solución respete las restricciones por tipo de contrato.
   #validarRestriccionesTipos = (individual, tiposOferta, numOfertas, numPeriodos) => {
     try {
       for (let i = 0; i < numOfertas; i++) {
@@ -104,7 +91,6 @@ export default class ValoracionService {
         const porcentajes = individual.slice(inicio, inicio + numPeriodos);
 
         if (tipo === 1) {
-          // Oferta Total: todo o nada (mismo valor, 0% o 100%).
           const unicos = [...new Set(porcentajes)];
           if (unicos.length > 1) return false;
           if (unicos.length === 1) {
@@ -112,11 +98,9 @@ export default class ValoracionService {
             if (!(isClose(valor, 0.0) || isClose(valor, 100.0))) return false;
           }
         } else if (tipo === 2) {
-          // % Iguales: mismo porcentaje en todos los períodos.
           const primero = porcentajes[0];
           if (!porcentajes.every((p) => isClose(p, primero))) return false;
         }
-        // Tipo 3: sin restricciones.
       }
       return true;
     } catch (e) {
@@ -125,7 +109,6 @@ export default class ValoracionService {
     }
   };
 
-  // Repara un individuo para que cumpla las restricciones por tipo.
   #repararIndividualTipos = (individual, tiposOferta, numOfertas, numPeriodos) => {
     const x = individual.slice();
     for (let i = 0; i < numOfertas; i++) {
@@ -142,12 +125,10 @@ export default class ValoracionService {
         const promedio = clamp(mean(porcentajes), 0.0, 100.0);
         for (let j = inicio; j < fin; j++) x[j] = promedio;
       }
-      // Tipo 3: sin reparación.
     }
     return x;
   };
 
-  // Crea un individuo que respeta las restricciones por tipo desde el inicio.
   #crearIndividuoRespetandoTipos = (tiposOferta, numOfertas, numPeriodos, energiaObjetivo, EnOf, EnRes) => {
     const individuo = [];
     let energiaAcumulada = 0.0;
@@ -193,7 +174,6 @@ export default class ValoracionService {
         if (EnOf != null) energiaAcumulada += (porcentaje / 100.0) * sum(EnOf[i]);
         for (let j = 0; j < numPeriodos; j++) individuo.push(porcentaje);
       } else {
-        // Tipo 3: independiente por período.
         for (let j = 0; j < numPeriodos; j++) {
           let porcentaje;
           if (EnOf != null && EnRes != null && energiaAcumulada < energiaTotalObjetivo) {
@@ -216,7 +196,6 @@ export default class ValoracionService {
     return individuo;
   };
 
-  // Corrección inteligente y gradual de excesos de cobertura por período.
   #corregirExcesosGradualmente = (individual, tiposOferta, EnOf, EnRes, numOfertas, numPeriodos) => {
     try {
       let corregido = individual.slice();
@@ -247,7 +226,6 @@ export default class ValoracionService {
         periodosConExceso.sort((a, b) => a.excesoPorcentual - b.excesoPorcentual);
         let ajusteRealizado = false;
 
-        // ESTRATEGIA 1: ajustar tipos 3 (independientes).
         for (const info of periodosConExceso) {
           const periodo = info.periodo;
           const contratosTipo3 = [];
@@ -278,7 +256,6 @@ export default class ValoracionService {
           if (ajusteRealizado) break;
         }
 
-        // ESTRATEGIA 2: ajustar tipos 2 (porcentaje uniforme).
         if (!ajusteRealizado) {
           for (const info of periodosConExceso) {
             const periodo = info.periodo;
@@ -311,7 +288,6 @@ export default class ValoracionService {
           }
         }
 
-        // ESTRATEGIA 3: como último recurso, eliminar tipos 1 con exceso grande.
         if (!ajusteRealizado) {
           for (const info of periodosConExceso) {
             const periodo = info.periodo;
@@ -784,8 +760,6 @@ export default class ValoracionService {
       }
     };
 
-    // Objetivos: (desviacion_cobertura, tarifa_ponderada).
-    // Pesos DEAP (1.0, -1.0) → wvalues = (desviacion, -tarifa), maximizando.
     const evaluar = (individual) => {
       try {
         if (!validarMultiobj(individual)) return [-1e10, -1e10];
@@ -999,7 +973,7 @@ export default class ValoracionService {
   //  Casos de uso (API)
   // ════════════════════════════════════════════════════════════════════════════
 
-  procesarArchivoOferta = async (archivo, usuarioId) => {
+  procesarArchivoOferta = async (session, archivo, usuarioId) => {
     if (!archivo) throw new ServiceError("No se proporcionó ningún archivo", 422);
     const rutaArchivo = archivo.path;
 
@@ -1008,7 +982,7 @@ export default class ValoracionService {
 
       const anios = datosExcel.es_anual ? Array.from({ length: 12 }, (_, i) => 2026 + i) : null;
 
-      const fila = await this.#model.insertOferta([
+      const fila = await this.#model.insertOferta(session, [
         archivo.originalname,
         rutaArchivo,
         usuarioId ?? null,
@@ -1039,8 +1013,8 @@ export default class ValoracionService {
     }
   };
 
-  listarOfertas = async (activas = true) => {
-    const ofertas = await this.#model.listOfertas(activas);
+  listarOfertas = async (session, activas = true) => {
+    const ofertas = await this.#model.listOfertas(session, activas);
     return ofertas.map((o) => ({
       id: o.id,
       nombre: o.nombre,
@@ -1051,8 +1025,8 @@ export default class ValoracionService {
     }));
   };
 
-  obtenerDetalleOferta = async (ofertaId) => {
-    const oferta = await this.#model.getOfertaById(ofertaId);
+  obtenerDetalleOferta = async (session, ofertaId) => {
+    const oferta = await this.#model.getOfertaById(session, ofertaId);
     if (!oferta) throw new ServiceError("Oferta no encontrada", 404);
 
     const energiaReserva = JSON.parse(oferta.energia_reserva);
@@ -1089,12 +1063,12 @@ export default class ValoracionService {
     return response;
   };
 
-  crearEscenario = async ({ nombre, oferta_id, usuario_id, ipp_base = 1.0 }) => {
-    const oferta = await this.#model.getOfertaById(oferta_id);
+  crearEscenario = async (session, { nombre, oferta_id, usuario_id, ipp_base = 1.0 }) => {
+    const oferta = await this.#model.getOfertaById(session, oferta_id);
     if (!oferta) throw new ServiceError("La oferta especificada no existe", 422);
 
     const c = this.DEFAULT_CONFIG;
-    const fila = await this.#model.insertEscenario([
+    const fila = await this.#model.insertEscenario(session, [
       nombre,
       oferta_id,
       usuario_id ?? null,
@@ -1125,12 +1099,12 @@ export default class ValoracionService {
     };
   };
 
-  listarEscenariosSimplificado = async (ofertaId = null) => {
-    const escenarios = await this.#model.listEscenarios(ofertaId);
+  listarEscenariosSimplificado = async (session, ofertaId = null) => {
+    const escenarios = await this.#model.listEscenarios(session, ofertaId);
     const resultado = [];
     for (const e of escenarios) {
-      const numResultados = await this.#model.countResultadosByEscenario(e.id);
-      const oferta = await this.#model.getOfertaById(e.oferta_id);
+      const numResultados = await this.#model.countResultadosByEscenario(session, e.id);
+      const oferta = await this.#model.getOfertaById(session, e.oferta_id);
       resultado.push({
         id: e.id,
         nombre: e.nombre,
@@ -1151,11 +1125,11 @@ export default class ValoracionService {
     return resultado;
   };
 
-  obtenerEscenario = async (escenarioId) => {
-    const escenario = await this.#model.getEscenarioById(escenarioId);
+  obtenerEscenario = async (session, escenarioId) => {
+    const escenario = await this.#model.getEscenarioById(session, escenarioId);
     if (!escenario) throw new ServiceError("Escenario no encontrado", 404);
-    const oferta = await this.#model.getOfertaById(escenario.oferta_id);
-    const numResultados = await this.#model.countResultadosByEscenario(escenarioId);
+    const oferta = await this.#model.getOfertaById(session, escenario.oferta_id);
+    const numResultados = await this.#model.countResultadosByEscenario(session, escenarioId);
     return {
       id: escenario.id,
       nombre: escenario.nombre,
@@ -1169,21 +1143,21 @@ export default class ValoracionService {
     };
   };
 
-  eliminarEscenario = async (escenarioId) => {
-    const escenario = await this.#model.getEscenarioById(escenarioId);
+  eliminarEscenario = async (session, escenarioId) => {
+    const escenario = await this.#model.getEscenarioById(session, escenarioId);
     if (!escenario) throw new ServiceError("Escenario no encontrado", 404);
-    await this.#model.deleteEscenario(escenarioId);
+    await this.#model.deleteEscenario(session, escenarioId);
     return { mensaje: "Escenario eliminado exitosamente" };
   };
 
   // ─── Optimización ───────────────────────────────────────────────────────────
 
-  ejecutarOptimizacion = async (escenarioId, tipo = "completa") => {
+  ejecutarOptimizacion = async (session, escenarioId, tipo = "completa") => {
     const inicio = Date.now();
-    const escenario = await this.#model.getEscenarioById(escenarioId);
+    const escenario = await this.#model.getEscenarioById(session, escenarioId);
     if (!escenario) throw new ServiceError("Escenario no encontrado", 404);
 
-    const oferta = await this.#model.getOfertaById(escenario.oferta_id);
+    const oferta = await this.#model.getOfertaById(session, escenario.oferta_id);
     if (!oferta) throw new ServiceError("La oferta del escenario no existe", 404);
 
     const datos = {
@@ -1212,7 +1186,7 @@ export default class ValoracionService {
     if (tipo === "simple" || tipo === "completa") {
       Logger.info("Ejecutando optimización simple...");
       resultadoSimple = await this.#ejecutarGaSimple(datos, escenario);
-      resultados.push(await this.#guardarResultado(escenarioId, resultadoSimple, "simple", 0));
+      resultados.push(await this.#guardarResultado(session, escenarioId, resultadoSimple, "simple", 0));
       if (tipo === "simple") return resultados;
     }
 
@@ -1220,7 +1194,7 @@ export default class ValoracionService {
       Logger.info("Ejecutando optimización multiobjetivo...");
       const resultadosMulti = await this.#ejecutarGaMultiobjetivo(datos, escenario);
       for (let i = 0; i < resultadosMulti.length; i++) {
-        resultados.push(await this.#guardarResultado(escenarioId, resultadosMulti[i], "multiobjetivo", i));
+        resultados.push(await this.#guardarResultado(session, escenarioId, resultadosMulti[i], "multiobjetivo", i));
       }
     }
 
@@ -1228,21 +1202,18 @@ export default class ValoracionService {
     return resultados;
   };
 
-  // Inicia la optimización en background y responde de inmediato. El progreso se
-  // consulta vía verificarEstadoOptimizacion (endpoint /optimizar/estado).
-  iniciarOptimizacion = async (escenarioId, tipo = "completa") => {
-    const escenario = await this.#model.getEscenarioById(escenarioId);
+  iniciarOptimizacion = async (session, escenarioId, tipo = "completa") => {
+    const escenario = await this.#model.getEscenarioById(session, escenarioId);
     if (!escenario) throw new ServiceError("Escenario no encontrado", 404);
 
-    const job = await this.#model.getJobByEscenario(escenarioId);
+    const job = await this.#model.getJobByEscenario(session, escenarioId);
     if (job && job.estado === "procesando") {
       throw new ServiceError("Ya hay una optimización en curso para este escenario", 409);
     }
 
-    await this.#model.upsertJobProcesando(escenarioId, tipo, "Iniciando optimización");
+    await this.#model.upsertJobProcesando(session, escenarioId, tipo, "Iniciando optimización");
 
-    // Fire-and-forget: el GA cede el control (#tick) para no bloquear el server.
-    this.#correrEnBackground(escenarioId, tipo);
+    this.#correrEnBackground(session, escenarioId, tipo);
 
     return {
       escenario_id: escenarioId,
@@ -1253,20 +1224,20 @@ export default class ValoracionService {
     };
   };
 
-  #correrEnBackground = async (escenarioId, tipo) => {
+  #correrEnBackground = async (session, escenarioId, tipo) => {
     try {
-      const resultados = await this.ejecutarOptimizacion(escenarioId, tipo);
-      await this.#model.completeJob(escenarioId, "Completado", resultados.length);
+      const resultados = await this.ejecutarOptimizacion(session, escenarioId, tipo);
+      await this.#model.completeJob(session, escenarioId, "Completado", resultados.length);
       Logger.info(`Job optimización escenario ${escenarioId} completado: ${resultados.length} resultado(s)`);
     } catch (err) {
       Logger.error(`Job optimización escenario ${escenarioId} falló: ${err.message}`);
-      await this.#model.failJob(escenarioId, err.message).catch(() => {});
+      await this.#model.failJob(session, escenarioId, err.message).catch(() => {});
     }
   };
 
-  #guardarResultado = async (escenarioId, resultado, tipo, iteracion = 0) => {
+  #guardarResultado = async (session, escenarioId, resultado, tipo, iteracion = 0) => {
     const m = resultado.metricas;
-    const fila = await this.#model.insertResultado([
+    const fila = await this.#model.insertResultado(session, [
       escenarioId,
       tipo,
       iteracion,
@@ -1309,9 +1280,9 @@ export default class ValoracionService {
     };
   };
 
-  verificarEstadoOptimizacion = async (escenarioId) => {
-    const resultados = await this.#model.countResultadosByEscenario(escenarioId);
-    const job = await this.#model.getJobByEscenario(escenarioId);
+  verificarEstadoOptimizacion = async (session, escenarioId) => {
+    const resultados = await this.#model.countResultadosByEscenario(session, escenarioId);
+    const job = await this.#model.getJobByEscenario(session, escenarioId);
     const configuracion = { poblacion: 500, generaciones: 200, tiempo_estimado: "2-5 minutos" };
 
     if (job && job.estado === "procesando") {
@@ -1336,7 +1307,6 @@ export default class ValoracionService {
       };
     }
 
-    // Completado (job o resultados de una corrida previa) / pendiente.
     const completado = (job && job.estado === "completado") || resultados > 0;
     return {
       estado: completado ? "completado" : "pendiente",
@@ -1347,8 +1317,6 @@ export default class ValoracionService {
       configuracion,
     };
   };
-
-  // ─── Lectura de resultados ──────────────────────────────────────────────────
 
   #parseResultadoRow = (r) => {
     const j = (v) => (v ? JSON.parse(v) : []);
@@ -1412,17 +1380,17 @@ export default class ValoracionService {
     };
   };
 
-  obtenerResultadosEscenario = async (escenarioId) => {
-    const filas = await this.#model.getResultadosByEscenario(escenarioId);
+  obtenerResultadosEscenario = async (session, escenarioId) => {
+    const filas = await this.#model.getResultadosByEscenario(session, escenarioId);
     return filas.map((r) => this.#parseResultadoRow(r));
   };
 
-  obtenerDetallesResultado = async (resultadoId) => {
-    const resultado = await this.#model.getResultadoById(resultadoId);
+  obtenerDetallesResultado = async (session, resultadoId) => {
+    const resultado = await this.#model.getResultadoById(session, resultadoId);
     if (!resultado) throw new ServiceError("Resultado no encontrado", 404);
 
-    const escenario = await this.#model.getEscenarioById(resultado.escenario_id);
-    const oferta = await this.#model.getOfertaById(escenario.oferta_id);
+    const escenario = await this.#model.getEscenarioById(session, resultado.escenario_id);
+    const oferta = await this.#model.getOfertaById(session, escenario.oferta_id);
 
     const porcentajes = resultado.porcentajes_contratos ? JSON.parse(resultado.porcentajes_contratos) : [];
     const tiposOferta = JSON.parse(oferta.tipos_oferta);
@@ -1468,9 +1436,8 @@ export default class ValoracionService {
     };
   };
 
-  // Detalle de contratos por período (replica el endpoint del origen).
-  obtenerDetalleContratosPorPeriodo = async (resultadoId) => {
-    const resultado = await this.#model.getResultadoById(resultadoId);
+  obtenerDetalleContratosPorPeriodo = async (session, resultadoId) => {
+    const resultado = await this.#model.getResultadoById(session, resultadoId);
     if (!resultado) throw new ServiceError("Resultado no encontrado", 404);
 
     const j = (v) => (v ? JSON.parse(v) : []);
@@ -1479,8 +1446,8 @@ export default class ValoracionService {
     const costoCP = j(resultado.costo_por_contrato_periodo);
     const tiposUtilizados = j(resultado.tipos_contratos_utilizados);
 
-    const escenario = await this.#model.getEscenarioById(resultado.escenario_id);
-    const oferta = await this.#model.getOfertaById(escenario.oferta_id);
+    const escenario = await this.#model.getEscenarioById(session, resultado.escenario_id);
+    const oferta = await this.#model.getOfertaById(session, escenario.oferta_id);
 
     const descripcionTipo = {
       1: "Todo o nada (0% o 100% en todos los períodos)",
@@ -1540,8 +1507,8 @@ export default class ValoracionService {
   };
 
   // Análisis detallado de contratos con métricas avanzadas.
-  obtenerAnalisisDetallado = async (resultadoId) => {
-    const resultado = await this.#model.getResultadoById(resultadoId);
+  obtenerAnalisisDetallado = async (session, resultadoId) => {
+    const resultado = await this.#model.getResultadoById(session, resultadoId);
     if (!resultado) throw new ServiceError("Resultado no encontrado", 404);
 
     const j = (v) => (v ? JSON.parse(v) : []);
@@ -1550,8 +1517,8 @@ export default class ValoracionService {
     const costoCP = j(resultado.costo_por_contrato_periodo);
     const tiposUtilizados = j(resultado.tipos_contratos_utilizados);
 
-    const escenario = await this.#model.getEscenarioById(resultado.escenario_id);
-    const oferta = await this.#model.getOfertaById(escenario.oferta_id);
+    const escenario = await this.#model.getEscenarioById(session, resultado.escenario_id);
+    const oferta = await this.#model.getOfertaById(session, escenario.oferta_id);
 
     const validar = (porcentajes, tipo) => {
       const validacion = { cumple_restricciones: true, detalle_restriccion: "", advertencias: [] };
@@ -1673,11 +1640,11 @@ export default class ValoracionService {
     };
   };
 
-  obtenerResumenEscenario = async (escenarioId) => {
-    const escenario = await this.#model.getEscenarioById(escenarioId);
+  obtenerResumenEscenario = async (session, escenarioId) => {
+    const escenario = await this.#model.getEscenarioById(session, escenarioId);
     if (!escenario) throw new ServiceError("Escenario no encontrado", 404);
 
-    const mejor = await this.#model.getMejorResultadoByEscenario(escenarioId);
+    const mejor = await this.#model.getMejorResultadoByEscenario(session, escenarioId);
     const resumen = {
       escenario: {
         id: escenario.id,
@@ -1704,7 +1671,7 @@ export default class ValoracionService {
 
   // ─── Comparación / IPP ──────────────────────────────────────────────────────
 
-  compararEscenarios = async (escenarioIds) => {
+  compararEscenarios = async (session, escenarioIds) => {
     const comparacion = {
       escenarios: [],
       resumen: { mejor_cobertura: null, mejor_tarifa: null, mejor_balance: null },
@@ -1714,9 +1681,9 @@ export default class ValoracionService {
     let mejorBalance = { valor: 0, escenario: null };
 
     for (const escenarioId of escenarioIds) {
-      const escenario = await this.#model.getEscenarioById(escenarioId);
+      const escenario = await this.#model.getEscenarioById(session, escenarioId);
       if (!escenario) continue;
-      const mejor = await this.#model.getMejorResultadoByEscenario(escenarioId);
+      const mejor = await this.#model.getMejorResultadoByEscenario(session, escenarioId);
       if (!mejor) continue;
 
       const info = {
@@ -1744,13 +1711,13 @@ export default class ValoracionService {
     return comparacion;
   };
 
-  actualizarIpp = async (escenarioId, nuevoIpp) => {
-    const escenario = await this.#model.getEscenarioById(escenarioId);
+  actualizarIpp = async (session, escenarioId, nuevoIpp) => {
+    const escenario = await this.#model.getEscenarioById(session, escenarioId);
     if (!escenario) throw new ServiceError("Escenario no encontrado", 404);
 
     const ippAnterior = escenario.ipp_base;
-    await this.#model.updateEscenarioIpp(escenarioId, nuevoIpp);
-    await this.#model.deleteResultadosByEscenario(escenarioId);
+    await this.#model.updateEscenarioIpp(session, escenarioId, nuevoIpp);
+    await this.#model.deleteResultadosByEscenario(session, escenarioId);
 
     return {
       id: escenario.id,
@@ -1762,8 +1729,8 @@ export default class ValoracionService {
     };
   };
 
-  guardarConfiguracionIpp = async ({ fecha_vigencia, valor_ipp, descripcion, usuario_id }) => {
-    const fila = await this.#model.insertConfiguracionIpp([
+  guardarConfiguracionIpp = async (session, { fecha_vigencia, valor_ipp, descripcion, usuario_id }) => {
+    const fila = await this.#model.insertConfiguracionIpp(session, [
       fecha_vigencia,
       valor_ipp,
       descripcion,
@@ -1772,8 +1739,8 @@ export default class ValoracionService {
     return { mensaje: "Configuración IPP guardada", id: fila.id };
   };
 
-  listarConfiguracionesIpp = async () => {
-    const filas = await this.#model.listConfiguracionesIpp();
+  listarConfiguracionesIpp = async (session) => {
+    const filas = await this.#model.listConfiguracionesIpp(session);
     return filas.map((c) => ({
       id: c.id,
       fecha_vigencia: c.fecha_vigencia,
@@ -1785,12 +1752,12 @@ export default class ValoracionService {
 
   // ─── Gráficas ───────────────────────────────────────────────────────────────
 
-  obtenerGraficaCobertura = async (escenarioId) => {
-    const mejor = await this.#model.getMejorResultadoByEscenario(escenarioId);
+  obtenerGraficaCobertura = async (session, escenarioId) => {
+    const mejor = await this.#model.getMejorResultadoByEscenario(session, escenarioId);
     if (!mejor) throw new ServiceError("No hay resultados para este escenario", 404);
 
-    const escenario = await this.#model.getEscenarioById(escenarioId);
-    const oferta = await this.#model.getOfertaById(escenario.oferta_id);
+    const escenario = await this.#model.getEscenarioById(session, escenarioId);
+    const oferta = await this.#model.getOfertaById(session, escenario.oferta_id);
 
     const energiaReserva = JSON.parse(oferta.energia_reserva);
     const energiaContratada = JSON.parse(mejor.energia_mensual);
@@ -1822,11 +1789,11 @@ export default class ValoracionService {
     };
   };
 
-  obtenerGraficaPareto = async (escenarioIdsStr) => {
+  obtenerGraficaPareto = async (session, escenarioIdsStr) => {
     const ids = escenarioIdsStr.split(",").map((id) => parseInt(id.trim(), 10));
     const series = [];
     for (const escenarioId of ids) {
-      const resultados = await this.#model.getResultadosMultiobjByEscenario(escenarioId);
+      const resultados = await this.#model.getResultadosMultiobjByEscenario(session, escenarioId);
       if (resultados.length) {
         series.push({
           nombre: `Escenario ${escenarioId}`,
@@ -1846,18 +1813,18 @@ export default class ValoracionService {
 
   // ─── Exportación ────────────────────────────────────────────────────────────
 
-  exportarResultados = async (escenarioIds, formato = "excel") => {
-    if (formato === "json") return this.#exportarJson(escenarioIds);
-    if (formato === "excel") return this.#exportarExcel(escenarioIds);
+  exportarResultados = async (session, escenarioIds, formato = "excel") => {
+    if (formato === "json") return this.#exportarJson(session, escenarioIds);
+    if (formato === "excel") return this.#exportarExcel(session, escenarioIds);
     throw new ServiceError(`Formato no soportado: ${formato}`, 422);
   };
 
-  #exportarJson = async (escenarioIds) => {
+  #exportarJson = async (session, escenarioIds) => {
     const escenarios = [];
     for (const escenarioId of escenarioIds) {
-      const escenario = await this.#model.getEscenarioById(escenarioId);
+      const escenario = await this.#model.getEscenarioById(session, escenarioId);
       if (!escenario) continue;
-      const mejor = await this.#model.getMejorResultadoByEscenario(escenarioId);
+      const mejor = await this.#model.getMejorResultadoByEscenario(session, escenarioId);
       escenarios.push({
         escenario: {
           id: escenario.id,
@@ -1872,7 +1839,7 @@ export default class ValoracionService {
   };
 
   // Exportación Excel con ExcelJS (resumen + energía por período).
-  #exportarExcel = async (escenarioIds) => {
+  #exportarExcel = async (session, escenarioIds) => {
     const ExcelJS = (await import("exceljs")).default;
     const wb = new ExcelJS.Workbook();
     wb.creator = "SphaerAI";
@@ -1905,9 +1872,9 @@ export default class ValoracionService {
 
     let row = 7;
     for (const escenarioId of escenarioIds) {
-      const escenario = await this.#model.getEscenarioById(escenarioId);
+      const escenario = await this.#model.getEscenarioById(session, escenarioId);
       if (!escenario) continue;
-      const mejor = await this.#model.getMejorResultadoByEscenario(escenarioId);
+      const mejor = await this.#model.getMejorResultadoByEscenario(session, escenarioId);
       if (!mejor) continue;
 
       const porcentajesPorPeriodo = mejor.porcentajes_por_periodo ? JSON.parse(mejor.porcentajes_por_periodo) : [];
@@ -1939,11 +1906,11 @@ export default class ValoracionService {
     const periodos = ["P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9", "P10", "P11", "P12"];
 
     for (const escenarioId of escenarioIds) {
-      const escenario = await this.#model.getEscenarioById(escenarioId);
+      const escenario = await this.#model.getEscenarioById(session, escenarioId);
       if (!escenario) continue;
-      const mejor = await this.#model.getMejorResultadoByEscenario(escenarioId);
+      const mejor = await this.#model.getMejorResultadoByEscenario(session, escenarioId);
       if (!mejor) continue;
-      const oferta = await this.#model.getOfertaById(escenario.oferta_id);
+      const oferta = await this.#model.getOfertaById(session, escenario.oferta_id);
       const energiaReserva = JSON.parse(oferta.energia_reserva);
 
       const subt = wsEnergia.getCell(`A${currentRow}`);
@@ -1983,4 +1950,40 @@ export default class ValoracionService {
     const buffer = await wb.xlsx.writeBuffer();
     return Buffer.from(buffer);
   };
+
+  guardarVersion = async (session, { oferta_id, user_id, session_id, nombre, payload }) => {
+    const result = await this.#model.insertVersion(session, {
+      ofertaId: oferta_id,
+      userId: user_id,
+      sessionId: session_id,
+      nombre,
+      payload,
+    });
+    return { message: "Versión guardada exitosamente", version_id: result.id, version: result.version };
+  };
+
+  listVersions = async (session, ofertaId) => {
+    const rows = await this.#model.listVersions(session, ofertaId);
+    return rows.map((v) => ({
+      id: v.id,
+      oferta_id: v.oferta_id,
+      version: v.version,
+      nombre: v.nombre,
+      created_at: v.created_at,
+    }));
+  };
+
+  loadVersion = async (session, versionId) => {
+    const v = await this.#model.getVersionById(session, versionId);
+    if (!v) throw new ServiceError("La versión especificada no existe", 404);
+    return {
+      id: v.id,
+      oferta_id: v.oferta_id,
+      version: v.version,
+      nombre: v.nombre,
+      created_at: v.created_at,
+      payload: v.payload,
+    };
+  };
+
 }

@@ -1,4 +1,4 @@
-import gmrPool from "../config/database.js";
+import { createConectionPG } from "../helpers/connections.js";
 import * as q from "../querys/demanda.query.js";
 import Logger from "../helpers/logger.js";
 
@@ -11,58 +11,70 @@ export default class DemandaModel {
     return DemandaModel.instance;
   }
 
+  #db = (session) => createConectionPG(session);
+
+  #versionTablesListas = new Set();
+
+  ensureVersionTables = async (session) => {
+    const key = `${session.host}:${session.basededatos}`;
+    if (this.#versionTablesListas.has(key)) return;
+    await this.#db(session).query(q.ensureVersionTables);
+    this.#versionTablesListas.add(key);
+  };
+
   // ─── Monthly Demand ─────────────────────────────────────────────────────────
 
-  getMonthlyDemand = async () => {
-    const { rows } = await gmrPool.query(q.getMonthlyDemand);
+  getMonthlyDemand = async (session) => {
+    const { rows } = await this.#db(session).query(q.getMonthlyDemand);
     return rows;
   };
 
-  getMonthlyDemandByYear = async (year) => {
-    const { rows } = await gmrPool.query(q.getMonthlyDemandByYear, [year]);
+  getMonthlyDemandByYear = async (session, year) => {
+    const { rows } = await this.#db(session).query(q.getMonthlyDemandByYear, [year]);
     return rows;
   };
 
-  updateMonthlyClimateType = async (year, month, climateType) => {
-    await gmrPool.query(q.updateMonthlyClimateType, [climateType, year, month]);
+  updateMonthlyClimateType = async (session, year, month, climateType) => {
+    await this.#db(session).query(q.updateMonthlyClimateType, [climateType, year, month]);
   };
 
-  getMonthlyDemandBeforeDate = async (year, month) => {
-    const { rows } = await gmrPool.query(q.getMonthlyDemandBeforeDate, [year, month]);
+  getMonthlyDemandBeforeDate = async (session, year, month) => {
+    const { rows } = await this.#db(session).query(q.getMonthlyDemandBeforeDate, [year, month]);
     return rows;
   };
 
-  getMonthlyStats = async (year, month) => {
-    const { rows } = await gmrPool.query(q.getMonthlyStats, [year, month]);
+  getMonthlyStats = async (session, year, month) => {
+    const { rows } = await this.#db(session).query(q.getMonthlyStats, [year, month]);
     return rows[0];
   };
 
-  getMonthlyValueForMonth = async (year, month) => {
-    const { rows } = await gmrPool.query(q.getMonthlyValueForMonth, [year, month]);
+  getMonthlyValueForMonth = async (session, year, month) => {
+    const { rows } = await this.#db(session).query(q.getMonthlyValueForMonth, [year, month]);
     return rows[0] || null;
   };
 
   // ─── Yearly Demand ──────────────────────────────────────────────────────────
 
-  getYearlyDemands = async () => {
-    const { rows } = await gmrPool.query(q.getYearlyDemands);
+  getYearlyDemands = async (session) => {
+    const { rows } = await this.#db(session).query(q.getYearlyDemands);
     return rows;
   };
 
-  getLastDateFromDemands = async () => {
-    const { rows } = await gmrPool.query(q.getLastDateFromDemands);
+  getLastDateFromDemands = async (session) => {
+    const { rows } = await this.#db(session).query(q.getLastDateFromDemands);
     return rows[0];
   };
 
-  getHistoricYears = async () => {
-    const { rows } = await gmrPool.query(q.getHistoricYears);
+  getHistoricYears = async (session) => {
+    const { rows } = await this.#db(session).query(q.getHistoricYears);
     return rows.map((r) => r.year);
   };
 
   // ─── Type Year ──────────────────────────────────────────────────────────────
 
-  insertTypeYears = async (years, userId, sessionId) => {
-    const client = await gmrPool.connect();
+  insertTypeYears = async (session, years, userId, sessionId) => {
+    const client = this.#db(session);
+    await client.connect();
     try {
       await client.query("BEGIN");
       for (const year of years) {
@@ -73,12 +85,13 @@ export default class DemandaModel {
       await client.query("ROLLBACK");
       throw err;
     } finally {
-      client.release();
+      await client.end();
     }
   };
 
-  updateTypeYears = async (years, types, userId, sessionId) => {
-    const client = await gmrPool.connect();
+  updateTypeYears = async (session, years, types, userId, sessionId) => {
+    const client = this.#db(session);
+    await client.connect();
     try {
       await client.query("BEGIN");
       for (let i = 0; i < years.length; i++) {
@@ -89,24 +102,24 @@ export default class DemandaModel {
       await client.query("ROLLBACK");
       throw err;
     } finally {
-      client.release();
+      await client.end();
     }
   };
 
-  getTypeYearList = async (userId, sessionId) => {
-    const { rows } = await gmrPool.query(q.getTypeYearList, [userId, sessionId]);
+  getTypeYearList = async (session, userId, sessionId) => {
+    const { rows } = await this.#db(session).query(q.getTypeYearList, [userId, sessionId]);
     return rows;
   };
 
-  getAllYearsFromYearlyDemand = async () => {
-    const { rows } = await gmrPool.query(q.getAllYearsFromYearlyDemand);
+  getAllYearsFromYearlyDemand = async (session) => {
+    const { rows } = await this.#db(session).query(q.getAllYearsFromYearlyDemand);
     return rows.map((r) => r.year);
   };
 
   // ─── Users Models ────────────────────────────────────────────────────────────
 
-  createUserModel = async (modelName, userId, sessionId, startDate, endDate) => {
-    const { rows } = await gmrPool.query(q.createUserModel, [
+  createUserModel = async (session, modelName, userId, sessionId, startDate, endDate) => {
+    const { rows } = await this.#db(session).query(q.createUserModel, [
       modelName,
       userId,
       sessionId,
@@ -116,25 +129,31 @@ export default class DemandaModel {
     return rows[0];
   };
 
-  getUserModels = async (userId, sessionId) => {
-    const { rows } = await gmrPool.query(q.getUserModels, [userId, sessionId]);
+  getUserModels = async (session, userId, sessionId) => {
+    const { rows } = await this.#db(session).query(q.getUserModels, [userId, sessionId]);
     return rows;
   };
 
-  getAllModels = async () => {
-    const { rows } = await gmrPool.query(q.getAllModels);
+  getUserModelsByUser = async (session, userId) => {
+    const { rows } = await this.#db(session).query(q.getUserModelsByUser, [userId]);
     return rows;
   };
 
-  getUserModelById = async (modelId) => {
-    const { rows } = await gmrPool.query(q.getUserModelById, [modelId]);
+  getAllModels = async (session) => {
+    const { rows } = await this.#db(session).query(q.getAllModels);
+    return rows;
+  };
+
+  getUserModelById = async (session, modelId) => {
+    const { rows } = await this.#db(session).query(q.getUserModelById, [modelId]);
     return rows[0] || null;
   };
 
   // ─── Users Models Values ────────────────────────────────────────────────────
 
-  saveModelValues = async (modelId, dates, values) => {
-    const client = await gmrPool.connect();
+  saveModelValues = async (session, modelId, dates, values) => {
+    const client = this.#db(session);
+    await client.connect();
     try {
       await client.query("BEGIN");
       await client.query(q.deleteModelValues, [modelId]);
@@ -146,26 +165,79 @@ export default class DemandaModel {
       await client.query("ROLLBACK");
       throw err;
     } finally {
-      client.release();
+      await client.end();
     }
   };
 
-  getModelValues = async (modelId) => {
-    const { rows } = await gmrPool.query(q.getModelValues, [modelId]);
+  getModelValues = async (session, modelId) => {
+    const { rows } = await this.#db(session).query(q.getModelValues, [modelId]);
     return rows;
   };
 
-  getModelValuesByYear = async (modelId, year) => {
-    const { rows } = await gmrPool.query(q.getModelValuesByYear, [modelId, year]);
+  getModelValuesByYear = async (session, modelId, year) => {
+    const { rows } = await this.#db(session).query(q.getModelValuesByYear, [modelId, year]);
     return rows;
   };
 
-  updateModelValueClimateAndValue = async (modelId, date, value, climateType) => {
-    await gmrPool.query(q.updateModelValueClimateAndValue, [value, climateType, modelId, date]);
+  updateModelValueClimateAndValue = async (session, modelId, date, value, climateType) => {
+    await this.#db(session).query(q.updateModelValueClimateAndValue, [value, climateType, modelId, date]);
   };
 
-  checkModelExists = async (modelId) => {
-    const { rows } = await gmrPool.query(q.checkModelExists, [modelId]);
+  checkModelExists = async (session, modelId) => {
+    const { rows } = await this.#db(session).query(q.checkModelExists, [modelId]);
     return rows.length > 0;
+  };
+
+  // ─── Versiones permanentes ────────────────────────────────────────────────────
+
+  insertVersion = async (session, { modelId, userId, sessionId, nombre, startDate, endDate, observacion }, dates, values, climateTypes) => {
+    await this.ensureVersionTables(session);
+    const client = this.#db(session);
+    await client.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query(q.deleteExpiredVersions);
+      const { rows: nextRows } = await client.query(q.getNextVersion, [userId ?? null]);
+      const version = nextRows[0].next;
+      const { rows: verRows } = await client.query(q.insertVersion, [
+        modelId, version, userId ?? null, sessionId ?? null,
+        nombre ?? null, startDate ?? null, endDate ?? null, observacion ?? null,
+      ]);
+      const versionId = verRows[0].id;
+      for (let i = 0; i < dates.length; i++) {
+        await client.query(q.insertVersionValue, [
+          versionId, dates[i], values[i], climateTypes?.[i] ?? "NORMAL",
+        ]);
+      }
+      await client.query("COMMIT");
+      return { id: versionId, version, created_at: verRows[0].created_at };
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      await client.end();
+    }
+  };
+
+  listVersionsBySession = async (session, userId) => {
+    await this.ensureVersionTables(session);
+    const db = this.#db(session);
+    await db.query(q.deleteExpiredVersions);
+    const { rows } = await db.query(q.listVersionsBySession, [userId]);
+    return rows;
+  };
+
+  getVersionById = async (session, versionId) => {
+    await this.ensureVersionTables(session);
+    const db = this.#db(session);
+    await db.query(q.deleteExpiredVersions);
+    const { rows } = await db.query(q.getVersionById, [versionId]);
+    return rows[0] || null;
+  };
+
+  getVersionValues = async (session, versionId) => {
+    await this.ensureVersionTables(session);
+    const { rows } = await this.#db(session).query(q.getVersionValues, [versionId]);
+    return rows;
   };
 }
