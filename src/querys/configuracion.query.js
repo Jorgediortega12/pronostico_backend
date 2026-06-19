@@ -457,12 +457,12 @@ export const buscarSemanaSimilar = `
 WITH fechas_base AS (
   SELECT DISTINCT fecha::date AS fecha
   FROM actualizaciondatos
-  WHERE ucp = $1
+  WHERE LOWER(ucp) = LOWER($1)
 ),
 festivos_reales AS (
   SELECT fecha::date AS fecha
   FROM festivos
-  WHERE ucp = $1
+  WHERE LOWER(ucp) = LOWER($1)
 ),
 dias_con_pos AS (
   SELECT

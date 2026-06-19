@@ -381,10 +381,12 @@ export default {
     festivos_posicion: Joi.array()
       .items(
         Joi.object({
-          dia_semana: Joi.number().min(0).max(6).required(), // 0=lun..6=dom dentro de la semana ISO
+          dia_semana: Joi.number().min(0).max(6).required(),
           es_festivo: Joi.boolean().required(),
         }),
       )
       .optional(),
+    fecha_inicio: Joi.string().optional(),
+    fecha_fin: Joi.string().optional(),
   }),
 };
