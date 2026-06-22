@@ -870,10 +870,10 @@ export default class ConfiguracionService {
     }
   };
 
-  ingresarDiaFestivos = async (ucp, fechaIso, session) => {
+  ingresarDiaFestivos = async (ucp, fechaIso, nombre, session) => {
     try {
       const client = createConectionPG(session);
-      const created = await model.ingresarDiaFestivos(ucp, fechaIso, client);
+      const created = await model.ingresarDiaFestivos(ucp, fechaIso, nombre ?? null, client);
       return { success: true, data: created, message: "Festivo ingresado." };
     } catch (error) {
       Logger.error(
@@ -885,6 +885,28 @@ export default class ConfiguracionService {
         data: null,
         message: "Error al ingresar festivo.",
       };
+    }
+  };
+
+  actualizarNombreFestivo = async (nombre, ucp, fecha, session) => {
+    try {
+      const client = createConectionPG(session);
+      const updated = await model.actualizarNombreFestivo(nombre, ucp, fecha, client);
+      return { success: true, data: updated, message: "Nombre actualizado." };
+    } catch (error) {
+      Logger.error(colors.red("Error service actualizarNombreFestivo"), error);
+      return { success: false, data: null, message: "Error al actualizar nombre." };
+    }
+  };
+
+  actualizarResumenClimatico = async (resumen, ucp, fecha, session) => {
+    try {
+      const client = createConectionPG(session);
+      const updated = await model.actualizarResumenClimatico(resumen, ucp, fecha, client);
+      return { success: true, data: updated, message: "Resumen climático actualizado." };
+    } catch (error) {
+      Logger.error(colors.red("Error service actualizarResumenClimatico"), error);
+      return { success: false, data: null, message: "Error al actualizar resumen climático." };
     }
   };
 
