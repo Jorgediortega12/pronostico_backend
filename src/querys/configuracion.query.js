@@ -325,14 +325,28 @@ export const cargarDiasFestivos = `
 `;
 
 export const ingresarDiaFestivos = `
-  INSERT INTO festivos (ucp, fecha)
-  VALUES ($1, $2)
+  INSERT INTO festivos (ucp, fecha, nombre)
+  VALUES ($1, $2, $3)
   RETURNING *;
 `;
 
 export const borrarDiaFestivos = `
   DELETE FROM festivos
   WHERE codigo = $1
+  RETURNING *;
+`;
+
+export const actualizarNombreFestivo = `
+  UPDATE festivos
+  SET nombre = $1
+  WHERE ucp = $2 AND fecha::date = $3::date
+  RETURNING *;
+`;
+
+export const actualizarResumenClimatico = `
+  UPDATE actualizaciondatos
+  SET resumen_climatico = $1
+  WHERE ucp = $2 AND fecha::date = $3::date
   RETURNING *;
 `;
 
@@ -455,19 +469,23 @@ export const listarTodosLosFestivos = `
 
 export const buscarSemanaSimilar = `
 WITH fechas_base AS (
-  SELECT DISTINCT fecha::date AS fecha
-  FROM actualizaciondatos
-  WHERE LOWER(ucp) = LOWER($1)
+  SELECT DISTINCT
+    ad.fecha::date AS fecha,
+    ad.resumen_climatico
+  FROM actualizaciondatos ad
+  WHERE LOWER(ad.ucp) = LOWER($1)
 ),
 festivos_reales AS (
-  SELECT fecha::date AS fecha
-  FROM festivos
-  WHERE LOWER(ucp) = LOWER($1)
+  SELECT f.fecha::date AS fecha, f.nombre
+  FROM festivos f
+  WHERE LOWER(f.ucp) = LOWER($1)
 ),
 dias_con_pos AS (
   SELECT
     fb.fecha,
+    fb.resumen_climatico,
     CASE WHEN fr.fecha IS NOT NULL THEN 1 ELSE 0 END AS es_festivo,
+    fr.nombre AS nombre_festivo,
     (EXTRACT(DOW FROM fb.fecha)::int + 6) % 7 AS pos_semana,
     (fb.fecha - (((EXTRACT(DOW FROM fb.fecha)::int + 6) % 7) * INTERVAL '1 day'))::date AS semana_inicio
   FROM fechas_base fb
@@ -477,8 +495,6 @@ semanas_agrupadas AS (
   SELECT
     semana_inicio,
     COUNT(DISTINCT fecha) AS dias_con_datos,
-    -- mes_inicio: mes mayoritario de los días de esa semana
-    -- (el mes que más días tiene dentro de la semana)
     MODE() WITHIN GROUP (ORDER BY EXTRACT(MONTH FROM fecha)::int) AS mes_inicio,
     EXTRACT(DAY FROM semana_inicio)::int AS dia_mes_inicio,
     (EXTRACT(DOW FROM DATE_TRUNC('month', semana_inicio))::int + 6) % 7 AS dow_inicio_mes,
@@ -491,6 +507,10 @@ semanas_agrupadas AS (
       MAX(CASE WHEN pos_semana = 5 THEN es_festivo ELSE 0 END),
       MAX(CASE WHEN pos_semana = 6 THEN es_festivo ELSE 0 END)
     ] AS festivos_mask,
+    -- Nombres de festivos de la semana (sin duplicados, sin nulls)
+    ARRAY_REMOVE(ARRAY_AGG(DISTINCT nombre_festivo), NULL) AS nombres_festivos,
+    -- Resúmenes climáticos de la semana (sin duplicados, sin nulls)
+    ARRAY_REMOVE(ARRAY_AGG(DISTINCT resumen_climatico), NULL) AS resumenes_climaticos,
     ARRAY_AGG(DISTINCT fecha ORDER BY fecha) AS dias
   FROM dias_con_pos
   GROUP BY semana_inicio
@@ -502,6 +522,8 @@ SELECT
   mes_inicio,
   dia_mes_inicio,
   dow_inicio_mes,
+  nombres_festivos,
+  resumenes_climaticos,
   dias
 FROM semanas_agrupadas
 WHERE dias_con_datos >= 3

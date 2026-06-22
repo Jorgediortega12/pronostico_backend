@@ -189,6 +189,14 @@ export default function () {
     validator(schema.borrarDiaFestivosSchema),
     controllers.borrarDiaFestivos,
   );
+  router.post(
+    "/actualizarNombreFestivo",
+    controllers.actualizarNombreFestivo,
+  );
+  router.post(
+    "/actualizarResumenClimatico",
+    controllers.actualizarResumenClimatico,
+  );
   router.get(
     "/buscarUltimaFechaHistorica/:ucp",
     validator(schema.buscarUltimaFechaHistorica),
