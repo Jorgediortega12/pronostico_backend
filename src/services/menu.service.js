@@ -237,6 +237,30 @@ export default class MenuService {
     }
   };
 
+  actualizarOrdenModulo = async (cod, orden, session) => {
+    try {
+      const client = createConectionPG(session);
+      if (!cod || orden === undefined || orden === null) {
+        throw new Error("Código y orden son requeridos");
+      }
+
+      const result = await model.actualizarOrdenModulo(cod, orden, client);
+
+      if (!result || result.rowCount === 0) {
+        throw new Error("Módulo no encontrado");
+      }
+
+      return {
+        success: true,
+        message: "Orden actualizado correctamente",
+        data: result.rows[0],
+      };
+    } catch (err) {
+      Logger.error(colors.red("Error menuServices actualizarOrdenModulo"));
+      throw err;
+    }
+  };
+
   eliminarModulo = async (cod, session) => {
     try {
       const client = createConectionPG(session);

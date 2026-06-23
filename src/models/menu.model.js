@@ -11,6 +11,7 @@ import {
   REMOVER_MODULO_DE_PERFIL,
   CREAR_MODULO,
   ELIMINARMODULO,
+  ACTUALIZAR_ORDEN_MODULO,
 } from "../querys/menu.query.js";
 
 dotenv.config();
@@ -153,6 +154,18 @@ export default class MenuModel {
         return result;
       },
       "crearModulo",
+      client,
+    );
+  };
+
+  //actualizar orden de modulo
+  actualizarOrdenModulo = async (cod, orden, client) => {
+    return this.executeQuery(
+      async (client) => {
+        const result = await client.query(ACTUALIZAR_ORDEN_MODULO, [cod, orden]);
+        return result;
+      },
+      "actualizarOrdenModulo",
       client,
     );
   };
