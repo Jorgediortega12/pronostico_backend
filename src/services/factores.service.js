@@ -1394,9 +1394,11 @@ export default class FactoresService {
         .slice()
         .sort((a, b) => a.fecha.localeCompare(b.fecha) || a.periodo - b.periodo)
         .forEach((r) => {
+          const [y, m, d] = String(r.fecha || "").split("-");
+          const fechaFormato = y && m && d ? `${d}/${m}/${y}` : r.fecha;
           ws.addRow({
             codabrevmc: r.codabrevmc || codigoMercado,
-            fecha: r.fecha,
+            fecha: fechaFormato,
             valor: Number(r.valor),
             periodo: Number(r.periodo),
           });
