@@ -193,5 +193,17 @@ export default function () {
     controllers.guardarReporteDNA,
   );
 
+  router.post(
+    "/guardarFactDna",
+    validator(schema.guardarFactDna),
+    controllers.guardarFactDna,
+  );
+
+  router.get(
+    "/getFactDna/:ucp",
+    validator(schema.getFactDna),
+    controllers.getFactDna,
+  );
+
   return router;
 }

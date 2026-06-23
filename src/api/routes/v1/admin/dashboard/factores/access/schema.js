@@ -294,5 +294,24 @@ export default {
       )
       .min(1)
       .required(),
+    registrosPotencia: Joi.array()
+      .items(
+        Joi.object({
+          codabrevmc: Joi.string().required(),
+          fecha: Joi.string().required(),
+          valor: Joi.number().required(),
+          periodo: Joi.number().integer().min(1).max(24).required(),
+        }),
+      )
+      .optional(),
+  }),
+
+  guardarFactDna: Joi.object({
+    ucp: Joi.string().required(),
+    periodos: Joi.array().items(Joi.number().required()).length(24).required(),
+  }),
+
+  getFactDna: Joi.object({
+    ucp: Joi.string().required(),
   }),
 };
