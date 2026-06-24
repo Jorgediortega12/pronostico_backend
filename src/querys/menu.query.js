@@ -57,8 +57,16 @@ export const CREAR_MODULO = `
   RETURNING *
 `;
 
-//eliminar modulo 
+//eliminar modulo
 export const ELIMINARMODULO = `
   DELETE FROM usu_menu
   WHERE cod = $1
+`
+
+// actualizar orden de un modulo
+export const ACTUALIZAR_ORDEN_MODULO = `
+  UPDATE usu_menu
+  SET orden = $2
+  WHERE cod = $1
+  RETURNING *
 `

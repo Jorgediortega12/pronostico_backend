@@ -1304,15 +1304,12 @@ export default class FactoresService {
   }
 
   async guardarReporteDNA(
-    { ucp, fecha_inicio, fecha_fin, registros },
+    { ucp, fecha_inicio, fecha_fin, registros, registrosPotencia },
     session,
   ) {
     try {
-      const fechaRef = new Date(fecha_fin || fecha_inicio || new Date());
-
-      const yyyy = String(fechaRef.getFullYear());
-      const mm = String(fechaRef.getMonth() + 1).padStart(2, "0");
-      const dd = String(fechaRef.getDate()).padStart(2, "0");
+      const fechaStr = (fecha_fin || fecha_inicio || new Date().toISOString()).slice(0, 10);
+      const [yyyy, mm, dd] = fechaStr.split("-");
 
       const ucpCap = ucp.charAt(0).toUpperCase() + ucp.slice(1).toLowerCase();
       const codigoMercado = `MC-${ucpCap}`;
@@ -1394,9 +1391,11 @@ export default class FactoresService {
         .slice()
         .sort((a, b) => a.fecha.localeCompare(b.fecha) || a.periodo - b.periodo)
         .forEach((r) => {
+          const [y, m, d] = String(r.fecha || "").split("-");
+          const fechaFormato = y && m && d ? `${d}/${m}/${y}` : r.fecha;
           ws.addRow({
             codabrevmc: r.codabrevmc || codigoMercado,
-            fecha: r.fecha,
+            fecha: fechaFormato,
             valor: Number(r.valor),
             periodo: Number(r.periodo),
           });
@@ -1409,7 +1408,71 @@ export default class FactoresService {
 
       await wb.xlsx.writeFile(rutaCompleta);
 
-      // ── 3) Insertar archivo en DB ───────────────────────────────────────
+      // ── 2b) Reporte Potencia (opcional) ────────────────────────────────
+      let rutaPotencia = null;
+      let rutaPotenciaBD = null;
+      let codarchivoPotencia = null;
+
+      if (Array.isArray(registrosPotencia) && registrosPotencia.length > 0) {
+        const nombrePotencia = `${codigoMercado}dnapt${dd}${mm}.xlsx`;
+        const rutaCompletaPotencia = path.join(folderPathPhysical, nombrePotencia);
+
+        const wbPt = new ExcelJS.Workbook();
+        const wsPt = wbPt.addWorksheet("VECTORIAL");
+
+        wsPt.columns = [
+          { header: "Codabrevmc", key: "codabrevmc", width: 20 },
+          { header: "Fecha", key: "fecha", width: 14 },
+          { header: "Valor", key: "valor", width: 14 },
+          { header: "Periodo", key: "periodo", width: 10 },
+        ];
+        wsPt.getRow(1).font = { bold: true };
+        wsPt.getRow(1).alignment = { horizontal: "center" };
+
+        registrosPotencia
+          .slice()
+          .sort((a, b) => a.fecha.localeCompare(b.fecha) || a.periodo - b.periodo)
+          .forEach((r) => {
+            const [y, m, d] = String(r.fecha || "").split("-");
+            const fechaFormato = y && m && d ? `${d}/${m}/${y}` : r.fecha;
+            wsPt.addRow({
+              codabrevmc: r.codabrevmc || codigoMercado,
+              fecha: fechaFormato,
+              valor: Number(r.valor),
+              periodo: Number(r.periodo),
+            });
+          });
+
+        wsPt.views = [{ state: "frozen", ySplit: 1 }];
+        wsPt.getColumn("valor").numFmt = "#,##0.000000";
+        wsPt.getColumn("periodo").numFmt = "0";
+
+        await wbPt.xlsx.writeFile(rutaCompletaPotencia);
+        rutaPotencia = rutaCompletaPotencia;
+
+        rutaPotenciaBD = `${folderPathLogical}/${nombrePotencia}`;
+
+        const clientPt = createConectionPG(session);
+        await clientPt.connect();
+        try {
+          await clientPt.query("BEGIN");
+          const resPt = await insertFileRecord(clientPt, {
+            nombreArchivo: nombrePotencia,
+            rutaArchivo: rutaPotenciaBD,
+            codcarpeta,
+            contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          });
+          codarchivoPotencia = resPt?.codigo ?? null;
+          await clientPt.query("COMMIT");
+        } catch (err) {
+          await clientPt.query("ROLLBACK");
+          Logger.error(colors.red("Error insertando archivo Potencia DNA:"), err);
+        } finally {
+          await clientPt.end();
+        }
+      }
+
+      // ── 3) Insertar archivo DNA en DB ───────────────────────────────────
       const rutaBD = `${folderPathLogical}/${nombrearchivo}`;
 
       const clientArch = createConectionPG(session);
@@ -1446,6 +1509,9 @@ export default class FactoresService {
         nombrearchivo,
         ruta: rutaCompleta,
         rutaBD,
+        rutaPotencia,
+        rutaPotenciaBD,
+        codarchivoPotencia,
         ucp: ucpCap,
         fecha_inicio,
         fecha_fin,
