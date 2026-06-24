@@ -1308,11 +1308,8 @@ export default class FactoresService {
     session,
   ) {
     try {
-      const fechaRef = new Date(fecha_fin || fecha_inicio || new Date());
-
-      const yyyy = String(fechaRef.getFullYear());
-      const mm = String(fechaRef.getMonth() + 1).padStart(2, "0");
-      const dd = String(fechaRef.getDate()).padStart(2, "0");
+      const fechaStr = (fecha_fin || fecha_inicio || new Date().toISOString()).slice(0, 10);
+      const [yyyy, mm, dd] = fechaStr.split("-");
 
       const ucpCap = ucp.charAt(0).toUpperCase() + ucp.slice(1).toLowerCase();
       const codigoMercado = `MC-${ucpCap}`;
