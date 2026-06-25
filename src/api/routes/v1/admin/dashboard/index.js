@@ -15,6 +15,7 @@ import cubrimientoRoutes from "./cubrimiento/index.js";
 import mpmRoutes from "./mpm/index.js";
 import convocatoriaRoutes from "./convocatoria/index.js";
 import valoracionRoutes from "./valoracion/index.js";
+import auditoriaRoutes from "./auditoria/index.js";
 
 const router = Router();
 
@@ -35,6 +36,7 @@ export default function () {
   router.use("/mpm", mpmRoutes());
   router.use("/convocatoria", convocatoriaRoutes());
   router.use("/valoracion", valoracionRoutes());
+  router.use("/auditoria", auditoriaRoutes());
 
   return router;
 }
