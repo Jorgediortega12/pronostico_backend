@@ -1,5 +1,5 @@
 //cargar datos de las sesiones
-export const cargarDatosSesiones = `SELECT * FROM carpetas WHERE codsuperior = $1 ORDER BY nombre ASC`;
+export const cargarDatosSesiones = `SELECT * FROM carpetas WHERE codsuperior = $1 ORDER BY codigo ASC`;
 export const cargarDatosSesionesFactores = `
   SELECT *
   FROM carpetas
