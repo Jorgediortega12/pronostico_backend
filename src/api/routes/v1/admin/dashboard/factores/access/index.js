@@ -1,4 +1,5 @@
 import FactoresService from "../../../../../../../services/factores.service.js";
+import FactDnaService from "../../../../../../../services/fact_dna.service.js";
 import Logger from "../../../../../../../helpers/logger.js";
 import {
   SuccessResponse,
@@ -9,6 +10,7 @@ import xlsx from "xlsx";
 import ExcelJS from "exceljs";
 
 const service = FactoresService.getInstance();
+const factDnaService = FactDnaService.getInstance();
 
 export const guardarBarra = async (req, res) => {
   try {
@@ -928,20 +930,39 @@ export const calculosCurvasTipicasCircuitos = async (req, res) => {
 };
 
 export const guardarReporteDNA = async (req, res) => {
-  const { ucp, fecha_inicio, fecha_fin, filas, dna_total } = req.body;
+  const { ucp, fecha_inicio, fecha_fin, registros, registrosPotencia } = req.body;
+  const { session } = req.user;
   try {
-    const result = await service.guardarReporteDNA({
-      ucp,
-      fecha_inicio,
-      fecha_fin,
-      filas,
-      dna_total,
-    });
-
-    // Guardar en DB (misma lógica de carpetas del .NET):
-    // await db.insertarReporteDNA({ ucp, fecha_inicio, fecha_fin, ruta: result.ruta, nombre: result.nombre });
-
+    const result = await service.guardarReporteDNA(
+      { ucp, fecha_inicio, fecha_fin, registros, registrosPotencia },
+      session,
+    );
     return SuccessResponse(res, result, "Reporte DNA guardado correctamente");
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const guardarFactDna = async (req, res) => {
+  const { session } = req.user;
+  try {
+    const result = await factDnaService.guardarFactDna(req.body, session);
+    if (!result.success) return responseError(200, result.message, 500, res);
+    return SuccessResponse(res, result, "FACT DNA guardado correctamente");
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const getFactDna = async (req, res) => {
+  const { ucp } = req.params;
+  const { session } = req.user;
+  try {
+    const result = await factDnaService.getFactDna({ ucp }, session);
+    if (!result.success) return responseError(200, result.message, 500, res);
+    return SuccessResponse(res, result, "FACT DNA obtenido correctamente");
   } catch (err) {
     Logger.error(err);
     return InternalError(res);

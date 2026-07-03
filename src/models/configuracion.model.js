@@ -842,12 +842,13 @@ export default class ConfiguracionModel {
     }
   }
 
-  async ingresarDiaFestivos(ucp, fechaIso, client) {
+  async ingresarDiaFestivos(ucp, fechaIso, nombre, client) {
     try {
       await client.connect();
       const res = await client.query(querys.ingresarDiaFestivos, [
         ucp,
         fechaIso,
+        nombre ?? null,
       ]);
       return res.rows[0];
     } catch (error) {
@@ -855,6 +856,36 @@ export default class ConfiguracionModel {
         colors.red("Error FestivosModel ingresarDiaFestivos"),
         error,
       );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  }
+
+  async actualizarNombreFestivo(nombre, ucp, fecha, client) {
+    try {
+      await client.connect();
+      const res = await client.query(querys.actualizarNombreFestivo, [nombre, ucp, fecha]);
+      return res.rows[0] || null;
+    } catch (error) {
+      Logger.error(colors.red("Error model actualizarNombreFestivo"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  }
+
+  async actualizarResumenClimatico(resumen, ucp, fecha, client) {
+    try {
+      await client.connect();
+      const res = await client.query(querys.actualizarResumenClimatico, [
+        resumen,
+        ucp,
+        fecha,
+      ]);
+      return res.rows[0] || null;
+    } catch (error) {
+      Logger.error(colors.red("Error model actualizarResumenClimatico"), error);
       throw error;
     } finally {
       await client.end();
@@ -1571,13 +1602,46 @@ ORDER BY c.fecha_objetivo ASC
   };
 
   buscarSemanaSimilar = async (
-    { ucp, festivos_posicion, mes, tipo_inicio_mes },
+    { ucp, festivos_posicion, mes, tipo_inicio_mes, fecha_inicio, fecha_fin, nombre_festivo, resumen_climatico },
     client,
   ) => {
     try {
       await client.connect();
       const result = await client.query(querys.buscarSemanaSimilar, [ucp]);
       let semanas = result.rows;
+
+      // Normalizar semana_inicio a string 'YYYY-MM-DD' (puede venir como Date o string)
+      const toIso = (v) =>
+        v instanceof Date ? v.toISOString().slice(0, 10) : String(v).slice(0, 10);
+
+      // Verificar cuántos festivos hay para este UCP
+      const festivosResult = await client.query(
+        `SELECT COUNT(*) AS total FROM festivos WHERE LOWER(ucp) = LOWER($1)`,
+        [ucp],
+      );
+      console.log(`[buscarSemanaSimilar] festivos en DB para ucp='${ucp}': ${festivosResult.rows[0]?.total}`);
+      console.log("[buscarSemanaSimilar] total filas SQL:", semanas.length);
+      if (semanas.length > 0) {
+        const s0 = semanas[0];
+        console.log("[buscarSemanaSimilar] primera fila:", {
+          semana_inicio: toIso(s0.semana_inicio),
+          festivos_mask: s0.festivos_mask,
+        });
+        const conFestivo = semanas.filter(s => s.festivos_mask?.some(v => Number(v) === 1)).length;
+        console.log(`[buscarSemanaSimilar] semanas con al menos 1 festivo: ${conFestivo}`);
+      }
+
+      // Filtrar por ventana de tiempo
+      if (fecha_inicio) {
+        const antes = semanas.length;
+        semanas = semanas.filter((s) => toIso(s.semana_inicio) >= fecha_inicio);
+        console.log(`[buscarSemanaSimilar] tras fecha_inicio(${fecha_inicio}): ${antes} -> ${semanas.length}`);
+      }
+      if (fecha_fin) {
+        const antes = semanas.length;
+        semanas = semanas.filter((s) => toIso(s.semana_inicio) <= fecha_fin);
+        console.log(`[buscarSemanaSimilar] tras fecha_fin(${fecha_fin}): ${antes} -> ${semanas.length}`);
+      }
 
       // Filtrar por mes (ahora mes_inicio = mes mayoritario de la semana)
       if (mes !== undefined && mes !== null) {
@@ -1605,14 +1669,33 @@ ORDER BY c.fecha_objetivo ASC
 
       // Filtrar por festivos en posiciones
       if (festivos_posicion && festivos_posicion.length > 0) {
+        const antes = semanas.length;
         semanas = semanas.filter((s) => {
           const mask = s.festivos_mask;
           return festivos_posicion.every(({ dia_semana, es_festivo }) => {
-            return es_festivo
-              ? Number(mask[dia_semana]) === 1
-              : Number(mask[dia_semana]) === 0;
+            const val = Number(mask[dia_semana]);
+            return es_festivo ? val === 1 : val === 0;
           });
         });
+        console.log(`[buscarSemanaSimilar] tras festivos_posicion: ${antes} -> ${semanas.length}`);
+      }
+
+      // Filtrar por nombre de festivo (búsqueda parcial, case-insensitive)
+      if (nombre_festivo && nombre_festivo.trim()) {
+        const busqueda = nombre_festivo.trim().toLowerCase();
+        semanas = semanas.filter((s) =>
+          Array.isArray(s.nombres_festivos) &&
+          s.nombres_festivos.some((n) => n && n.toLowerCase().includes(busqueda))
+        );
+      }
+
+      // Filtrar por resumen climático
+      if (resumen_climatico && resumen_climatico.trim()) {
+        const busqueda = resumen_climatico.trim().toLowerCase();
+        semanas = semanas.filter((s) =>
+          Array.isArray(s.resumenes_climaticos) &&
+          s.resumenes_climaticos.some((r) => r && r.toLowerCase() === busqueda)
+        );
       }
 
       const top3 = semanas.slice(0, 3);

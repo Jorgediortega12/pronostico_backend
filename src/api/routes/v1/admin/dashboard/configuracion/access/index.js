@@ -766,9 +766,9 @@ export const listarFestivosPorRango = async (req, res) => {
 
 export const ingresarDiaFestivos = async (req, res) => {
   try {
-    const { ucp, fecha } = req.body;
+    const { ucp, fecha, nombre } = req.body;
     const { session } = req.user;
-    const result = await service.ingresarDiaFestivos(ucp, fecha, session);
+    const result = await service.ingresarDiaFestivos(ucp, fecha, nombre ?? null, session);
     if (!result.success)
       return res.status(500).json({ success: false, message: result.message });
     return res
@@ -797,6 +797,34 @@ export const borrarDiaFestivos = async (req, res) => {
     return res
       .status(500)
       .json({ success: false, message: "Internal server error" });
+  }
+};
+
+export const actualizarNombreFestivo = async (req, res) => {
+  try {
+    const { nombre, ucp, fecha } = req.body;
+    const { session } = req.user;
+    const result = await service.actualizarNombreFestivo(nombre, ucp, fecha, session);
+    if (!result.success)
+      return res.status(500).json({ success: false, message: result.message });
+    return res.status(200).json({ success: true, data: result.data, message: result.message });
+  } catch (err) {
+    Logger.error(colors.red("Error controller actualizarNombreFestivo"), err);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+export const actualizarResumenClimatico = async (req, res) => {
+  try {
+    const { resumen, ucp, fecha } = req.body;
+    const { session } = req.user;
+    const result = await service.actualizarResumenClimatico(resumen, ucp, fecha, session);
+    if (!result.success)
+      return res.status(500).json({ success: false, message: result.message });
+    return res.status(200).json({ success: true, data: result.data, message: result.message });
+  } catch (err) {
+    Logger.error(colors.red("Error controller actualizarResumenClimatico"), err);
+    return res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
 

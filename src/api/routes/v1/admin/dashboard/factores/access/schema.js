@@ -283,18 +283,35 @@ export default {
     ucp: Joi.string().required(),
     fecha_inicio: Joi.string().required(),
     fecha_fin: Joi.string().required(),
-    dna_total: Joi.number().required(),
-    filas: Joi.array()
+    registros: Joi.array()
       .items(
         Joi.object({
+          codabrevmc: Joi.string().required(),
+          fecha: Joi.string().required(),
+          valor: Joi.number().required(),
           periodo: Joi.number().integer().min(1).max(24).required(),
-          pro: Joi.number().required(),
-          da: Joi.number().required(),
-          dna: Joi.number().required(),
-          dr: Joi.number().required(),
         }),
       )
-      .length(24)
+      .min(1)
       .required(),
+    registrosPotencia: Joi.array()
+      .items(
+        Joi.object({
+          codabrevmc: Joi.string().required(),
+          fecha: Joi.string().required(),
+          valor: Joi.number().required(),
+          periodo: Joi.number().integer().min(1).max(24).required(),
+        }),
+      )
+      .optional(),
+  }),
+
+  guardarFactDna: Joi.object({
+    ucp: Joi.string().required(),
+    periodos: Joi.array().items(Joi.number().required()).length(24).required(),
+  }),
+
+  getFactDna: Joi.object({
+    ucp: Joi.string().required(),
   }),
 };

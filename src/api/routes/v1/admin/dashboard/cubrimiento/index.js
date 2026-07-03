@@ -75,5 +75,9 @@ export default function () {
     controllers.obtenerPorcentajeCubrimiento,
   );
 
+  router.post("/version/save", validator(schema.guardarVersion), controllers.guardarVersion);
+  router.get("/version/list/:session_id", controllers.listarVersiones);
+  router.get("/version/load/:version_id", controllers.cargarVersion);
+
   return router;
 }

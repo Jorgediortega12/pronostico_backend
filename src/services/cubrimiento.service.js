@@ -47,8 +47,8 @@ export default class CubrimientoService {
 
   // ─── Perfil (modelo guardado) → {fechas, demandas} ──────────────────────────
 
-  #obtenerDatosPerfil = async (perfilId) => {
-    const modelo = await this.#demanda.retrieveModelValues(perfilId);
+  #obtenerDatosPerfil = async (session, perfilId) => {
+    const modelo = await this.#demanda.retrieveModelValues(session, perfilId);
     if (!modelo || !modelo.dates || !modelo.values || !modelo.dates.length) {
       throw new ServiceError(`Modelo con ID ${perfilId} no encontrado o inválido`, 404);
     }
@@ -134,10 +134,10 @@ export default class CubrimientoService {
     }
   };
 
-  #obtenerPorcentajesSeleccionados = async (params, anio, mesInicial, mesFinal) => {
+  #obtenerPorcentajesSeleccionados = async (session, params, anio, mesInicial, mesFinal) => {
     let porcentajes = params?.porcentajes_cubrimiento?.[String(anio)] || null;
     if (!porcentajes) {
-      const rows = await this.#model.getPorcentajeByAnio(anio);
+      const rows = await this.#model.getPorcentajeByAnio(session, anio);
       porcentajes = rows.length ? rows.map((p) => p.valor) : new Array(12).fill(90);
     }
     return porcentajes.slice(mesInicial - 1, mesFinal);
@@ -226,13 +226,13 @@ export default class CubrimientoService {
 
   // ─── Procesar cubrimiento (un contrato) ──────────────────────────────────────
 
-  procesarCubrimiento = async (contratoId, perfilId, params) => {
-    const contrato = await this.#model.getContratoById(contratoId);
+  procesarCubrimiento = async (session, contratoId, perfilId, params) => {
+    const contrato = await this.#model.getContratoById(session, contratoId);
     if (!contrato) {
       throw new ServiceError(`Contrato con ID ${contratoId} no encontrado`, 404);
     }
 
-    const datosPerfil = await this.#obtenerDatosPerfil(perfilId);
+    const datosPerfil = await this.#obtenerDatosPerfil(session, perfilId);
     const { tipo_calculo, tipo_dato, tipo_grafica, mes_inicial, mes_final, anio } = params;
 
     const energiaContratada = this.#calcularEnergiaContratada(
@@ -240,7 +240,7 @@ export default class CubrimientoService {
     );
     const energiaEstimada = this.#calcularEnergiaEstimada(datosPerfil, anio, mes_inicial, mes_final);
 
-    const porcentajes = await this.#obtenerPorcentajesSeleccionados(params, anio, mes_inicial, mes_final);
+    const porcentajes = await this.#obtenerPorcentajesSeleccionados(session, params, anio, mes_inicial, mes_final);
     const energiaPrevista = energiaEstimada.map((v, i) => (v * porcentajes[i]) / 100);
     const desviacion = this.#calcularDesviacion(energiaPrevista, energiaContratada);
     const resultadosCubrimiento = this.#calcularCubrimiento(tipo_calculo, desviacion);
@@ -259,13 +259,13 @@ export default class CubrimientoService {
 
   // ─── Procesar cubrimiento (todos los contratos del año) ──────────────────────
 
-  procesarCubrimientoTodos = async (anio, perfilId, params) => {
-    const contratos = await this.#model.getContratosByAnio(anio);
+  procesarCubrimientoTodos = async (session, anio, perfilId, params) => {
+    const contratos = await this.#model.getContratosByAnio(session, anio);
     if (!contratos.length) {
       throw new ServiceError(`No se encontraron contratos para el año ${anio}`, 404);
     }
 
-    const datosPerfil = await this.#obtenerDatosPerfil(perfilId);
+    const datosPerfil = await this.#obtenerDatosPerfil(session, perfilId);
     const { tipo_calculo, tipo_dato, tipo_grafica, mes_inicial, mes_final } = params;
 
     const numMeses = mes_final - mes_inicial + 1;
@@ -289,7 +289,7 @@ export default class CubrimientoService {
     }
 
     const energiaEstimada = this.#calcularEnergiaEstimada(datosPerfil, anio, mes_inicial, mes_final);
-    const porcentajes = await this.#obtenerPorcentajesSeleccionados(params, anio, mes_inicial, mes_final);
+    const porcentajes = await this.#obtenerPorcentajesSeleccionados(session, params, anio, mes_inicial, mes_final);
     const energiaPrevista = energiaEstimada.map((v, i) => (v * porcentajes[i]) / 100);
     const desviacion = this.#calcularDesviacion(energiaPrevista, energiaContratadaTotal);
     const resultadosCubrimiento = this.#calcularCubrimiento(tipo_calculo, desviacion);
@@ -308,13 +308,13 @@ export default class CubrimientoService {
 
   // ─── Años disponibles ────────────────────────────────────────────────────────
 
-  obtenerAniosDisponibles = async () => {
-    return this.#model.getAniosContratos();
+  obtenerAniosDisponibles = async (session) => {
+    return this.#model.getAniosContratos(session);
   };
 
   // ─── Carga de archivo de contratos ───────────────────────────────────────────
 
-  procesarArchivoContrato = async (archivo) => {
+  procesarArchivoContrato = async (session, archivo) => {
     if (!archivo) throw new ServiceError("No se proporcionó ningún archivo", 422);
 
     const rutaArchivo = archivo.path;
@@ -329,11 +329,11 @@ export default class CubrimientoService {
         const codigoSic = String(parseInt(contrato.codigo_sic, 10));
         const anio = parseInt(contrato.anio, 10);
 
-        const existe = await this.#model.getContratoBySicAnio(codigoSic, anio);
+        const existe = await this.#model.getContratoBySicAnio(session, codigoSic, anio);
         const datosJson = JSON.stringify({ ruta_archivo: rutaArchivo });
 
         if (!existe) {
-          await this.#model.insertContrato(nombreOriginal, datosJson, codigoSic, anio);
+          await this.#model.insertContrato(session, nombreOriginal, datosJson, codigoSic, anio);
           exitosos.push({ ...contrato, accion: "creado" });
         } else {
           // Borrar archivo viejo antes de actualizar
@@ -346,7 +346,7 @@ export default class CubrimientoService {
           } catch (err) {
             Logger.warn(`No se pudo eliminar archivo viejo: ${err.message}`);
           }
-          await this.#model.updateContrato(existe.id, nombreOriginal, datosJson);
+          await this.#model.updateContrato(session, existe.id, nombreOriginal, datosJson);
           exitosos.push({ ...contrato, accion: "actualizado" });
         }
       }
@@ -393,8 +393,8 @@ export default class CubrimientoService {
 
   // ─── Listado de contratos por año ────────────────────────────────────────────
 
-  obtenerContratosPorAnio = async (anio) => {
-    const contratos = await this.#model.getContratosByAnio(anio);
+  obtenerContratosPorAnio = async (session, anio) => {
+    const contratos = await this.#model.getContratosByAnio(session, anio);
     return contratos.map((contrato) => {
       const datos = this.#parseDatos(contrato.datos);
       const rutaArchivo = datos.ruta_archivo || "";
@@ -409,8 +409,8 @@ export default class CubrimientoService {
 
   // ─── Detalle de un contrato (datos horarios) ─────────────────────────────────
 
-  obtenerDetalleContrato = async (sic, anio, mesInicial, mesFinal) => {
-    const contrato = await this.#model.getContratoBySicAnio(String(sic), anio);
+  obtenerDetalleContrato = async (session, sic, anio, mesInicial, mesFinal) => {
+    const contrato = await this.#model.getContratoBySicAnio(session, String(sic), anio);
     if (!contrato) {
       throw new ServiceError(`No se encontró contrato con SIC ${sic} para el año ${anio}`, 404);
     }
@@ -442,8 +442,8 @@ export default class CubrimientoService {
     return { columnas: COLUMNAS_DETALLE, filas };
   };
 
-  obtenerDetalleContratoTodos = async (anio, mesInicial, mesFinal) => {
-    const contratos = await this.#model.getContratosByAnio(anio);
+  obtenerDetalleContratoTodos = async (session, anio, mesInicial, mesFinal) => {
+    const contratos = await this.#model.getContratosByAnio(session, anio);
     if (!contratos.length) {
       throw new ServiceError(`No se encontraron contratos para el año ${anio}`, 404);
     }
@@ -515,8 +515,8 @@ export default class CubrimientoService {
 
   // ─── Energía simplificada de un contrato (fechas + demandas) ──────────────────
 
-  obtenerEnergiaContrato = async (sic, anio, mesInicial, mesFinal) => {
-    const contrato = await this.#model.getContratoBySicAnio(String(sic), anio);
+  obtenerEnergiaContrato = async (session, sic, anio, mesInicial, mesFinal) => {
+    const contrato = await this.#model.getContratoBySicAnio(session, String(sic), anio);
     if (!contrato) {
       throw new ServiceError(`No se encontró contrato con SIC ${sic} para el año ${anio}`, 404);
     }
@@ -552,17 +552,17 @@ export default class CubrimientoService {
 
   // ─── Porcentaje de cubrimiento ────────────────────────────────────────────────
 
-  guardarPorcentajeCubrimiento = async (porcentaje) => {
+  guardarPorcentajeCubrimiento = async (session, porcentaje) => {
     const { anio, valores } = porcentaje;
     if (!Array.isArray(valores) || valores.length !== 12) {
       throw new ServiceError("Se requieren 12 valores (uno por cada mes)", 400);
     }
-    await this.#model.savePorcentaje(anio, valores);
+    await this.#model.savePorcentaje(session, anio, valores);
     return { anio, valores };
   };
 
-  obtenerPorcentajeCubrimiento = async (anio) => {
-    const rows = await this.#model.getPorcentajeByAnio(anio);
+  obtenerPorcentajeCubrimiento = async (session, anio) => {
+    const rows = await this.#model.getPorcentajeByAnio(session, anio);
     if (!rows.length) {
       return { anio, valores: new Array(12).fill(90) };
     }
@@ -571,15 +571,51 @@ export default class CubrimientoService {
 
   // ─── Pronóstico guardado (perfil) ─────────────────────────────────────────────
 
-  obtenerPronosticoDemanda = async (modelId) => {
-    const modelo = await this.#demanda.retrieveModelValues(modelId);
+  obtenerPronosticoDemanda = async (session, modelId) => {
+    const modelo = await this.#demanda.retrieveModelValues(session, modelId);
     return {
       fechas: modelo.dates || [],
       demandas: modelo.values || [],
     };
   };
 
-  listarModelosDisponibles = async (userId, sessionId) => {
-    return this.#demanda.listUserModels(userId, sessionId);
+  listarModelosDisponibles = async (session, userId) => {
+    // Perfiles = modelos del usuario, sin atar a la sesión (persisten entre logins).
+    return this.#demanda.listUserModelsByUser(session, userId);
   };
+
+  guardarVersion = async (session, { user_id, nombre, anio, payload }) => {
+    const result = await this.#model.insertVersion(session, {
+      userId: user_id,
+      nombre,
+      anio,
+      payload,
+    });
+    return { message: "Versión guardada exitosamente", version_id: result.id, version: result.version };
+  };
+
+  listVersions = async (session, userId) => {
+    const rows = await this.#model.listVersions(session, userId);
+    return rows.map((v) => ({
+      id: v.id,
+      version: v.version,
+      nombre: v.nombre,
+      anio: v.anio,
+      created_at: v.created_at,
+    }));
+  };
+
+  loadVersion = async (session, versionId) => {
+    const v = await this.#model.getVersionById(session, versionId);
+    if (!v) throw new ServiceError("La versión especificada no existe", 404);
+    return {
+      id: v.id,
+      version: v.version,
+      nombre: v.nombre,
+      anio: v.anio,
+      created_at: v.created_at,
+      payload: v.payload,
+    };
+  };
+
 }

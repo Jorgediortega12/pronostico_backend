@@ -195,7 +195,8 @@ export default {
   }),
   ingresarDiaFestivosSchema: Joi.object().keys({
     ucp: Joi.string().required(),
-    fecha: Joi.string().isoDate().required(), // recibir ISO yyyy-mm-dd
+    fecha: Joi.string().isoDate().required(),
+    nombre: Joi.string().allow(null, "").optional(),
   }),
   borrarDiaFestivosSchema: Joi.object().keys({
     codigo: Joi.number().integer().required(),
@@ -381,10 +382,14 @@ export default {
     festivos_posicion: Joi.array()
       .items(
         Joi.object({
-          dia_semana: Joi.number().min(0).max(6).required(), // 0=lun..6=dom dentro de la semana ISO
+          dia_semana: Joi.number().min(0).max(6).required(),
           es_festivo: Joi.boolean().required(),
         }),
       )
       .optional(),
+    fecha_inicio: Joi.string().optional(),
+    fecha_fin: Joi.string().optional(),
+    nombre_festivo: Joi.string().allow("").optional(),
+    resumen_climatico: Joi.string().valid("soleado", "nublado", "lluvioso").allow("").optional(),
   }),
 };

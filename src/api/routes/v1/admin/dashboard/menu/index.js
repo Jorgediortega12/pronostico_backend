@@ -39,6 +39,8 @@ export default function () {
   );
   // Crear módulo
   router.post("/modulos", validate(crearModulo), menuController.crearModulo);
+  //actualizar orden de modulo
+  router.put("/modulos/:cod/orden", menuController.actualizarOrdenModulo);
   //eliminar modulo
   router.delete("/modulos/:cod", menuController.eliminarModulo);
 

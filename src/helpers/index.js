@@ -15,7 +15,9 @@ export const createToken = (accesos, user, timeStamp) => {
   const key = `${timeStamp}${process.env.KEYS_TOKEN}`;
   const dataEncrypt = encrypt(JSON.stringify(accesos), key);
 
-  return jwt.sign({ dataEncrypt, timeStamp }, secretKey, { expiresIn: "12h" });
+  return jwt.sign({ dataEncrypt, timeStamp, userId: user?.cod ?? null }, secretKey, {
+    expiresIn: "12h",
+  });
 };
 
 // Desencripta la session del token (mismo patrón que instituciones)

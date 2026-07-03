@@ -1,13 +1,8 @@
 import { createConectionPG } from "../helpers/connections.js";
 
-function getGmrDb() {
-  return createConectionPG({
-    host: process.env.POSTGRES_HOST,
-    basededatos: process.env.POSTGRES_DB,
-    usuario: process.env.POSTGRES_USER,
-    contrasenia: process.env.POSTGRES_PASSWORD,
-    puerto: process.env.POSTGRES_PORT || 5433,
-  });
+// Conexión dinámica según la sesión del usuario (credenciales del mercado).
+function getGmrDb(session) {
+  return createConectionPG(session);
 }
 
 const _mean = (arr) => arr.reduce((a, b) => a + b, 0) / arr.length;
@@ -131,8 +126,12 @@ function _extractDaily(rows, type) {
 
 
 export class DemandService {
+  constructor(session) {
+    this.session = session;
+  }
+
   async get24Demands({ fecha_inicio, fecha_fin }) {
-    const db = getGmrDb();
+    const db = getGmrDb(this.session);
     const { rows } = await db.query(
       `SELECT fecha,
         hora_1,hora_2,hora_3,hora_4,hora_5,hora_6,hora_7,hora_8,
@@ -152,7 +151,7 @@ export class DemandService {
   }
 
   async getDemands({ tipo, fecha_inicio, fecha_fin, año_inicio, año_fin }) {
-    const db = getGmrDb();
+    const db = getGmrDb(this.session);
 
     if (tipo === 0) {
       const { rows } = await db.query(
@@ -247,7 +246,7 @@ export class DemandService {
   }
 
   async getFirstAndLastDate() {
-    const db = getGmrDb();
+    const db = getGmrDb(this.session);
     const { rows: first } = await db.query(
       `SELECT fecha FROM "PRONOSTICO_demands" ORDER BY fecha ASC LIMIT 1`
     );
@@ -260,7 +259,7 @@ export class DemandService {
   }
 
   async getFirstAndLastDemandDate() {
-    const db = getGmrDb();
+    const db = getGmrDb(this.session);
     const { rows: first } = await db.query(
       `SELECT fecha FROM "PRONOSTICO_demands" WHERE file_type = 'txf' ORDER BY fecha ASC LIMIT 1`
     );
@@ -278,14 +277,18 @@ export class DemandService {
 
 // ─── MacroeconomicService ─────────────────────────────────────────────────────
 export class MacroeconomicService {
+  constructor(session) {
+    this.session = session;
+  }
+
   async #verifyId(id) {
-    const db = getGmrDb();
+    const db = getGmrDb(this.session);
     const { rows } = await db.query(`SELECT id FROM "PRONOSTICO_macroeconomics"`);
     if (!rows.some((r) => r.id === id)) throw new Error("Id no válido");
   }
 
   async getAllVariables({ año_inicio, año_fin }) {
-    const db = getGmrDb();
+    const db = getGmrDb(this.session);
     const { rows } = await db.query(
       `SELECT eco_id, ano, value FROM "PRONOSTICO_macroeconomics_data"
        WHERE ano >= $1 AND ano <= $2`,
@@ -311,7 +314,7 @@ export class MacroeconomicService {
 
   async getVariable(id) {
     await this.#verifyId(id);
-    const db = getGmrDb();
+    const db = getGmrDb(this.session);
     const { rows } = await db.query(
       `SELECT ano, value FROM "PRONOSTICO_macroeconomics_data"
        WHERE eco_id = $1 ORDER BY ano`,
@@ -326,7 +329,7 @@ export class MacroeconomicService {
 
   async getVariableYear(id, fecha_inicio, fecha_fin) {
     await this.#verifyId(id);
-    const db = getGmrDb();
+    const db = getGmrDb(this.session);
     const { rows } = await db.query(
       `SELECT ano, value FROM "PRONOSTICO_macroeconomics_data"
        WHERE eco_id = $1 AND ano >= $2 AND ano <= $3
@@ -342,14 +345,14 @@ export class MacroeconomicService {
 
   async variableVsDemand({ id, año_inicio, año_fin }) {
     await this.#verifyId(id);
-    const demandData = await new DemandService().getDemands({
+    const demandData = await new DemandService(this.session).getDemands({
       tipo: 3,
       año_inicio,
       año_fin,
     });
     if (!demandData) throw new Error("No hay datos de demanda para el rango seleccionado");
 
-    const db = getGmrDb();
+    const db = getGmrDb(this.session);
     const { rows } = await db.query(
       `SELECT value FROM "PRONOSTICO_macroeconomics_data"
        WHERE eco_id = $1 AND ano >= $2 AND ano <= $3
@@ -367,7 +370,7 @@ export class MacroeconomicService {
 
   async insertOrUpdateVariable({ id, años, valores }) {
     await this.#verifyId(id);
-    const db = getGmrDb();
+    const db = getGmrDb(this.session);
     const { rows: current } = await db.query(
       `SELECT ano FROM "PRONOSTICO_macroeconomics_data" WHERE eco_id = $1 AND ano = ANY($2)`,
       [id, años]
@@ -391,7 +394,7 @@ export class MacroeconomicService {
 
   async deleteColumnValues({ id, años }) {
     await this.#verifyId(id);
-    const db = getGmrDb();
+    const db = getGmrDb(this.session);
     await db.query(
       `DELETE FROM "PRONOSTICO_macroeconomics_data" WHERE eco_id = $1 AND ano = ANY($2)`,
       [id, años]
@@ -400,7 +403,7 @@ export class MacroeconomicService {
   }
 
   async getEconomicsIds() {
-    const db = getGmrDb();
+    const db = getGmrDb(this.session);
     const { rows } = await db.query(`SELECT id, name FROM "PRONOSTICO_macroeconomics"`);
     const labels = {
       ipc: "ipc",
@@ -414,7 +417,7 @@ export class MacroeconomicService {
   }
 
   async getFirstAndLastDateOfEachVariable() {
-    const db = getGmrDb();
+    const db = getGmrDb(this.session);
     const [{ rows: firsts }, { rows: lasts }, { rows: vars }] = await Promise.all([
       db.query(`SELECT eco_id, MIN(ano) AS first_date FROM "PRONOSTICO_macroeconomics_data" GROUP BY eco_id`),
       db.query(`SELECT eco_id, MAX(ano) AS last_date FROM "PRONOSTICO_macroeconomics_data" GROUP BY eco_id`),
@@ -436,8 +439,12 @@ export class MacroeconomicService {
 
 // ─── ClimateService ───────────────────────────────────────────────────────────
 export class ClimateService {
+  constructor(session) {
+    this.session = session;
+  }
+
   async #fetchRaw(fecha_inicio, fecha_fin) {
-    const db = getGmrDb();
+    const db = getGmrDb(this.session);
     const sql = `SELECT ${CLIMA_SELECT} FROM "PRONOSTICO_climates" WHERE fecha >= $1 AND fecha <= $2 ORDER BY fecha`;
     const { rows } = await db.query(sql, [fecha_inicio, fecha_fin]);
     return rows;
@@ -641,9 +648,13 @@ export class ClimateService {
 
 // ─── CorrelationService ───────────────────────────────────────────────────────
 export class CorrelationService {
+  constructor(session) {
+    this.session = session;
+  }
+
   async getCorrelationMatrix({ tipo, fecha_inicio, fecha_fin, año_inicio, año_fin, list_ids: listIds, list_id_macroeconomic: listIdMacroeconomic }) {
-    const climate = new ClimateService();
-    const demands = new DemandService();
+    const climate = new ClimateService(this.session);
+    const demands = new DemandService(this.session);
     const cols = [];
 
     // Granularidad horaria
@@ -689,8 +700,8 @@ export class CorrelationService {
     // Granularidad anual
     else if (tipo === 3) {
       const base = { año_inicio, año_fin, tipo: 0 };
-      const macro = new MacroeconomicService();
-      const db = getGmrDb();
+      const macro = new MacroeconomicService(this.session);
+      const db = getGmrDb(this.session);
 
       if (listIdMacroeconomic?.length) {
         const yearlyClimate = await climate.getClimateYear({ ...base, id: 0 });
@@ -730,6 +741,10 @@ export class CorrelationService {
 
 // ─── GridAnalysisService ──────────────────────────────────────────────────────
 export class GridAnalysisService {
+  constructor(session) {
+    this.session = session;
+  }
+
   getNumberOfDays(year, month) {
     const totalDays = new Date(year, month, 0).getDate();
     let saturdays = 0, sundays = 0;
@@ -771,8 +786,8 @@ export class GridAnalysisService {
   }
 
   async getGridInfo({ fecha_inicio, fecha_fin }) {
-    const climate = new ClimateService();
-    const demandSvc = new DemandService();
+    const climate = new ClimateService(this.session);
+    const demandSvc = new DemandService(this.session);
     const base = { fecha_inicio, fecha_fin };
 
     const [

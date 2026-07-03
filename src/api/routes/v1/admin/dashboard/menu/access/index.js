@@ -234,6 +234,21 @@ class MenuController {
     }
   }
 
+  async actualizarOrdenModulo(req, res) {
+    try {
+      const { cod } = req.params;
+      const { orden } = req.body;
+      const { session } = req.user;
+      if (orden === undefined || orden === null) {
+        return res.status(400).json({ success: false, message: "El campo orden es requerido" });
+      }
+      const result = await menuService.actualizarOrdenModulo(parseInt(cod), parseInt(orden), session);
+      return res.status(200).json({ success: result.success, message: result.message });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: "Error al actualizar el orden", error: error.message });
+    }
+  }
+
   async eliminarModulo(req, res) {
     try {
       const { cod } = req.params;

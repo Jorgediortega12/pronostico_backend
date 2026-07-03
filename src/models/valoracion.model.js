@@ -1,4 +1,4 @@
-import pool from "../config/database.js";
+import { createConectionPG } from "../helpers/connections.js";
 import * as q from "../querys/valoracion.query.js";
 
 export default class ValoracionModel {
@@ -10,145 +10,171 @@ export default class ValoracionModel {
     return ValoracionModel.instance;
   }
 
-  #tablasListas = false;
+  #tablasListas = new Set();
 
-  // Garantiza que las tablas existan (idempotente). Se llama de forma perezosa.
-  ensureTables = async () => {
-    if (this.#tablasListas) return;
-    await pool.query(q.ensureTables);
-    this.#tablasListas = true;
+  #db = (session) => createConectionPG(session);
+
+  ensureTables = async (session) => {
+    const key = `${session.host}:${session.basededatos}`;
+    if (this.#tablasListas.has(key)) return;
+    await this.#db(session).query(q.ensureTables);
+    this.#tablasListas.add(key);
   };
 
   // ─── Ofertas ───────────────────────────────────────────────────────────────
-  insertOferta = async (params) => {
-    await this.ensureTables();
-    const { rows } = await pool.query(q.insertOferta, params);
+  insertOferta = async (session, params) => {
+    await this.ensureTables(session);
+    const { rows } = await this.#db(session).query(q.insertOferta, params);
     return rows[0];
   };
 
-  getOfertaById = async (id) => {
-    await this.ensureTables();
-    const { rows } = await pool.query(q.getOfertaById, [id]);
+  getOfertaById = async (session, id) => {
+    await this.ensureTables(session);
+    const { rows } = await this.#db(session).query(q.getOfertaById, [id]);
     return rows[0] || null;
   };
 
-  listOfertas = async (activas = true) => {
-    await this.ensureTables();
-    const { rows } = await pool.query(activas ? q.listOfertasActivas : q.listOfertas);
+  listOfertas = async (session, activas = true) => {
+    await this.ensureTables(session);
+    const { rows } = await this.#db(session).query(activas ? q.listOfertasActivas : q.listOfertas);
     return rows;
   };
 
   // ─── Escenarios ──────────────────────────────────────────────────────────────
-  insertEscenario = async (params) => {
-    await this.ensureTables();
-    const { rows } = await pool.query(q.insertEscenario, params);
+  insertEscenario = async (session, params) => {
+    await this.ensureTables(session);
+    const { rows } = await this.#db(session).query(q.insertEscenario, params);
     return rows[0];
   };
 
-  getEscenarioById = async (id) => {
-    await this.ensureTables();
-    const { rows } = await pool.query(q.getEscenarioById, [id]);
+  getEscenarioById = async (session, id) => {
+    await this.ensureTables(session);
+    const { rows } = await this.#db(session).query(q.getEscenarioById, [id]);
     return rows[0] || null;
   };
 
-  listEscenarios = async (ofertaId = null) => {
-    await this.ensureTables();
+  listEscenarios = async (session, ofertaId = null) => {
+    await this.ensureTables(session);
     const { rows } = ofertaId
-      ? await pool.query(q.listEscenariosByOferta, [ofertaId])
-      : await pool.query(q.listEscenarios);
+      ? await this.#db(session).query(q.listEscenariosByOferta, [ofertaId])
+      : await this.#db(session).query(q.listEscenarios);
     return rows;
   };
 
-  deleteEscenario = async (id) => {
-    await this.ensureTables();
-    await pool.query(q.deleteEscenario, [id]);
+  deleteEscenario = async (session, id) => {
+    await this.ensureTables(session);
+    await this.#db(session).query(q.deleteEscenario, [id]);
   };
 
-  updateEscenarioIpp = async (id, nuevoIpp) => {
-    await this.ensureTables();
-    await pool.query(q.updateEscenarioIpp, [id, nuevoIpp]);
+  updateEscenarioIpp = async (session, id, nuevoIpp) => {
+    await this.ensureTables(session);
+    await this.#db(session).query(q.updateEscenarioIpp, [id, nuevoIpp]);
   };
 
   // ─── Resultados ──────────────────────────────────────────────────────────────
-  insertResultado = async (params) => {
-    await this.ensureTables();
-    const { rows } = await pool.query(q.insertResultado, params);
+  insertResultado = async (session, params) => {
+    await this.ensureTables(session);
+    const { rows } = await this.#db(session).query(q.insertResultado, params);
     return rows[0];
   };
 
-  getResultadoById = async (id) => {
-    await this.ensureTables();
-    const { rows } = await pool.query(q.getResultadoById, [id]);
+  getResultadoById = async (session, id) => {
+    await this.ensureTables(session);
+    const { rows } = await this.#db(session).query(q.getResultadoById, [id]);
     return rows[0] || null;
   };
 
-  getResultadosByEscenario = async (escenarioId) => {
-    await this.ensureTables();
-    const { rows } = await pool.query(q.getResultadosByEscenario, [escenarioId]);
+  getResultadosByEscenario = async (session, escenarioId) => {
+    await this.ensureTables(session);
+    const { rows } = await this.#db(session).query(q.getResultadosByEscenario, [escenarioId]);
     return rows;
   };
 
-  getMejorResultadoByEscenario = async (escenarioId) => {
-    await this.ensureTables();
-    const { rows } = await pool.query(q.getMejorResultadoByEscenario, [escenarioId]);
+  getMejorResultadoByEscenario = async (session, escenarioId) => {
+    await this.ensureTables(session);
+    const { rows } = await this.#db(session).query(q.getMejorResultadoByEscenario, [escenarioId]);
     return rows[0] || null;
   };
 
-  getResultadosMultiobjByEscenario = async (escenarioId) => {
-    await this.ensureTables();
-    const { rows } = await pool.query(q.getResultadosMultiobjByEscenario, [escenarioId]);
+  getResultadosMultiobjByEscenario = async (session, escenarioId) => {
+    await this.ensureTables(session);
+    const { rows } = await this.#db(session).query(q.getResultadosMultiobjByEscenario, [escenarioId]);
     return rows;
   };
 
-  countResultadosByEscenario = async (escenarioId) => {
-    await this.ensureTables();
-    const { rows } = await pool.query(q.countResultadosByEscenario, [escenarioId]);
+  countResultadosByEscenario = async (session, escenarioId) => {
+    await this.ensureTables(session);
+    const { rows } = await this.#db(session).query(q.countResultadosByEscenario, [escenarioId]);
     return rows[0]?.total || 0;
   };
 
-  deleteResultadosByEscenario = async (escenarioId) => {
-    await this.ensureTables();
-    await pool.query(q.deleteResultadosByEscenario, [escenarioId]);
+  deleteResultadosByEscenario = async (session, escenarioId) => {
+    await this.ensureTables(session);
+    await this.#db(session).query(q.deleteResultadosByEscenario, [escenarioId]);
   };
 
   // ─── Configuración IPP ─────────────────────────────────────────────────────────
-  insertConfiguracionIpp = async (params) => {
-    await this.ensureTables();
-    const { rows } = await pool.query(q.insertConfiguracionIpp, params);
+  insertConfiguracionIpp = async (session, params) => {
+    await this.ensureTables(session);
+    const { rows } = await this.#db(session).query(q.insertConfiguracionIpp, params);
     return rows[0];
   };
 
-  listConfiguracionesIpp = async () => {
-    await this.ensureTables();
-    const { rows } = await pool.query(q.listConfiguracionesIpp);
+  listConfiguracionesIpp = async (session) => {
+    await this.ensureTables(session);
+    const { rows } = await this.#db(session).query(q.listConfiguracionesIpp);
     return rows;
   };
 
   // ─── Jobs de optimización (background) ───────────────────────────────────────
-  upsertJobProcesando = async (escenarioId, tipo, fase) => {
-    await this.ensureTables();
-    const { rows } = await pool.query(q.upsertJobProcesando, [escenarioId, tipo, fase]);
+  upsertJobProcesando = async (session, escenarioId, tipo, fase) => {
+    await this.ensureTables(session);
+    const { rows } = await this.#db(session).query(q.upsertJobProcesando, [escenarioId, tipo, fase]);
     return rows[0];
   };
 
-  getJobByEscenario = async (escenarioId) => {
-    await this.ensureTables();
-    const { rows } = await pool.query(q.getJobByEscenario, [escenarioId]);
+  getJobByEscenario = async (session, escenarioId) => {
+    await this.ensureTables(session);
+    const { rows } = await this.#db(session).query(q.getJobByEscenario, [escenarioId]);
     return rows[0] || null;
   };
 
-  updateJobFase = async (escenarioId, fase) => {
-    await this.ensureTables();
-    await pool.query(q.updateJobFase, [escenarioId, fase]);
+  updateJobFase = async (session, escenarioId, fase) => {
+    await this.ensureTables(session);
+    await this.#db(session).query(q.updateJobFase, [escenarioId, fase]);
   };
 
-  completeJob = async (escenarioId, fase, numResultados) => {
-    await this.ensureTables();
-    await pool.query(q.completeJob, [escenarioId, fase, numResultados]);
+  completeJob = async (session, escenarioId, fase, numResultados) => {
+    await this.ensureTables(session);
+    await this.#db(session).query(q.completeJob, [escenarioId, fase, numResultados]);
   };
 
-  failJob = async (escenarioId, error) => {
-    await this.ensureTables();
-    await pool.query(q.failJob, [escenarioId, error]);
+  failJob = async (session, escenarioId, error) => {
+    await this.ensureTables(session);
+    await this.#db(session).query(q.failJob, [escenarioId, error]);
+  };
+
+  insertVersion = async (session, { ofertaId, userId, sessionId, nombre, payload }) => {
+    await this.ensureTables(session);
+    const db = this.#db(session);
+    const { rows: nextRows } = await db.query(q.getNextValoracionVersion, [ofertaId ?? null]);
+    const version = nextRows[0].next;
+    const { rows } = await db.query(q.insertValoracionVersion, [
+      ofertaId ?? null, version, userId ?? null, sessionId ?? null, nombre ?? null,
+      payload ? JSON.stringify(payload) : null,
+    ]);
+    return { id: rows[0].id, version: rows[0].version, created_at: rows[0].created_at };
+  };
+
+  listVersions = async (session, ofertaId) => {
+    await this.ensureTables(session);
+    const { rows } = await this.#db(session).query(q.listValoracionVersions, [ofertaId]);
+    return rows;
+  };
+
+  getVersionById = async (session, versionId) => {
+    await this.ensureTables(session);
+    const { rows } = await this.#db(session).query(q.getValoracionVersionById, [versionId]);
+    return rows[0] || null;
   };
 }
