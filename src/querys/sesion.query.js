@@ -54,11 +54,11 @@ export const cargarPeriodosSesion = `SELECT * FROM sesiones_periodos WHERE codse
 export const cargarPeriodosPreview = `SELECT * FROM previews_periodos WHERE codpreview = $1 AND tipo = $2 ORDER BY fecha ASC`;
 
 export const cargarPeriodosxUCPxFecha = `
-  SELECT 
+  SELECT
   codigo, fecha,
     p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12,
     p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, p23, p24,
-    observacion, estado
+    observacion, estado, resumen_climatico
   FROM actualizaciondatos
   WHERE ucp = $1
     AND (fecha BETWEEN $2 AND $3)
@@ -81,7 +81,7 @@ export const buscarRutaBatch = `SELECT * FROM ucp WHERE nombre=$1 AND codpadre='
 
 export const cargarPeriodosPronosticosxUCPxFecha = `SELECT codigo, ucp, fecha, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, p23, p24, observacion, TO_CHAR(fecha,'d') AS tipodia FROM pronosticos WHERE ucp=$1 AND (fecha BETWEEN $2 AND $3) ORDER BY fecha ASC`;
 
-export const cargarPeriodosxUCPxFechaInicio = `SELECT fecha, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, p23, p24, observacion FROM actualizaciondatos WHERE ucp=$1 AND fecha < $2 ORDER BY fecha DESC LIMIT 30`;
+export const cargarPeriodosxUCPxFechaInicio = `SELECT fecha, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17, p18, p19, p20, p21, p22, p23, p24, observacion, resumen_climatico FROM actualizaciondatos WHERE ucp=$1 AND fecha < $2 ORDER BY fecha DESC LIMIT 30`;
 
 export const buscarTipoPronostico = `SELECT * FROM fechas_tipopronostico WHERE ucp=$1 AND fecha=$2`;
 

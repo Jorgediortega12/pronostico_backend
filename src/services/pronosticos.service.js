@@ -1512,6 +1512,7 @@ export default class PronosticosService {
             p23: r.p23 == null ? null : r.p23,
             p24: r.p24 == null ? null : r.p24,
             observacion: r.observacion || "",
+            resumen_climatico: r.resumen_climatico || null,
           }))
         : [];
 
@@ -1565,6 +1566,7 @@ export default class PronosticosService {
               p23: toNumberSafe(row.p23),
               p24: toNumberSafe(row.p24),
               observacion: row.observacion || "",
+              resumen_climatico: row.resumen_climatico || null,
             });
           }
         }
