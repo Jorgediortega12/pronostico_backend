@@ -4,6 +4,7 @@ import Logger from "../helpers/logger.js";
 import client from "./redis.js";
 import moment from "moment";
 import { initCron } from "../services/cron.service.js";
+import { initClimaMapaCron } from "../services/clima_mapa_ingesta.service.js";
 
 export default async (app) => {
   try {
@@ -53,5 +54,14 @@ export default async (app) => {
     Logger.info(colors.green("Cron scheduler initialized! ✌️"));
   } catch (error) {
     Logger.error(colors.red("Error initializing cron scheduler"), error);
+  }
+  // Init cron de ingesta del Mapa Climático
+  try {
+    await initClimaMapaCron();
+  } catch (error) {
+    Logger.error(
+      colors.red("Error initializing clima_mapa cron scheduler"),
+      error,
+    );
   }
 };
