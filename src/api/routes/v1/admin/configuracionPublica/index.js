@@ -2,6 +2,7 @@ import { Router } from "express";
 import validator from "../../../../middleware/validator.js";
 import schema from "../dashboard/configuracion/access/schema.js";
 import * as controllers from "../dashboard/configuracion/access/index.js";
+import * as climaMapaControllers from "../dashboard/clima_mapa/access/index.js";
 const router = Router();
 
 export default function () {
@@ -25,5 +26,13 @@ export default function () {
     validator(schema.listarFestivosPorRango),
     controllers.listarFestivosPorRango,
   );
+
+  // Mapa Climático: proxy de tiles de precipitación (sin auth, key nunca
+  // llega al frontend)
+  router.get(
+    "/clima-mapa/tiles/:z/:x/:y.png",
+    climaMapaControllers.proxyTilePrecipitacion,
+  );
+
   return router;
 }
