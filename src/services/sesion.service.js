@@ -316,13 +316,14 @@ export default class SesionService {
             : "";
       }
 
-      // 2) Periodos pronosticos (tipo 'P') -> usando model.cargarPeriodosSesion(codsesion, tipo)
+      // 2) Periodos pronosticos: tipo 'P' (últimos 7 días reportados) + 'PM'
+      // (resto del período/modelo) -> se muestra el período completo que se
+      // pronosticó, no sólo la ventana reportada
       const codigoSesion =
         dato.codigo || dato.codsesion || dato.id || dato.codigo_sesion; // intentar varias claves
       const client2 = createConectionPG(session);
-      const pronRows = await model.cargarPeriodosSesion(
+      const pronRows = await model.cargarPeriodosSesionPronosticoCompleto(
         codigoSesion,
-        "P",
         client2,
       );
       const PeriodosPronosticos = Array.isArray(pronRows)

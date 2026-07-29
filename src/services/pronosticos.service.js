@@ -384,8 +384,18 @@ export default class PronosticosService {
     }
 
     // 3) Insertar Pronóstico usando model.agregarDatosPronosticoxSesion(datos)
+    // Sólo los últimos 7 días (lo que efectivamente se reporta) quedan como
+    // "P" (pronóstico vigente/reportado). El resto del período pronosticado
+    // (días más lejanos, que no se reportan) queda como "PM" (pronóstico
+    // modelo) — así las queries que filtran tipo='P' (dedup por sesión más
+    // reciente, MAPE, etc.) sólo ven la ventana que realmente se reporta.
     for (const rec of pronosticoList) {
       const fechaConv = convertFechaAño(rec.fecha);
+      const fechaRec = parseMoment(rec.fecha);
+      const esUltimos7Dias =
+        fechaRec && fechaRec.isValid()
+          ? fechaRec.isSameOrAfter(reportMoment, "day")
+          : true;
       // construir objeto con p1..p24 y demás campos que espera tu model
       const datosDia = {
         codsesion: String(codsesion),
@@ -416,7 +426,7 @@ export default class PronosticosService {
         p23: String(rec.p23 ?? "0").replace(",", "."),
         p24: String(rec.p24 ?? "0").replace(",", "."),
         observacion: rec.observacion ?? "",
-        tipo: "P",
+        tipo: esUltimos7Dias ? "P" : "PM",
       };
       const client3 = createConectionPG(session);
       await model.agregarDatosPronosticoxSesion(datosDia, client3);
