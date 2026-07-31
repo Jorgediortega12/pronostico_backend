@@ -1394,6 +1394,11 @@ WITH pronosticos_recientes AS (
     -- 🔴 CLAVE: la sesión debe cubrir la fecha
     AND s.fechainicio <= sp.fecha
     AND s.fechafin >= sp.fecha
+    -- 🔴 CLAVE: sólo sesiones creadas el mismo día o antes de la fecha que
+    -- pronostican — evita tomar como "vigente" una sesión guardada semanas
+    -- después, que para esa fecha ya pasada sólo trae un valor heredado/
+    -- rellenado hacia atrás y no un pronóstico real con anticipación.
+    AND s.fecha::date <= sp.fecha
 )
 SELECT
   pr.*,
@@ -1529,6 +1534,9 @@ ORDER BY c.fecha_objetivo ASC
         AND sp.tipo = 'P'
         AND s.fechainicio <= sp.fecha
         AND s.fechafin >= sp.fecha
+        -- sólo sesiones creadas el mismo día o antes de la fecha que
+        -- pronostican (ver cargarHistoricosPronosticosDinamico más arriba)
+        AND s.fecha::date <= sp.fecha
     ),
 
     -- ===============================

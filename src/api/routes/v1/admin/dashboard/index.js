@@ -16,6 +16,7 @@ import mpmRoutes from "./mpm/index.js";
 import convocatoriaRoutes from "./convocatoria/index.js";
 import valoracionRoutes from "./valoracion/index.js";
 import auditoriaRoutes from "./auditoria/index.js";
+import climaMapaRoutes from "./clima_mapa/index.js";
 
 const router = Router();
 
@@ -37,6 +38,7 @@ export default function () {
   router.use("/convocatoria", convocatoriaRoutes());
   router.use("/valoracion", valoracionRoutes());
   router.use("/auditoria", auditoriaRoutes());
+  router.use("/clima_mapa", climaMapaRoutes());
 
   return router;
 }
