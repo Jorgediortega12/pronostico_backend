@@ -325,5 +325,11 @@ export default function () {
     controllers.buscarSemanaSimilar,
   );
 
+  router.post(
+    "/comparativoTipoDia",
+    validator(schema.comparativoTipoDia),
+    controllers.comparativoTipoDia,
+  );
+
   return router;
 }
