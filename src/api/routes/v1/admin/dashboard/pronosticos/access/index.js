@@ -331,6 +331,31 @@ export const analyzeDeviation = async (req, res) => {
   }
 };
 
+export const cargarEventosIdoXm = async (req, res) => {
+  try {
+    const { fechaInicio, fechaFin } = req.query;
+    const result = await service.cargarEventosIdoXm(fechaInicio, fechaFin);
+
+    if (!result.success) {
+      return responseError(
+        200,
+        "No fue posible consultar el portal IDO de XM",
+        502,
+        res,
+      );
+    }
+
+    return SuccessResponse(
+      res,
+      result.data, // { fecha_inicio, fecha_fin, total, eventos: [...] }
+      "Eventos de XM IDO obtenidos correctamente",
+    );
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
 export const predictDayScaled = async (req, res) => {
   try {
     const { ucp, fecha, fecha_referencia } = req.body;

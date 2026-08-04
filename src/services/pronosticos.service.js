@@ -2368,6 +2368,79 @@ export default class PronosticosService {
     return { success: false, statusCode: 0, data: null };
   }
 
+  // Trae eventos de Demanda No Atendida (DNA) del portal IDO de XM
+  // directamente desde la fuente oficial (vía epm/XMIdoClient) — para el
+  // botón "Cargar desde IDO" de Dna.tsx (Fuente IDO), no depende de OpenAI.
+  async cargarEventosIdoXm(fechaInicio, fechaFin, timeoutMs = 30000) {
+    const hostsToTry = ["127.0.0.1", "localhost"];
+
+    // puerto producción
+    const port = 8001;
+    // puerto desarrollo
+    // const port = 8000;
+
+    for (const host of hostsToTry) {
+      let timer;
+      try {
+        const url = `http://${host}:${port}/xm-ido/eventos-dna?fecha_inicio=${encodeURIComponent(fechaInicio)}&fecha_fin=${encodeURIComponent(fechaFin)}`;
+        const controller = new AbortController();
+        const signal = controller.signal;
+
+        timer = setTimeout(() => {
+          controller.abort();
+        }, timeoutMs);
+
+        const res = await fetch(url, {
+          method: "GET",
+          headers: { accept: "application/json" },
+          signal,
+        });
+
+        clearTimeout(timer);
+
+        const statusCode = res.status;
+        const json = await res.json().catch(() => null);
+
+        if (!res.ok) {
+          Logger.warn(
+            colors.yellow(
+              `cargarEventosIdoXm: HTTP ${statusCode} desde ${host}:${port}`,
+            ),
+          );
+          return { success: false, statusCode, data: json };
+        }
+
+        return {
+          success: true,
+          statusCode,
+          data: json, // { fecha_inicio, fecha_fin, total, eventos: [...] }
+        };
+      } catch (err) {
+        clearTimeout(timer);
+        if (err?.name === "AbortError") {
+          Logger.warn(
+            colors.yellow(
+              `cargarEventosIdoXm: timeout (${timeoutMs}ms) hacia ${host}:${port}`,
+            ),
+          );
+        } else {
+          Logger.warn(
+            colors.yellow(
+              `cargarEventosIdoXm: error conectando a ${host}:${port} — ${
+                err?.message || err
+              }`,
+            ),
+          );
+        }
+        // intenta siguiente host
+      }
+    }
+
+    Logger.error(colors.red(`cargarEventosIdoXm: Falló en todos los hosts`));
+
+    return { success: false, statusCode: 0, data: null };
+  }
+
   async predictDayScaled({
     ucp,
     fecha,

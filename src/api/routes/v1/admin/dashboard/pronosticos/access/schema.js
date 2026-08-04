@@ -204,4 +204,8 @@ export default {
       )
       .required(),
   }),
+  cargarEventosIdoXm: Joi.object().keys({
+    fechaInicio: Joi.string().required(), // YYYY-MM-DD
+    fechaFin: Joi.string().required(), // YYYY-MM-DD
+  }),
 };
