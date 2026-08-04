@@ -4,7 +4,6 @@ import Logger from "../helpers/logger.js";
 import client from "./redis.js";
 import moment from "moment";
 import { initCron } from "../services/cron.service.js";
-import { initClimaMapaCron } from "../services/clima_mapa_ingesta.service.js";
 
 export default async (app) => {
   try {
@@ -55,13 +54,10 @@ export default async (app) => {
   } catch (error) {
     Logger.error(colors.red("Error initializing cron scheduler"), error);
   }
-  // Init cron de ingesta del Mapa Climático
-  try {
-    await initClimaMapaCron();
-  } catch (error) {
-    Logger.error(
-      colors.red("Error initializing clima_mapa cron scheduler"),
-      error,
-    );
-  }
+  // El cron de ingesta del Mapa Climático se retiró: el módulo es
+  // multi-tenant (cada empresa tiene su propia BD) y un cron sin request
+  // HTTP no tiene sesión de la cual derivar a qué empresa conectarse. Por
+  // ahora la actualización es sólo manual, vía "Actualizar ahora" en el
+  // mapa (usa la sesión del usuario logueado → su propia BD). Ver la nota
+  // al final de services/clima_mapa_ingesta.service.js si se retoma.
 };

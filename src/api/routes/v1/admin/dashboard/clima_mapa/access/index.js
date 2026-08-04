@@ -170,7 +170,8 @@ export const proxyTilePrecipitacion = async (req, res) => {
 
 export const ejecutarIngesta = async (req, res) => {
   try {
-    const result = await service.ejecutarIngesta();
+    const { session } = req.user;
+    const result = await service.ejecutarIngesta(session);
 
     if (!result.success) {
       return responseError(200, result.message, 500, res);

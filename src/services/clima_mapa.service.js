@@ -151,9 +151,9 @@ export default class ClimaMapaService {
     }
   };
 
-  ejecutarIngesta = async () => {
+  ejecutarIngesta = async (session) => {
     try {
-      const resumen = await ejecutarIngestaClimaMapa();
+      const resumen = await ejecutarIngestaClimaMapa(session);
       return {
         success: true,
         data: resumen,
