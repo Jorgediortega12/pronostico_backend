@@ -17,10 +17,39 @@ import { Pool } from "pg";
 import path from "path";
 import moment from "moment";
 import { createConectionPG } from "../helpers/connections.js";
+import DnaIdoConfigModel from "../models/dna_ido_config.model.js";
 
 const model = PronosticosModel.getInstance();
 const configuracionModel = ConfiguracionModel.getInstance();
 const sesionModel = SesionModel.getInstance();
+const dnaIdoConfigModel = DnaIdoConfigModel.getInstance();
+
+// ── Filtro de eventos de XM IDO por config (municipios + empresa) ──────────
+const normalizarTexto = (s) =>
+  (s ?? "")
+    .toString()
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\p{Diacritic}]/gu, "")
+    .replace(/\s+/g, " ");
+
+// La descripción de XM suele terminar con la empresa entre paréntesis, ej.
+// "Eventos no programados en el SDL (AIR-E)." — pero no siempre trae ese tag.
+const extraerEmpresaDeDescripcion = (descripcion) => {
+  const match = /\(([^)]+)\)\s*\.?\s*$/.exec((descripcion ?? "").trim());
+  return match ? match[1].trim() : null;
+};
+
+const eventoCoincideConConfig = (evento, configNormalizada) => {
+  const municipioEvento = normalizarTexto(evento.municipio);
+  if (!configNormalizada.municipiosNormalizados.includes(municipioEvento))
+    return false;
+  const tagEmpresa = extraerEmpresaDeDescripcion(evento.descripcion);
+  // Sin tag de empresa en la descripción no se puede descartar por ese criterio.
+  if (!tagEmpresa) return true;
+  return normalizarTexto(tagEmpresa) === configNormalizada.empresaNormalizada;
+};
 
 // helpers de fecha (robustos a entradas vacías y varios formatos básicos)
 function toISODateString(input) {
@@ -2441,7 +2470,35 @@ export default class PronosticosService {
   // Trae eventos de Demanda No Atendida (DNA) del portal IDO de XM
   // directamente desde la fuente oficial (vía epm/XMIdoClient) — para el
   // botón "Cargar desde IDO" de Dna.tsx (Fuente IDO), no depende de OpenAI.
-  async cargarEventosIdoXm(fechaInicio, fechaFin, timeoutMs = 30000) {
+  // Filtra los eventos crudos de XM IDO usando la config por mercado
+  // (municipios + empresa) del tenant actual. Si el tenant no tiene ninguna
+  // config creada, no filtra nada (comportamiento previo, sin romper a
+  // quien todavía no configuró IDO). Cada evento que sí matchea queda
+  // etiquetado con `mcConfigurado` para que el frontend no tenga que
+  // adivinar el mercado por nombre de subestación/circuito.
+  async #filtrarEventosPorConfig(session, eventos) {
+    const configs = await dnaIdoConfigModel.obtenerTodos(session);
+    if (!configs || configs.length === 0) return eventos;
+
+    const configsNormalizadas = configs
+      .filter((c) => Array.isArray(c.municipios) && c.municipios.length > 0)
+      .map((c) => ({
+        mc: c.mc,
+        empresaNormalizada: normalizarTexto(c.empresa),
+        municipiosNormalizados: c.municipios.map(normalizarTexto),
+      }));
+
+    const eventosFiltrados = [];
+    for (const evento of eventos) {
+      const match = configsNormalizadas.find((c) =>
+        eventoCoincideConConfig(evento, c),
+      );
+      if (match) eventosFiltrados.push({ ...evento, mcConfigurado: match.mc });
+    }
+    return eventosFiltrados;
+  }
+
+  async cargarEventosIdoXm(session, fechaInicio, fechaFin, timeoutMs = 30000) {
     const hostsToTry = ["127.0.0.1", "localhost"];
 
     // puerto producción
@@ -2480,10 +2537,20 @@ export default class PronosticosService {
           return { success: false, statusCode, data: json };
         }
 
+        const eventosCrudos = json?.eventos ?? [];
+        const eventosFiltrados = await this.#filtrarEventosPorConfig(
+          session,
+          eventosCrudos,
+        );
+
         return {
           success: true,
           statusCode,
-          data: json, // { fecha_inicio, fecha_fin, total, eventos: [...] }
+          data: {
+            ...json,
+            eventos: eventosFiltrados,
+            total: eventosFiltrados.length,
+          },
         };
       } catch (err) {
         clearTimeout(timer);

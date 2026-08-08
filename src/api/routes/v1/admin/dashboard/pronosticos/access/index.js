@@ -374,7 +374,12 @@ export const analyzeDeviation = async (req, res) => {
 export const cargarEventosIdoXm = async (req, res) => {
   try {
     const { fechaInicio, fechaFin } = req.query;
-    const result = await service.cargarEventosIdoXm(fechaInicio, fechaFin);
+    const { session } = req.user;
+    const result = await service.cargarEventosIdoXm(
+      session,
+      fechaInicio,
+      fechaFin,
+    );
 
     if (!result.success) {
       return responseError(
