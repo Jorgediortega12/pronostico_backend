@@ -1253,6 +1253,28 @@ export default class ConfiguracionModel {
     }, "cargarVariablesClimaticasxFechaPeriodos");
   }
 
+  async resumenMensualClima(ucp, fechainicio, fechafin) {
+    return this.executeQuery(async (client) => {
+      const result = await client.query(querys.resumenMensualClima, [
+        ucp,
+        fechainicio,
+        fechafin,
+      ]);
+      return result.rows.length > 0 ? result.rows : [];
+    }, "resumenMensualClima");
+  }
+
+  async resumenDiarioClima(ucp, fechainicio, fechafin) {
+    return this.executeQuery(async (client) => {
+      const result = await client.query(querys.resumenDiarioClima, [
+        ucp,
+        fechainicio,
+        fechafin,
+      ]);
+      return result.rows.length > 0 ? result.rows : [];
+    }, "resumenDiarioClima");
+  }
+
   async buscarIcono(id, dia, noche, client) {
     try {
       await client.connect();

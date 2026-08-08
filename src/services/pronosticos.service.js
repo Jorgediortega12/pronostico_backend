@@ -17,10 +17,39 @@ import { Pool } from "pg";
 import path from "path";
 import moment from "moment";
 import { createConectionPG } from "../helpers/connections.js";
+import DnaIdoConfigModel from "../models/dna_ido_config.model.js";
 
 const model = PronosticosModel.getInstance();
 const configuracionModel = ConfiguracionModel.getInstance();
 const sesionModel = SesionModel.getInstance();
+const dnaIdoConfigModel = DnaIdoConfigModel.getInstance();
+
+// ── Filtro de eventos de XM IDO por config (municipios + empresa) ──────────
+const normalizarTexto = (s) =>
+  (s ?? "")
+    .toString()
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\p{Diacritic}]/gu, "")
+    .replace(/\s+/g, " ");
+
+// La descripción de XM suele terminar con la empresa entre paréntesis, ej.
+// "Eventos no programados en el SDL (AIR-E)." — pero no siempre trae ese tag.
+const extraerEmpresaDeDescripcion = (descripcion) => {
+  const match = /\(([^)]+)\)\s*\.?\s*$/.exec((descripcion ?? "").trim());
+  return match ? match[1].trim() : null;
+};
+
+const eventoCoincideConConfig = (evento, configNormalizada) => {
+  const municipioEvento = normalizarTexto(evento.municipio);
+  if (!configNormalizada.municipiosNormalizados.includes(municipioEvento))
+    return false;
+  const tagEmpresa = extraerEmpresaDeDescripcion(evento.descripcion);
+  // Sin tag de empresa en la descripción no se puede descartar por ese criterio.
+  if (!tagEmpresa) return true;
+  return normalizarTexto(tagEmpresa) === configNormalizada.empresaNormalizada;
+};
 
 // helpers de fecha (robustos a entradas vacías y varios formatos básicos)
 function toISODateString(input) {
@@ -2066,6 +2095,76 @@ export default class PronosticosService {
     }
   };
 
+  resumenMensualClima = async (ucp, fechainicio, fechafin) => {
+    try {
+      const rows = await configuracionModel.resumenMensualClima(
+        ucp,
+        fechainicio,
+        fechafin,
+      );
+
+      const resultado = rows.map((row) => ({
+        mes: row.mes,
+        temperaturaPromedio: Number(row.temp_prom ?? 0),
+        temperaturaMaxima: Number(row.temp_max ?? 0),
+        temperaturaMinima: Number(row.temp_min ?? 0),
+        humedadPromedio: Number(row.humedad_prom ?? 0),
+        vientoPromedio: Number(row.viento_prom ?? 0),
+        vientoMaximo: Number(row.viento_max ?? 0),
+        diasConDato: Number(row.dias_con_dato ?? 0),
+      }));
+
+      return {
+        success: true,
+        data: resultado,
+        message: "Resumen mensual de clima obtenido correctamente",
+      };
+    } catch (error) {
+      Logger.error(colors.red("Error resumenMensualClima"), error);
+      return {
+        success: false,
+        data: null,
+        message: "Error al obtener el resumen mensual de clima",
+      };
+    }
+  };
+
+  resumenDiarioClima = async (ucp, fechainicio, fechafin) => {
+    try {
+      const rows = await configuracionModel.resumenDiarioClima(
+        ucp,
+        fechainicio,
+        fechafin,
+      );
+
+      const resultado = rows.map((row) => ({
+        fecha:
+          row.fecha instanceof Date
+            ? row.fecha.toISOString().slice(0, 10)
+            : String(row.fecha).slice(0, 10),
+        temperaturaPromedio: Number(row.temp_prom ?? 0),
+        temperaturaMaxima: Number(row.temp_max ?? 0),
+        temperaturaMinima: Number(row.temp_min ?? 0),
+        humedadPromedio: Number(row.humedad_prom ?? 0),
+        vientoPromedio: Number(row.viento_prom ?? 0),
+        vientoMaximo: Number(row.viento_max ?? 0),
+      }));
+
+      return {
+        success: true,
+        data: resultado,
+        message: "Resumen diario de clima obtenido correctamente",
+      };
+    } catch (error) {
+      Logger.error(colors.red("Error resumenDiarioClima"), error);
+      return {
+        success: false,
+        data: null,
+        message: "Error al obtener el resumen diario de clima",
+      };
+    }
+  };
+
   async predictDay({
     ucp,
     fecha,
@@ -2364,6 +2463,117 @@ export default class PronosticosService {
     }
 
     Logger.error(colors.red(`analyzeDeviation: Falló en todos los hosts`));
+
+    return { success: false, statusCode: 0, data: null };
+  }
+
+  // Trae eventos de Demanda No Atendida (DNA) del portal IDO de XM
+  // directamente desde la fuente oficial (vía epm/XMIdoClient) — para el
+  // botón "Cargar desde IDO" de Dna.tsx (Fuente IDO), no depende de OpenAI.
+  // Filtra los eventos crudos de XM IDO usando la config por mercado
+  // (municipios + empresa) del tenant actual. Si el tenant no tiene ninguna
+  // config creada, no filtra nada (comportamiento previo, sin romper a
+  // quien todavía no configuró IDO). Cada evento que sí matchea queda
+  // etiquetado con `mcConfigurado` para que el frontend no tenga que
+  // adivinar el mercado por nombre de subestación/circuito.
+  async #filtrarEventosPorConfig(session, eventos) {
+    const configs = await dnaIdoConfigModel.obtenerTodos(session);
+    if (!configs || configs.length === 0) return eventos;
+
+    const configsNormalizadas = configs
+      .filter((c) => Array.isArray(c.municipios) && c.municipios.length > 0)
+      .map((c) => ({
+        mc: c.mc,
+        empresaNormalizada: normalizarTexto(c.empresa),
+        municipiosNormalizados: c.municipios.map(normalizarTexto),
+      }));
+
+    const eventosFiltrados = [];
+    for (const evento of eventos) {
+      const match = configsNormalizadas.find((c) =>
+        eventoCoincideConConfig(evento, c),
+      );
+      if (match) eventosFiltrados.push({ ...evento, mcConfigurado: match.mc });
+    }
+    return eventosFiltrados;
+  }
+
+  async cargarEventosIdoXm(session, fechaInicio, fechaFin, timeoutMs = 30000) {
+    const hostsToTry = ["127.0.0.1", "localhost"];
+
+    // puerto producción
+    const port = 8001;
+    // puerto desarrollo
+    // const port = 8000;
+
+    for (const host of hostsToTry) {
+      let timer;
+      try {
+        const url = `http://${host}:${port}/xm-ido/eventos-dna?fecha_inicio=${encodeURIComponent(fechaInicio)}&fecha_fin=${encodeURIComponent(fechaFin)}`;
+        const controller = new AbortController();
+        const signal = controller.signal;
+
+        timer = setTimeout(() => {
+          controller.abort();
+        }, timeoutMs);
+
+        const res = await fetch(url, {
+          method: "GET",
+          headers: { accept: "application/json" },
+          signal,
+        });
+
+        clearTimeout(timer);
+
+        const statusCode = res.status;
+        const json = await res.json().catch(() => null);
+
+        if (!res.ok) {
+          Logger.warn(
+            colors.yellow(
+              `cargarEventosIdoXm: HTTP ${statusCode} desde ${host}:${port}`,
+            ),
+          );
+          return { success: false, statusCode, data: json };
+        }
+
+        const eventosCrudos = json?.eventos ?? [];
+        const eventosFiltrados = await this.#filtrarEventosPorConfig(
+          session,
+          eventosCrudos,
+        );
+
+        return {
+          success: true,
+          statusCode,
+          data: {
+            ...json,
+            eventos: eventosFiltrados,
+            total: eventosFiltrados.length,
+          },
+        };
+      } catch (err) {
+        clearTimeout(timer);
+        if (err?.name === "AbortError") {
+          Logger.warn(
+            colors.yellow(
+              `cargarEventosIdoXm: timeout (${timeoutMs}ms) hacia ${host}:${port}`,
+            ),
+          );
+        } else {
+          Logger.warn(
+            colors.yellow(
+              `cargarEventosIdoXm: error conectando a ${host}:${port} — ${
+                err?.message || err
+              }`,
+            ),
+          );
+        }
+        // intenta siguiente host
+      }
+    }
+
+    Logger.error(colors.red(`cargarEventosIdoXm: Falló en todos los hosts`));
 
     return { success: false, statusCode: 0, data: null };
   }

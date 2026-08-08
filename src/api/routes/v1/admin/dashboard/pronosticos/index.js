@@ -1,6 +1,8 @@
 // routes/pronosticos.routes.js
 import { Router } from "express";
-import validator from "../../../../../middleware/validator.js";
+import validator, {
+  ValidationSource,
+} from "../../../../../middleware/validator.js";
 import schema from "./access/schema.js";
 import * as controllers from "./access/index.js";
 
@@ -40,6 +42,16 @@ export default function () {
     validator(schema.traerDatosClimaticos),
     controllers.traerDatosClimaticos,
   );
+  router.get(
+    "/resumenMensualClima/:ucp/:fechainicio/:fechafin",
+    validator(schema.resumenMensualClima, ValidationSource.PARAM),
+    controllers.resumenMensualClima,
+  );
+  router.get(
+    "/resumenDiarioClima/:ucp/:fechainicio/:fechafin",
+    validator(schema.resumenDiarioClima, ValidationSource.PARAM),
+    controllers.resumenDiarioClima,
+  );
   router.post(
     "/predictDay",
     validator(schema.predictDay),
@@ -56,6 +68,12 @@ export default function () {
     "/analyze-deviation",
     validator(schema.analyzeDeviation),
     controllers.analyzeDeviation,
+  );
+
+  router.get(
+    "/xm-ido/eventos",
+    validator(schema.cargarEventosIdoXm, ValidationSource.QUERY),
+    controllers.cargarEventosIdoXm,
   );
 
   router.post(

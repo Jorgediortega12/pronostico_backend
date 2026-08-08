@@ -398,6 +398,62 @@ export const cargarVariablesClimaticasxFechaPeriodos = `
   ORDER BY fecha ASC;
 `;
 
+// 🔹 Resumen mensual de clima (temperatura/humedad/viento) por rango de
+// fechas. Agrega en SQL (AVG/MAX/MIN sobre los 24 periodos por día, luego
+// por mes) en vez de traer cada fila y resolver iconos período a período
+// como hace traerDatosClimaticos — para un rango de meses esa ruta haría
+// cientos de consultas extra de icono que aquí no hacen falta (el resumen
+// mensual no necesita iconos).
+const _colsT = Array.from({ length: 24 }, (_, i) => `p${i + 1}_t`);
+const _colsH = Array.from({ length: 24 }, (_, i) => `p${i + 1}_h`);
+const _colsV = Array.from({ length: 24 }, (_, i) => `p${i + 1}_v`);
+export const resumenMensualClima = `
+  SELECT
+    to_char(mes, 'YYYY-MM') AS mes,
+    AVG(dia_prom_t) AS temp_prom,
+    MAX(dia_max_t) AS temp_max,
+    MIN(dia_min_t) AS temp_min,
+    AVG(dia_prom_h) AS humedad_prom,
+    AVG(dia_prom_v) AS viento_prom,
+    MAX(dia_max_v) AS viento_max,
+    COUNT(*) AS dias_con_dato
+  FROM (
+    SELECT
+      fecha AS mes,
+      (${_colsT.join(" + ")}) / 24.0 AS dia_prom_t,
+      GREATEST(${_colsT.join(", ")}) AS dia_max_t,
+      LEAST(${_colsT.join(", ")}) AS dia_min_t,
+      (${_colsH.join(" + ")}) / 24.0 AS dia_prom_h,
+      (${_colsV.join(" + ")}) / 24.0 AS dia_prom_v,
+      GREATEST(${_colsV.join(", ")}) AS dia_max_v
+    FROM datos_clima
+    WHERE ucp = $1
+      AND fecha BETWEEN $2 AND $3
+  ) dias
+  GROUP BY 1
+  ORDER BY 1 ASC;
+`;
+
+// 🔹 Resumen diario de clima (temperatura/humedad/viento) por rango de
+// fechas — un valor agregado por día (sin iconos), pensado para graficar
+// una tendencia histórico+pronóstico día a día (ver resumenMensualClima
+// arriba para el motivo de agregar en SQL en vez de reusar
+// traerDatosClimaticos).
+export const resumenDiarioClima = `
+  SELECT
+    fecha,
+    (${_colsT.join(" + ")}) / 24.0 AS temp_prom,
+    GREATEST(${_colsT.join(", ")}) AS temp_max,
+    LEAST(${_colsT.join(", ")}) AS temp_min,
+    (${_colsH.join(" + ")}) / 24.0 AS humedad_prom,
+    (${_colsV.join(" + ")}) / 24.0 AS viento_prom,
+    GREATEST(${_colsV.join(", ")}) AS viento_max
+  FROM datos_clima
+  WHERE ucp = $1
+    AND fecha BETWEEN $2 AND $3
+  ORDER BY fecha ASC;
+`;
+
 // 🔹 Buscar icono (MISMA lógica que .NET)
 export const buscarIcono = `
   SELECT icon_dia, icon_noche

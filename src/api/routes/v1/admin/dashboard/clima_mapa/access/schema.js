@@ -16,4 +16,8 @@ export default {
     activo: Joi.boolean().required(),
     orden: Joi.number().optional(),
   }),
+  reporteSensacionTermica: Joi.object().keys({
+    fechaInicio: Joi.string().required(), // YYYY-MM-DD
+    fechaFin: Joi.string().required(), // YYYY-MM-DD
+  }),
 };

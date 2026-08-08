@@ -236,6 +236,46 @@ export const traerDatosClimaticos = async (req, res) => {
   }
 };
 
+export const resumenMensualClima = async (req, res) => {
+  try {
+    const { ucp, fechainicio, fechafin } = req.params;
+
+    const result = await service.resumenMensualClima(
+      ucp,
+      fechainicio,
+      fechafin,
+    );
+
+    if (!result.success) {
+      return responseError(200, result.message, 400, res);
+    }
+
+    return SuccessResponse(res, result.data, result.message);
+  } catch (error) {
+    return InternalError(res);
+  }
+};
+
+export const resumenDiarioClima = async (req, res) => {
+  try {
+    const { ucp, fechainicio, fechafin } = req.params;
+
+    const result = await service.resumenDiarioClima(
+      ucp,
+      fechainicio,
+      fechafin,
+    );
+
+    if (!result.success) {
+      return responseError(200, result.message, 400, res);
+    }
+
+    return SuccessResponse(res, result.data, result.message);
+  } catch (error) {
+    return InternalError(res);
+  }
+};
+
 export const predictDay = async (req, res) => {
   try {
     const { ucp, fecha, fecha_referencia } = req.body;
@@ -324,6 +364,36 @@ export const analyzeDeviation = async (req, res) => {
       res,
       result.data, // lo que devuelva el microservicio que consulta OpenAI
       "Análisis de desvíos obtenido correctamente",
+    );
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const cargarEventosIdoXm = async (req, res) => {
+  try {
+    const { fechaInicio, fechaFin } = req.query;
+    const { session } = req.user;
+    const result = await service.cargarEventosIdoXm(
+      session,
+      fechaInicio,
+      fechaFin,
+    );
+
+    if (!result.success) {
+      return responseError(
+        200,
+        "No fue posible consultar el portal IDO de XM",
+        502,
+        res,
+      );
+    }
+
+    return SuccessResponse(
+      res,
+      result.data, // { fecha_inicio, fecha_fin, total, eventos: [...] }
+      "Eventos de XM IDO obtenidos correctamente",
     );
   } catch (err) {
     Logger.error(err);

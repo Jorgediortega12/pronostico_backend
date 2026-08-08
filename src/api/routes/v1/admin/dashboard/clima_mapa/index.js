@@ -1,5 +1,7 @@
 import { Router } from "express";
-import validator from "../../../../../middleware/validator.js";
+import validator, {
+  ValidationSource,
+} from "../../../../../middleware/validator.js";
 import schema from "./access/schema.js";
 import * as controllers from "./access/index.js";
 
@@ -19,6 +21,12 @@ export default function () {
   router.get("/puntos/:id/dia", controllers.cargarDiaPorPunto);
 
   router.post("/ingesta/ejecutar", controllers.ejecutarIngesta);
+
+  router.get(
+    "/reporte-sensacion-termica",
+    validator(schema.reporteSensacionTermica, ValidationSource.QUERY),
+    controllers.reporteSensacionTermica,
+  );
 
   return router;
 }
