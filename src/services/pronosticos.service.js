@@ -2066,6 +2066,76 @@ export default class PronosticosService {
     }
   };
 
+  resumenMensualClima = async (ucp, fechainicio, fechafin) => {
+    try {
+      const rows = await configuracionModel.resumenMensualClima(
+        ucp,
+        fechainicio,
+        fechafin,
+      );
+
+      const resultado = rows.map((row) => ({
+        mes: row.mes,
+        temperaturaPromedio: Number(row.temp_prom ?? 0),
+        temperaturaMaxima: Number(row.temp_max ?? 0),
+        temperaturaMinima: Number(row.temp_min ?? 0),
+        humedadPromedio: Number(row.humedad_prom ?? 0),
+        vientoPromedio: Number(row.viento_prom ?? 0),
+        vientoMaximo: Number(row.viento_max ?? 0),
+        diasConDato: Number(row.dias_con_dato ?? 0),
+      }));
+
+      return {
+        success: true,
+        data: resultado,
+        message: "Resumen mensual de clima obtenido correctamente",
+      };
+    } catch (error) {
+      Logger.error(colors.red("Error resumenMensualClima"), error);
+      return {
+        success: false,
+        data: null,
+        message: "Error al obtener el resumen mensual de clima",
+      };
+    }
+  };
+
+  resumenDiarioClima = async (ucp, fechainicio, fechafin) => {
+    try {
+      const rows = await configuracionModel.resumenDiarioClima(
+        ucp,
+        fechainicio,
+        fechafin,
+      );
+
+      const resultado = rows.map((row) => ({
+        fecha:
+          row.fecha instanceof Date
+            ? row.fecha.toISOString().slice(0, 10)
+            : String(row.fecha).slice(0, 10),
+        temperaturaPromedio: Number(row.temp_prom ?? 0),
+        temperaturaMaxima: Number(row.temp_max ?? 0),
+        temperaturaMinima: Number(row.temp_min ?? 0),
+        humedadPromedio: Number(row.humedad_prom ?? 0),
+        vientoPromedio: Number(row.viento_prom ?? 0),
+        vientoMaximo: Number(row.viento_max ?? 0),
+      }));
+
+      return {
+        success: true,
+        data: resultado,
+        message: "Resumen diario de clima obtenido correctamente",
+      };
+    } catch (error) {
+      Logger.error(colors.red("Error resumenDiarioClima"), error);
+      return {
+        success: false,
+        data: null,
+        message: "Error al obtener el resumen diario de clima",
+      };
+    }
+  };
+
   async predictDay({
     ucp,
     fecha,

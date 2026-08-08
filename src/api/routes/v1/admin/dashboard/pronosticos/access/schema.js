@@ -172,6 +172,16 @@ export default {
     fechainicio: Joi.string().required(),
     fechafin: Joi.string().required(),
   }),
+  resumenMensualClima: Joi.object({
+    ucp: Joi.string().required(),
+    fechainicio: Joi.string().required(),
+    fechafin: Joi.string().required(),
+  }),
+  resumenDiarioClima: Joi.object({
+    ucp: Joi.string().required(),
+    fechainicio: Joi.string().required(),
+    fechafin: Joi.string().required(),
+  }),
   predictDay: Joi.object().keys({
     ucp: Joi.string().required(),
     fecha: Joi.string().required(),

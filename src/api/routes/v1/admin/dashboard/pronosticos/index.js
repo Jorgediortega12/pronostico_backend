@@ -42,6 +42,16 @@ export default function () {
     validator(schema.traerDatosClimaticos),
     controllers.traerDatosClimaticos,
   );
+  router.get(
+    "/resumenMensualClima/:ucp/:fechainicio/:fechafin",
+    validator(schema.resumenMensualClima, ValidationSource.PARAM),
+    controllers.resumenMensualClima,
+  );
+  router.get(
+    "/resumenDiarioClima/:ucp/:fechainicio/:fechafin",
+    validator(schema.resumenDiarioClima, ValidationSource.PARAM),
+    controllers.resumenDiarioClima,
+  );
   router.post(
     "/predictDay",
     validator(schema.predictDay),

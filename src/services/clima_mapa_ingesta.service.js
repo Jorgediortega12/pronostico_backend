@@ -22,8 +22,8 @@ dotenv.config();
 
 const OWM_BASE = "https://api.openweathermap.org/data/2.5";
 
-// Pool fijo (vía .env) usado ÚNICAMENTE por el proxy público de tiles de
-// precipitación (proxyTilePrecipitacion) — un <img src> no puede llevar
+// Pool fijo (vía .env) usado ÚNICAMENTE por el proxy público de tiles
+// climáticos (proxyTileClima) — un <img src> no puede llevar
 // sesión/Authorization, así que esa ruta no puede resolver la key por
 // empresa. La ingesta de puntos NO usa este pool (ver ejecutarIngestaClimaMapa).
 const pool = new Pool({

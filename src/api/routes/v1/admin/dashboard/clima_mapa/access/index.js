@@ -142,16 +142,24 @@ export const cargarDiaPorPunto = async (req, res) => {
   }
 };
 
-// Proxy de tiles de precipitación de OpenWeatherMap: la key nunca llega al
-// frontend. Sin auth (montado bajo configuracionPublica) porque lo único
-// que protege es la key/rate-limit de OWM, no datos de usuario, y las
-// peticiones de tiles de Leaflet (<img>) no pueden llevar el header
-// Authorization.
-export const proxyTilePrecipitacion = async (req, res) => {
+// Capas de OpenWeatherMap permitidas — nunca se pasa el parámetro ":layer"
+// directo a la URL upstream sin validar contra esta lista (evita que se use
+// esta ruta sin auth como proxy abierto a rutas arbitrarias de OWM).
+const CAPAS_OWM_PERMITIDAS = new Set(["precipitation_new", "temp_new"]);
+
+// Proxy de tiles de OpenWeatherMap (precipitación, temperatura): la key
+// nunca llega al frontend. Sin auth (montado bajo configuracionPublica)
+// porque lo único que protege es la key/rate-limit de OWM, no datos de
+// usuario, y las peticiones de tiles de Leaflet (<img>) no pueden llevar el
+// header Authorization.
+export const proxyTileClima = async (req, res) => {
   try {
-    const { z, x, y } = req.params;
+    const { layer, z, x, y } = req.params;
+    if (!CAPAS_OWM_PERMITIDAS.has(layer)) {
+      return res.status(400).end();
+    }
     const key = await obtenerApiKeyOpenWeather();
-    const url = `https://tile.openweathermap.org/map/precipitation_new/${z}/${x}/${y}.png?appid=${key}`;
+    const url = `https://tile.openweathermap.org/map/${layer}/${z}/${x}/${y}.png?appid=${key}`;
     const upstream = await fetch(url);
 
     if (!upstream.ok) {
@@ -178,6 +186,34 @@ export const ejecutarIngesta = async (req, res) => {
     }
 
     return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const reporteSensacionTermica = async (req, res) => {
+  try {
+    const { session } = req.user;
+    const { fechaInicio, fechaFin } = req.query;
+    const result = await service.generarReporteSensacionTermica(session, {
+      fechaInicio,
+      fechaFin,
+    });
+
+    if (!result.success) {
+      return responseError(200, result.message, 400, res);
+    }
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="Reporte_Sensacion_Termica_${fechaInicio}_a_${fechaFin}.xlsx"`,
+    );
+    return res.send(Buffer.from(result.data));
   } catch (err) {
     Logger.error(err);
     return InternalError(res);
