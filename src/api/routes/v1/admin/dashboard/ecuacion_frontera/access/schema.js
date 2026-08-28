@@ -9,8 +9,5 @@ export default {
     fechaInicio: Joi.string()
       .pattern(/^\d{4}-\d{2}-\d{2}$/)
       .required(),
-    fechaFin: Joi.string()
-      .pattern(/^\d{4}-\d{2}-\d{2}$/)
-      .required(),
   }),
 };

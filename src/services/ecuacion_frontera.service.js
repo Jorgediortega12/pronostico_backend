@@ -283,15 +283,16 @@ export const calcularYGuardar = async (ucpNombre) => {
 
 // ── 3b. Calcular SIN guardar, para una fuente "DA API EPM" ──────────────────
 // A diferencia de calcularYGuardar, esto NO escribe en actualizaciondatos —
-// solo devuelve los días del rango que necesitan respaldo (los que YA tienen
-// dato de otra fuente se excluyen del resultado, nunca se calculan ni se
-// muestran). La escritura real queda a cargo del flujo normal de "Guardar"
-// que ya usan todas las fuentes en Actualización de datos.
-export const calcularRespaldoSinGuardar = async (
-  ucpNombre,
-  fechaInicio,
-  fechaFin,
-) => {
+// solo devuelve todos los días desde fechaInicio en adelante para los que
+// haya consumo de frontera configurado (sin límite superior: si el archivo
+// que disparó esto llega hasta el día 15 pero hay frontera calculable hasta
+// el 17, igual se devuelve hasta el 17). Por cada día: si ya existe dato de
+// otra fuente en actualizaciondatos se devuelve ESE valor real
+// (esRespaldo=false, nunca se recalcula ni se pisa); si no existe, se
+// devuelve el valor calculado por ecuación de frontera (esRespaldo=true). La
+// escritura real a la DB sigue a cargo del flujo normal de "Guardar" que ya
+// usan todas las fuentes en Actualización de datos.
+export const calcularRespaldoSinGuardar = async (ucpNombre, fechaInicio) => {
   const client = createClient();
   await client.connect();
   try {
@@ -305,37 +306,47 @@ export const calcularRespaldoSinGuardar = async (
       FROM equivalencia_flujo ef
       JOIN flujo_datos_horarios fd ON fd.id_flujo = ef.id_flujo
       WHERE ef.codigo_ucp = $1 AND ef.estado = 1
-        AND fd.fecha BETWEEN $2 AND $3
+        AND fd.fecha >= $2
       GROUP BY fd.fecha
       ORDER BY fd.fecha;
       `,
-      [codigoUcp, fechaInicio, fechaFin],
+      [codigoUcp, fechaInicio],
     );
 
     const dias = [];
-    let excluidos = 0;
+    let diasReales = 0;
+    let diasRespaldo = 0;
     for (const row of calculo.rows) {
       const fechaISO = row.fecha.toISOString().slice(0, 10);
-      const existe = await client.query(
-        "SELECT 1 FROM actualizaciondatos WHERE ucp = $1 AND fecha = $2",
+      const existente = await client.query(
+        `SELECT ${cols.join(", ")}, observacion FROM actualizaciondatos WHERE ucp = $1 AND fecha = $2`,
         [ucpNombre, fechaISO],
       );
-      if (existe.rowCount > 0) {
-        excluidos++;
-        continue;
+      if (existente.rowCount > 0) {
+        // Ya había fila (no se recalcula ni se toca) — pero si esa fila YA
+        // era un respaldo de una corrida anterior, se sigue marcando como
+        // tal para que el badge no la muestre como si fuera oficial.
+        const yaEraRespaldo = (existente.rows[0].observacion || "").includes(
+          "ecuación de frontera",
+        );
+        if (!yaEraRespaldo) diasReales++;
+        else diasRespaldo++;
+        dias.push({
+          fecha: fechaISO,
+          periodos: cols.map((c) => Number(existente.rows[0][c])),
+          esRespaldo: yaEraRespaldo,
+        });
+      } else {
+        diasRespaldo++;
+        dias.push({
+          fecha: fechaISO,
+          periodos: cols.map((c) => Number(row[c])),
+          esRespaldo: true,
+        });
       }
-      dias.push({
-        fecha: fechaISO,
-        periodos: cols.map((c) => Number(row[c])),
-      });
     }
 
-    return {
-      success: true,
-      diasCalculados: calculo.rowCount,
-      diasExcluidos: excluidos,
-      dias,
-    };
+    return { success: true, diasReales, diasRespaldo, dias };
   } catch (err) {
     Logger.error(colors.red("Error calcularRespaldoSinGuardar"), err);
     return { success: false, message: err.message };
