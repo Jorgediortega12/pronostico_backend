@@ -21,6 +21,7 @@ import medidasFactoresRoutes from "./medidas_factores/index.js";
 import dnaIdoConfigRoutes from "./dna_ido_config/index.js";
 import noticiasIdeamRoutes from "./noticias_ideam/index.js";
 import noticiasUngrdRoutes from "./noticias_ungrd/index.js";
+import configCiudadesClimaRoutes from "./config_ciudades_clima/index.js";
 
 const router = Router();
 
@@ -47,6 +48,7 @@ export default function () {
   router.use("/dna_ido_config", dnaIdoConfigRoutes());
   router.use("/noticias_ideam", noticiasIdeamRoutes());
   router.use("/noticias_ungrd", noticiasUngrdRoutes());
+  router.use("/config_ciudades_clima", configCiudadesClimaRoutes());
 
   return router;
 }

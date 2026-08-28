@@ -6,13 +6,17 @@ const { Client } = pkg;
 import dotenv from "dotenv";
 dotenv.config();
 
+// datos_clima vive en jano_proxy (la BD centralizada que jano-proxy
+// actualiza a diario y que consulta toda la app — ver ConfiguracionModel).
+// Las tablas homónimas en Jano (la principal) son respaldo/legacy, no lo
+// que lee la app.
 const createClient = () => {
   return new Client({
-    user: process.env.POSTGRES_USER,
-    host: process.env.POSTGRES_HOST || "localhost",
-    database: process.env.POSTGRES_DB,
-    password: process.env.POSTGRES_PASSWORD,
-    port: process.env.POSTGRES_PORT || 5432,
+    user: process.env.POSTGRES_USER_PROXY,
+    host: process.env.POSTGRES_HOST_PROXY || "localhost",
+    database: process.env.POSTGRES_DB_PROXY,
+    password: process.env.POSTGRES_PASSWORD_PROXY,
+    port: process.env.POSTGRES_PORT_PROXY || 5432,
   });
 };
 
