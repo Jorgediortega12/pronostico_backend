@@ -1,5 +1,7 @@
 import { Router } from "express";
-import validator from "../../../../../middleware/validator.js";
+import validator, {
+  ValidationSource,
+} from "../../../../../middleware/validator.js";
 import { uploadExcel } from "../../../../../../middleware/uploadExcel.js";
 import schema from "./access/schema.js";
 import * as controllers from "./access/index.js";
@@ -15,6 +17,12 @@ export default function () {
     ]),
     validator(schema.procesar),
     controllers.procesar,
+  );
+
+  router.get(
+    "/calcular-respaldo",
+    validator(schema.calcularRespaldo, ValidationSource.QUERY),
+    controllers.calcularRespaldo,
   );
 
   return router;

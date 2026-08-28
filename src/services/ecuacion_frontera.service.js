@@ -281,6 +281,69 @@ export const calcularYGuardar = async (ucpNombre) => {
   }
 };
 
+// ── 3b. Calcular SIN guardar, para una fuente "DA API EPM" ──────────────────
+// A diferencia de calcularYGuardar, esto NO escribe en actualizaciondatos —
+// solo devuelve los días del rango que necesitan respaldo (los que YA tienen
+// dato de otra fuente se excluyen del resultado, nunca se calculan ni se
+// muestran). La escritura real queda a cargo del flujo normal de "Guardar"
+// que ya usan todas las fuentes en Actualización de datos.
+export const calcularRespaldoSinGuardar = async (
+  ucpNombre,
+  fechaInicio,
+  fechaFin,
+) => {
+  const client = createClient();
+  await client.connect();
+  try {
+    const codigoUcp = await resolverCodigoUcp(client, ucpNombre);
+
+    const calculo = await client.query(
+      `
+      SELECT
+        fd.fecha,
+        ${cols.map((c) => `SUM(ef.valor * fd.${c}) / 1000.0 AS ${c}`).join(",\n        ")}
+      FROM equivalencia_flujo ef
+      JOIN flujo_datos_horarios fd ON fd.id_flujo = ef.id_flujo
+      WHERE ef.codigo_ucp = $1 AND ef.estado = 1
+        AND fd.fecha BETWEEN $2 AND $3
+      GROUP BY fd.fecha
+      ORDER BY fd.fecha;
+      `,
+      [codigoUcp, fechaInicio, fechaFin],
+    );
+
+    const dias = [];
+    let excluidos = 0;
+    for (const row of calculo.rows) {
+      const fechaISO = row.fecha.toISOString().slice(0, 10);
+      const existe = await client.query(
+        "SELECT 1 FROM actualizaciondatos WHERE ucp = $1 AND fecha = $2",
+        [ucpNombre, fechaISO],
+      );
+      if (existe.rowCount > 0) {
+        excluidos++;
+        continue;
+      }
+      dias.push({
+        fecha: fechaISO,
+        periodos: cols.map((c) => Number(row[c])),
+      });
+    }
+
+    return {
+      success: true,
+      diasCalculados: calculo.rowCount,
+      diasExcluidos: excluidos,
+      dias,
+    };
+  } catch (err) {
+    Logger.error(colors.red("Error calcularRespaldoSinGuardar"), err);
+    return { success: false, message: err.message };
+  } finally {
+    await client.end();
+  }
+};
+
 // ── Orquestador: corre los 3 pasos en secuencia ──────────────────────────────
 export const procesarEcuacionYConsumo = async (
   rutaEcuacion,

@@ -34,3 +34,19 @@ export const procesar = async (req, res) => {
     return InternalError(res);
   }
 };
+
+export const calcularRespaldo = async (req, res) => {
+  try {
+    const { ucp, fechaInicio, fechaFin } = req.query;
+    const result = await ecuacionFronteraService.calcularRespaldoSinGuardar(
+      ucp,
+      fechaInicio,
+      fechaFin,
+    );
+    if (!result.success) return responseError(200, result.message, 400, res);
+    return SuccessResponse(res, result, "Cálculo completado.");
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
