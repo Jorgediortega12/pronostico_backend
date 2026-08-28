@@ -298,11 +298,18 @@ export const calcularRespaldoSinGuardar = async (ucpNombre, fechaInicio) => {
   try {
     const codigoUcp = await resolverCodigoUcp(client, ucpNombre);
 
+    // Sin /1000 acá: esto queda en kWh crudo (igual que el archivo de
+    // consumo). La conversión a MWh la hace el frontend con la "Escala"
+    // configurada en la fuente "DA API EPM" (Configuración > Fuentes), NO
+    // acá — así queda centralizada en el mismo mecanismo que ya usa el
+    // resto de fuentes, en vez de un /1000 fijo en el backend. Ver
+    // calcularYGuardar más abajo: ese SÍ mantiene el /1000 porque inserta
+    // directo a la DB sin pasar por el frontend.
     const calculo = await client.query(
       `
       SELECT
         fd.fecha,
-        ${cols.map((c) => `SUM(ef.valor * fd.${c}) / 1000.0 AS ${c}`).join(",\n        ")}
+        ${cols.map((c) => `SUM(ef.valor * fd.${c}) AS ${c}`).join(",\n        ")}
       FROM equivalencia_flujo ef
       JOIN flujo_datos_horarios fd ON fd.id_flujo = ef.id_flujo
       WHERE ef.codigo_ucp = $1 AND ef.estado = 1
