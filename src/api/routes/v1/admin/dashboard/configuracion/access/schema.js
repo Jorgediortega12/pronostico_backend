@@ -392,4 +392,12 @@ export default {
     nombre_festivo: Joi.string().allow("").optional(),
     resumen_climatico: Joi.string().valid("soleado", "nublado", "lluvioso").allow("").optional(),
   }),
+
+  comparativoTipoDia: Joi.object({
+    ucp: Joi.string().required(),
+    fechas: Joi.array().items(Joi.string()).min(1).required(),
+    modo: Joi.string().valid("anio", "tendencia").required(),
+    aniosAtras: Joi.number().min(1).max(2).optional(),
+    semanas: Joi.number().min(1).max(12).optional(),
+  }),
 };

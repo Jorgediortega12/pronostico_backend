@@ -1253,6 +1253,28 @@ export default class ConfiguracionModel {
     }, "cargarVariablesClimaticasxFechaPeriodos");
   }
 
+  async resumenMensualClima(ucp, fechainicio, fechafin) {
+    return this.executeQuery(async (client) => {
+      const result = await client.query(querys.resumenMensualClima, [
+        ucp,
+        fechainicio,
+        fechafin,
+      ]);
+      return result.rows.length > 0 ? result.rows : [];
+    }, "resumenMensualClima");
+  }
+
+  async resumenDiarioClima(ucp, fechainicio, fechafin) {
+    return this.executeQuery(async (client) => {
+      const result = await client.query(querys.resumenDiarioClima, [
+        ucp,
+        fechainicio,
+        fechafin,
+      ]);
+      return result.rows.length > 0 ? result.rows : [];
+    }, "resumenDiarioClima");
+  }
+
   async buscarIcono(id, dia, noche, client) {
     try {
       await client.connect();
@@ -1710,6 +1732,64 @@ ORDER BY c.fecha_objetivo ASC
       return top3.length > 0 ? top3 : null;
     } catch (error) {
       Logger.error(colors.red("Error model buscarSemanaSimilar"));
+      Logger.error(colors.red(error.message));
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  // Tarjetas por tipo de día (últimos 7 días reportados): por cada fecha,
+  // según el modo, busca el valor comparado del año anterior (holiday-aware)
+  // o la serie de tendencia de las últimas N semanas del mismo día de semana.
+  comparativoTipoDia = async (
+    { ucp, fechas, modo, aniosAtras = 1, semanas = 4 },
+    client,
+  ) => {
+    try {
+      await client.connect();
+      const resultados = [];
+      for (const fecha of fechas) {
+        if (modo === "tendencia") {
+          const result = await client.query(
+            querys.tendenciaUltimasSemanasPorFecha,
+            [ucp, fecha, semanas],
+          );
+          resultados.push({
+            fecha,
+            modo,
+            serie: result.rows
+              .map((r) => ({
+                fecha:
+                  r.fecha instanceof Date
+                    ? r.fecha.toISOString().slice(0, 10)
+                    : String(r.fecha).slice(0, 10),
+                valor: r.valor === null ? null : Number(r.valor),
+              }))
+              .sort((a, b) => (a.fecha < b.fecha ? -1 : 1)),
+          });
+        } else {
+          const result = await client.query(
+            querys.comparativoAnioAnteriorPorFecha,
+            [ucp, fecha, aniosAtras],
+          );
+          const fila = result.rows[0] ?? null;
+          const fechaFmt = (v) =>
+            v instanceof Date ? v.toISOString().slice(0, 10) : String(v).slice(0, 10);
+          resultados.push({
+            fecha,
+            modo: "anio",
+            comparado:
+              fila && fila.fecha !== null && fila.valor !== null
+                ? { fecha: fechaFmt(fila.fecha), valor: Number(fila.valor) }
+                : null,
+            fechaAncla: fila ? fechaFmt(fila.fecha_ancla) : null,
+          });
+        }
+      }
+      return resultados;
+    } catch (error) {
+      Logger.error(colors.red("Error model comparativoTipoDia"));
       Logger.error(colors.red(error.message));
       throw error;
     } finally {

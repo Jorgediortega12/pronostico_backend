@@ -398,6 +398,62 @@ export const cargarVariablesClimaticasxFechaPeriodos = `
   ORDER BY fecha ASC;
 `;
 
+// 🔹 Resumen mensual de clima (temperatura/humedad/viento) por rango de
+// fechas. Agrega en SQL (AVG/MAX/MIN sobre los 24 periodos por día, luego
+// por mes) en vez de traer cada fila y resolver iconos período a período
+// como hace traerDatosClimaticos — para un rango de meses esa ruta haría
+// cientos de consultas extra de icono que aquí no hacen falta (el resumen
+// mensual no necesita iconos).
+const _colsT = Array.from({ length: 24 }, (_, i) => `p${i + 1}_t`);
+const _colsH = Array.from({ length: 24 }, (_, i) => `p${i + 1}_h`);
+const _colsV = Array.from({ length: 24 }, (_, i) => `p${i + 1}_v`);
+export const resumenMensualClima = `
+  SELECT
+    to_char(mes, 'YYYY-MM') AS mes,
+    AVG(dia_prom_t) AS temp_prom,
+    MAX(dia_max_t) AS temp_max,
+    MIN(dia_min_t) AS temp_min,
+    AVG(dia_prom_h) AS humedad_prom,
+    AVG(dia_prom_v) AS viento_prom,
+    MAX(dia_max_v) AS viento_max,
+    COUNT(*) AS dias_con_dato
+  FROM (
+    SELECT
+      fecha AS mes,
+      (${_colsT.join(" + ")}) / 24.0 AS dia_prom_t,
+      GREATEST(${_colsT.join(", ")}) AS dia_max_t,
+      LEAST(${_colsT.join(", ")}) AS dia_min_t,
+      (${_colsH.join(" + ")}) / 24.0 AS dia_prom_h,
+      (${_colsV.join(" + ")}) / 24.0 AS dia_prom_v,
+      GREATEST(${_colsV.join(", ")}) AS dia_max_v
+    FROM datos_clima
+    WHERE ucp = $1
+      AND fecha BETWEEN $2 AND $3
+  ) dias
+  GROUP BY 1
+  ORDER BY 1 ASC;
+`;
+
+// 🔹 Resumen diario de clima (temperatura/humedad/viento) por rango de
+// fechas — un valor agregado por día (sin iconos), pensado para graficar
+// una tendencia histórico+pronóstico día a día (ver resumenMensualClima
+// arriba para el motivo de agregar en SQL en vez de reusar
+// traerDatosClimaticos).
+export const resumenDiarioClima = `
+  SELECT
+    fecha,
+    (${_colsT.join(" + ")}) / 24.0 AS temp_prom,
+    GREATEST(${_colsT.join(", ")}) AS temp_max,
+    LEAST(${_colsT.join(", ")}) AS temp_min,
+    (${_colsH.join(" + ")}) / 24.0 AS humedad_prom,
+    (${_colsV.join(" + ")}) / 24.0 AS viento_prom,
+    GREATEST(${_colsV.join(", ")}) AS viento_max
+  FROM datos_clima
+  WHERE ucp = $1
+    AND fecha BETWEEN $2 AND $3
+  ORDER BY fecha ASC;
+`;
+
 // 🔹 Buscar icono (MISMA lógica que .NET)
 export const buscarIcono = `
   SELECT icon_dia, icon_noche
@@ -529,4 +585,60 @@ FROM semanas_agrupadas
 WHERE dias_con_datos >= 3
   AND semana_inicio < CURRENT_DATE - INTERVAL '7 days'
 ORDER BY semana_inicio DESC
+`;
+
+// Suma de los 24 periodos horarios de actualizaciondatos (demanda real del día)
+const SUMA_24_PERIODOS = `(COALESCE(ad.p1,0)+COALESCE(ad.p2,0)+COALESCE(ad.p3,0)+COALESCE(ad.p4,0)+COALESCE(ad.p5,0)+COALESCE(ad.p6,0)+COALESCE(ad.p7,0)+COALESCE(ad.p8,0)+COALESCE(ad.p9,0)+COALESCE(ad.p10,0)+COALESCE(ad.p11,0)+COALESCE(ad.p12,0)+COALESCE(ad.p13,0)+COALESCE(ad.p14,0)+COALESCE(ad.p15,0)+COALESCE(ad.p16,0)+COALESCE(ad.p17,0)+COALESCE(ad.p18,0)+COALESCE(ad.p19,0)+COALESCE(ad.p20,0)+COALESCE(ad.p21,0)+COALESCE(ad.p22,0)+COALESCE(ad.p23,0)+COALESCE(ad.p24,0))`;
+
+// Busca, para una fecha objetivo y N años atrás, el día real (mismo día de
+// semana) más cercano al ancla (fecha objetivo - N años) que NO sea festivo,
+// dentro de una ventana de +-10 días. Esto resuelve el caso de que el mismo
+// día de semana no caiga en la misma fecha calendario de un año a otro, y
+// evita comparar contra un festivo ("último día [lunes] ordinario").
+// Siempre devuelve 1 fila (LEFT JOIN): si no hay match real, "fecha" y
+// "valor" vuelven NULL pero "fecha_ancla" siempre viene — así el frontend
+// sabe exactamente qué fecha buscar en histórico pronóstico para rellenar
+// el hueco si el usuario activa esa opción.
+export const comparativoAnioAnteriorPorFecha = `
+WITH objetivo AS (
+  SELECT
+    $2::date AS fecha_actual,
+    ($2::date - make_interval(years => $3::int))::date AS fecha_ancla
+),
+match AS (
+  SELECT ad.fecha::date AS fecha, ${SUMA_24_PERIODOS} AS valor
+  FROM actualizaciondatos ad, objetivo o
+  WHERE LOWER(ad.ucp) = LOWER($1)
+    AND EXTRACT(DOW FROM ad.fecha::date) = EXTRACT(DOW FROM o.fecha_actual)
+    AND ad.fecha::date BETWEEN (o.fecha_ancla - INTERVAL '10 days') AND (o.fecha_ancla + INTERVAL '10 days')
+    AND NOT EXISTS (
+      SELECT 1 FROM festivos f
+      WHERE LOWER(f.ucp) = LOWER($1) AND f.fecha::date = ad.fecha::date
+    )
+  ORDER BY ABS(ad.fecha::date - o.fecha_ancla) ASC
+  LIMIT 1
+)
+SELECT o.fecha_ancla AS fecha_ancla, m.fecha AS fecha, m.valor AS valor
+FROM objetivo o
+LEFT JOIN match m ON true
+`;
+
+// Últimas N semanas EXACTAS (pasos fijos de 7 días hacia atrás desde la
+// fecha dada, incluyéndola) para la tendencia. A diferencia de un
+// "ORDER BY DESC LIMIT N" simple, esto no rellena en silencio una semana
+// faltante con una más antigua: si una semana no tiene dato real, esa fila
+// vuelve con valor NULL en vez de desaparecer — necesario para poder
+// ofrecer rellenarla con histórico pronóstico.
+export const tendenciaUltimasSemanasPorFecha = `
+WITH fechas AS (
+  SELECT ($2::date - (n * INTERVAL '7 days'))::date AS fecha
+  FROM generate_series(0, $3::int - 1) AS n
+)
+SELECT
+  f.fecha,
+  CASE WHEN ad.fecha IS NULL THEN NULL ELSE ${SUMA_24_PERIODOS} END AS valor
+FROM fechas f
+LEFT JOIN actualizaciondatos ad
+  ON LOWER(ad.ucp) = LOWER($1) AND ad.fecha::date = f.fecha
+ORDER BY f.fecha ASC
 `;

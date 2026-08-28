@@ -50,6 +50,10 @@ export const buscarVersionSesionCod = `SELECT * FROM sesiones WHERE codigo = $1`
 export const buscarVersionPreviewCod = `SELECT * FROM previews WHERE codigo = $1`;
 // obtener sesiones periodos por código y tipo
 export const cargarPeriodosSesion = `SELECT * FROM sesiones_periodos WHERE codsesion = $1 AND tipo = $2 ORDER BY fecha ASC`;
+// pronóstico completo del período guardado (tipo 'P' = últimos 7 días
+// reportados + tipo 'PM' = resto del período/modelo) — para mostrar la
+// sesión completa al cargarla, no sólo la ventana que se reporta
+export const cargarPeriodosSesionPronosticoCompleto = `SELECT * FROM sesiones_periodos WHERE codsesion = $1 AND tipo IN ('P', 'PM') ORDER BY fecha ASC`;
 // obtener previews periodos por código y tipo
 export const cargarPeriodosPreview = `SELECT * FROM previews_periodos WHERE codpreview = $1 AND tipo = $2 ORDER BY fecha ASC`;
 

@@ -166,6 +166,24 @@ export default class SesionModel {
     }
   };
 
+  cargarPeriodosSesionPronosticoCompleto = async (codsesion, client) => {
+    try {
+      await client.connect();
+      const result = await client.query(
+        querys.cargarPeriodosSesionPronosticoCompleto,
+        [codsesion],
+      );
+      return result.rows.length > 0 ? result.rows : null;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error SesionModel cargarPeriodosSesionPronosticoCompleto"),
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
   cargarPeriodosPreview = async (codpreview, tipo, client) => {
     try {
       await client.connect();

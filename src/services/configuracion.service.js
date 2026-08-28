@@ -1557,4 +1557,23 @@ export default class ConfiguracionService {
       };
     }
   };
+
+  comparativoTipoDia = async (filters, session) => {
+    try {
+      const client = createConectionPG(session);
+      const res = await model.comparativoTipoDia(filters, client);
+      return {
+        success: true,
+        data: res,
+        message: "Comparativo por tipo de día calculado",
+      };
+    } catch (error) {
+      Logger.error(colors.red("Error service comparativoTipoDia"));
+      return {
+        success: false,
+        data: null,
+        message: "Error al calcular el comparativo por tipo de día",
+      };
+    }
+  };
 }

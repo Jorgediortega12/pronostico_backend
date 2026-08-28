@@ -27,11 +27,11 @@ export default function () {
     controllers.listarFestivosPorRango,
   );
 
-  // Mapa Climático: proxy de tiles de precipitación (sin auth, key nunca
-  // llega al frontend)
+  // Mapa Climático: proxy de tiles de OpenWeatherMap — precipitación,
+  // temperatura, etc. (sin auth, key nunca llega al frontend)
   router.get(
-    "/clima-mapa/tiles/:z/:x/:y.png",
-    climaMapaControllers.proxyTilePrecipitacion,
+    "/clima-mapa/tiles/:layer/:z/:x/:y.png",
+    climaMapaControllers.proxyTileClima,
   );
 
   return router;

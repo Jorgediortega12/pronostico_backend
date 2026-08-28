@@ -1296,3 +1296,15 @@ export const buscarSemanaSimilar = async (req, res) => {
     return InternalError(err);
   }
 };
+
+export const comparativoTipoDia = async (req, res) => {
+  try {
+    const { session } = req.user;
+    const result = await service.comparativoTipoDia(req.body, session);
+    if (!result.success) return responseError(200, result.message, 404, res);
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(err);
+  }
+};

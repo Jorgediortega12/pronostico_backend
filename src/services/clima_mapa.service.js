@@ -1,10 +1,15 @@
 import ClimaMapaModel from "../models/clima_mapa.model.js";
+import ConfiguracionModel from "../models/configuracion.model.js";
+import ConfiguracionService from "./configuracion.service.js";
 import Logger from "../helpers/logger.js";
 import colors from "colors";
 import { createConectionPG } from "../helpers/connections.js";
 import { ejecutarIngestaClimaMapa } from "./clima_mapa_ingesta.service.js";
+import { generarXlsxSensacionTermica } from "../utils/generarXlsxSensacionTermica.js";
 
 const model = ClimaMapaModel.getInstance();
+const configuracionModel = ConfiguracionModel.getInstance();
+const configuracionService = ConfiguracionService.getInstance();
 
 export default class ClimaMapaService {
   static instance;
@@ -151,9 +156,9 @@ export default class ClimaMapaService {
     }
   };
 
-  ejecutarIngesta = async () => {
+  ejecutarIngesta = async (session) => {
     try {
-      const resumen = await ejecutarIngestaClimaMapa();
+      const resumen = await ejecutarIngestaClimaMapa(session);
       return {
         success: true,
         data: resumen,
@@ -165,6 +170,63 @@ export default class ClimaMapaService {
         success: false,
         data: null,
         message: "Error al ejecutar la ingesta",
+      };
+    }
+  };
+
+  // Reporte de sensación térmica (mín/media/máx diaria) por mercado, en un
+  // Excel con una hoja por UCP. Fuente: datos_clima (p1_t..p24_t), que vive
+  // en la BD unificada de jano-proxy — por eso el modelo de configuración
+  // se usa directo, sin session, mientras que la lista de mercados del
+  // tenant actual sí sale de su propia BD (con session).
+  generarReporteSensacionTermica = async (session, { fechaInicio, fechaFin }) => {
+    try {
+      const ucpResult = await configuracionService.cargarUCP(2, 1, session);
+      if (!ucpResult.success) {
+        return {
+          success: false,
+          data: null,
+          message: "No se pudo cargar la lista de mercados.",
+        };
+      }
+      const mercados = [
+        ...new Set(
+          (ucpResult.data || []).map((r) => r.mc).filter(Boolean),
+        ),
+      ];
+      if (mercados.length === 0) {
+        return {
+          success: false,
+          data: null,
+          message: "No hay mercados configurados para este usuario.",
+        };
+      }
+
+      const datosPorMercado = {};
+      for (const mc of mercados) {
+        datosPorMercado[mc] =
+          await configuracionModel.cargarVariablesClimaticasxFechaPeriodos(
+            mc,
+            fechaInicio,
+            fechaFin,
+          );
+      }
+
+      const buffer = await generarXlsxSensacionTermica(datosPorMercado);
+      return {
+        success: true,
+        data: buffer,
+        message: "Reporte generado exitosamente",
+      };
+    } catch (error) {
+      Logger.error(
+        colors.red("Error ClimaMapaService generarReporteSensacionTermica"),
+        error,
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al generar el reporte.",
       };
     }
   };
