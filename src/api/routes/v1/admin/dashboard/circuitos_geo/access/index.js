@@ -48,3 +48,30 @@ export const listarDepartamentos = async (req, res) => {
     return InternalError(res);
   }
 };
+
+export const buscar = async (req, res) => {
+  try {
+    const { departamento, q } = req.query;
+    const result = await circuitosGeoService.buscarCircuitos(departamento, q);
+    if (!result.success) return responseError(200, result.message, 400, res);
+    return SuccessResponse(res, result.data, "Búsqueda completada.");
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const relacionados = async (req, res) => {
+  try {
+    const { departamento, circuito } = req.query;
+    const result = await circuitosGeoService.obtenerPuntosDeCircuito(
+      departamento,
+      circuito,
+    );
+    if (!result.success) return responseError(200, result.message, 400, res);
+    return SuccessResponse(res, result.data, "Consulta completada.");
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};

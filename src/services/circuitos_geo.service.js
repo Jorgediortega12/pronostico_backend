@@ -1,8 +1,9 @@
-// Carga y consulta de circuitos eléctricos (líneas) por departamento, a
-// partir de archivos KMZ/KML (Google Earth) — para pintarlos como capa en
-// el Mapa Climático. Cada Placemark del KML (un circuito, con su
-// MultiGeometry de LineStrings) se guarda como una fila con su geometría en
-// GeoJSON.
+// Carga y consulta de circuitos eléctricos (líneas) y sus puntos (fusibles,
+// seccionadores, interruptores, etc.) por departamento, a partir de
+// archivos KMZ/KML (Google Earth) — para pintarlos como capa en el Mapa
+// Climático. Cada Placemark del KML se guarda como una fila con su
+// geometría en GeoJSON (MultiLineString para circuitos, Point para el
+// resto).
 
 import AdmZip from "adm-zip";
 import { XMLParser } from "fast-xml-parser";
@@ -30,13 +31,28 @@ const crearTablaSiNoExiste = async (client) => {
       subestacion VARCHAR(255),
       nivel_tension VARCHAR(50),
       propiedad VARCHAR(100),
+      tipo VARCHAR(100),
+      circuito_relacionado VARCHAR(255),
       geometria JSONB NOT NULL,
       creado_en TIMESTAMP NOT NULL DEFAULT NOW()
     );
   `);
+  // Por si la tabla ya existía de antes de agregar tipo/circuito_relacionado.
+  await client.query(`ALTER TABLE circuitos_geo ADD COLUMN IF NOT EXISTS tipo VARCHAR(100);`);
+  await client.query(
+    `ALTER TABLE circuitos_geo ADD COLUMN IF NOT EXISTS circuito_relacionado VARCHAR(255);`,
+  );
   await client.query(`
     CREATE INDEX IF NOT EXISTS idx_circuitos_geo_departamento
     ON circuitos_geo (departamento);
+  `);
+  await client.query(`
+    CREATE INDEX IF NOT EXISTS idx_circuitos_geo_nombre
+    ON circuitos_geo (departamento, nombre);
+  `);
+  await client.query(`
+    CREATE INDEX IF NOT EXISTS idx_circuitos_geo_relacionado
+    ON circuitos_geo (departamento, circuito_relacionado);
   `);
 };
 
@@ -72,9 +88,6 @@ const extraerLineStrings = (placemark) => {
     .filter((coords) => coords.length >= 2);
 };
 
-// Puntos (fusibles, seccionadores, interruptores, etc.) — se guardan sin
-// info detallada, solo la ubicación, tal como se pidió ("solo los puntos
-// sin información").
 const extraerPunto = (placemark) => {
   const point = placemark.Point ?? placemark.MultiGeometry?.Point;
   if (!point?.coordinates) return null;
@@ -121,20 +134,27 @@ export const parsearKmz = (rutaArchivo) => {
         subestacion: extraerCampo(descripcion, "Subestaci[oó]n"),
         nivel_tension: extraerCampo(descripcion, "Nivel de Tensi[oó]n"),
         propiedad: extraerCampo(descripcion, "Propiedad"),
+        tipo: "Circuito",
+        circuito_relacionado: null,
         geometria: { type: "MultiLineString", coordinates },
       });
       continue;
     }
 
-    // Sin línea: si tiene <Point>, se guarda solo la ubicación (fusibles,
-    // seccionadores, interruptores, etc.) — sin la info detallada.
+    // Sin línea: si tiene <Point>, se guarda su ubicación + los campos que
+    // permiten identificarlo y relacionarlo con su circuito (fusibles,
+    // seccionadores, interruptores, etc.) — sin el resto de la ficha
+    // técnica del KML.
     const punto = extraerPunto(p);
     if (punto) {
+      const descripcion = p.description ?? "";
       circuitos.push({
         nombre: (p.name ?? "").toString().trim() || "(sin nombre)",
-        subestacion: null,
-        nivel_tension: null,
+        subestacion: extraerCampo(descripcion, "NOMBRE SUBESTACION"),
+        nivel_tension: extraerCampo(descripcion, "TENSION"),
         propiedad: null,
+        tipo: extraerCampo(descripcion, "Tipo de entidad"),
+        circuito_relacionado: extraerCampo(descripcion, "NOMBRE CIRCUITO/LINEA"),
         geometria: { type: "Point", coordinates: punto },
       });
     }
@@ -164,9 +184,9 @@ export const cargarCircuitosDepartamento = async (departamento, rutaArchivo) => 
       const valores = [];
       const parametros = [];
       lote.forEach((c, idx) => {
-        const base = idx * 6;
+        const base = idx * 8;
         valores.push(
-          `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6})`,
+          `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8})`,
         );
         parametros.push(
           departamento,
@@ -174,11 +194,14 @@ export const cargarCircuitosDepartamento = async (departamento, rutaArchivo) => 
           c.subestacion,
           c.nivel_tension,
           c.propiedad,
+          c.tipo,
+          c.circuito_relacionado,
           JSON.stringify(c.geometria),
         );
       });
       await client.query(
-        `INSERT INTO circuitos_geo (departamento, nombre, subestacion, nivel_tension, propiedad, geometria)
+        `INSERT INTO circuitos_geo
+         (departamento, nombre, subestacion, nivel_tension, propiedad, tipo, circuito_relacionado, geometria)
          VALUES ${valores.join(", ")}`,
         parametros,
       );
@@ -210,7 +233,7 @@ export const obtenerCircuitosDepartamento = async (departamento) => {
   try {
     await crearTablaSiNoExiste(client);
     const res = await client.query(
-      `SELECT nombre, subestacion, nivel_tension, propiedad, geometria
+      `SELECT nombre, subestacion, nivel_tension, propiedad, tipo, circuito_relacionado, geometria
        FROM circuitos_geo WHERE departamento = $1`,
       [departamento],
     );
@@ -221,6 +244,8 @@ export const obtenerCircuitosDepartamento = async (departamento) => {
         subestacion: row.subestacion,
         nivel_tension: row.nivel_tension,
         propiedad: row.propiedad,
+        tipo: row.tipo,
+        circuito_relacionado: row.circuito_relacionado,
       },
       geometry: row.geometria,
     }));
@@ -252,6 +277,72 @@ export const listarDepartamentosCargados = async () => {
     return { success: true, data: res.rows };
   } catch (err) {
     Logger.error(colors.red("Error listarDepartamentosCargados"), err);
+    return { success: false, message: err.message };
+  } finally {
+    await client.end();
+  }
+};
+
+// Búsqueda liviana por nombre (circuitos y puntos) para el panel de
+// búsqueda del mapa — devuelve solo lo necesario para listar y volar hasta
+// ahí (primera coordenada como "ubicación representativa").
+export const buscarCircuitos = async (departamento, texto) => {
+  const client = createClient();
+  await client.connect();
+  try {
+    await crearTablaSiNoExiste(client);
+    const res = await client.query(
+      `SELECT nombre, tipo, circuito_relacionado, geometria
+       FROM circuitos_geo
+       WHERE departamento = $1 AND nombre ILIKE $2
+       ORDER BY (geometria->>'type' = 'MultiLineString') DESC, nombre
+       LIMIT 50`,
+      [departamento, `%${texto}%`],
+    );
+    const resultados = res.rows.map((row) => ({
+      nombre: row.nombre,
+      tipo: row.geometria.type === "MultiLineString" ? "Circuito" : row.tipo,
+      circuito_relacionado: row.circuito_relacionado,
+      esCircuito: row.geometria.type === "MultiLineString",
+      ubicacion:
+        row.geometria.type === "MultiLineString"
+          ? row.geometria.coordinates[0]?.[0]
+          : row.geometria.coordinates,
+    }));
+    return { success: true, data: resultados };
+  } catch (err) {
+    Logger.error(colors.red("Error buscarCircuitos"), err);
+    return { success: false, message: err.message };
+  } finally {
+    await client.end();
+  }
+};
+
+// Puntos relacionados a un circuito (para "desplegar" sus relaciones en el
+// panel de búsqueda) — matchea por el nombre exacto del circuito, tal como
+// viene en "NOMBRE CIRCUITO/LINEA" en el KML original.
+export const obtenerPuntosDeCircuito = async (departamento, nombreCircuito) => {
+  const client = createClient();
+  await client.connect();
+  try {
+    await crearTablaSiNoExiste(client);
+    const res = await client.query(
+      `SELECT nombre, tipo, geometria
+       FROM circuitos_geo
+       WHERE departamento = $1 AND circuito_relacionado = $2
+       ORDER BY nombre
+       LIMIT 500`,
+      [departamento, nombreCircuito],
+    );
+    const resultados = res.rows.map((row) => ({
+      nombre: row.nombre,
+      tipo: row.tipo,
+      esCircuito: false,
+      ubicacion: row.geometria.coordinates,
+    }));
+    return { success: true, data: resultados };
+  } catch (err) {
+    Logger.error(colors.red("Error obtenerPuntosDeCircuito"), err);
     return { success: false, message: err.message };
   } finally {
     await client.end();
