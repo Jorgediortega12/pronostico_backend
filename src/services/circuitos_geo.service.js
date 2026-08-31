@@ -72,6 +72,16 @@ const extraerLineStrings = (placemark) => {
     .filter((coords) => coords.length >= 2);
 };
 
+// Puntos (fusibles, seccionadores, interruptores, etc.) — se guardan sin
+// info detallada, solo la ubicación, tal como se pidió ("solo los puntos
+// sin información").
+const extraerPunto = (placemark) => {
+  const point = placemark.Point ?? placemark.MultiGeometry?.Point;
+  if (!point?.coordinates) return null;
+  const [coords] = parsearCoordenadas(point.coordinates);
+  return coords ?? null;
+};
+
 const recolectarPlacemarks = (nodo, acumulador) => {
   if (!nodo) return;
   asArray(nodo.Placemark).forEach((p) => acumulador.push(p));
@@ -104,16 +114,30 @@ export const parsearKmz = (rutaArchivo) => {
   const circuitos = [];
   for (const p of placemarks) {
     const coordinates = extraerLineStrings(p);
-    if (coordinates.length === 0) continue; // Placemark sin geometría de línea (ignorar)
+    if (coordinates.length > 0) {
+      const descripcion = p.description ?? "";
+      circuitos.push({
+        nombre: (p.name ?? "").toString().trim() || "(sin nombre)",
+        subestacion: extraerCampo(descripcion, "Subestaci[oó]n"),
+        nivel_tension: extraerCampo(descripcion, "Nivel de Tensi[oó]n"),
+        propiedad: extraerCampo(descripcion, "Propiedad"),
+        geometria: { type: "MultiLineString", coordinates },
+      });
+      continue;
+    }
 
-    const descripcion = p.description ?? "";
-    circuitos.push({
-      nombre: (p.name ?? "").toString().trim() || "(sin nombre)",
-      subestacion: extraerCampo(descripcion, "Subestaci[oó]n"),
-      nivel_tension: extraerCampo(descripcion, "Nivel de Tensi[oó]n"),
-      propiedad: extraerCampo(descripcion, "Propiedad"),
-      geometria: { type: "MultiLineString", coordinates },
-    });
+    // Sin línea: si tiene <Point>, se guarda solo la ubicación (fusibles,
+    // seccionadores, interruptores, etc.) — sin la info detallada.
+    const punto = extraerPunto(p);
+    if (punto) {
+      circuitos.push({
+        nombre: (p.name ?? "").toString().trim() || "(sin nombre)",
+        subestacion: null,
+        nivel_tension: null,
+        propiedad: null,
+        geometria: { type: "Point", coordinates: punto },
+      });
+    }
   }
 
   return circuitos;
@@ -127,7 +151,7 @@ export const cargarCircuitosDepartamento = async (departamento, rutaArchivo) => 
 
     const circuitos = parsearKmz(rutaArchivo);
     if (circuitos.length === 0) {
-      return { success: false, message: "No se encontraron circuitos (líneas) en el archivo." };
+      return { success: false, message: "No se encontraron circuitos ni puntos en el archivo." };
     }
 
     await client.query("BEGIN");
@@ -161,7 +185,15 @@ export const cargarCircuitosDepartamento = async (departamento, rutaArchivo) => 
     }
     await client.query("COMMIT");
 
-    return { success: true, departamento, totalCircuitos: circuitos.length };
+    const totalLineas = circuitos.filter((c) => c.geometria.type === "MultiLineString").length;
+    const totalPuntos = circuitos.filter((c) => c.geometria.type === "Point").length;
+    return {
+      success: true,
+      departamento,
+      totalCircuitos: circuitos.length,
+      totalLineas,
+      totalPuntos,
+    };
   } catch (err) {
     await client.query("ROLLBACK").catch(() => {});
     Logger.error(colors.red("Error cargarCircuitosDepartamento"), err);
@@ -210,7 +242,11 @@ export const listarDepartamentosCargados = async () => {
   try {
     await crearTablaSiNoExiste(client);
     const res = await client.query(
-      `SELECT departamento, COUNT(*) as total, MAX(creado_en) as actualizado_en
+      `SELECT
+        departamento,
+        COUNT(*) FILTER (WHERE geometria->>'type' = 'MultiLineString') as total_lineas,
+        COUNT(*) FILTER (WHERE geometria->>'type' = 'Point') as total_puntos,
+        MAX(creado_en) as actualizado_en
        FROM circuitos_geo GROUP BY departamento ORDER BY departamento`,
     );
     return { success: true, data: res.rows };
