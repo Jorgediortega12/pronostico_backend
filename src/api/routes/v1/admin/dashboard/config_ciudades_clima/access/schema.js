@@ -10,9 +10,4 @@ export default {
   buscar: Joi.object().keys({
     q: Joi.string().min(2).required(),
   }),
-  actualizarCatalogo: Joi.object().keys({
-    ciudad_nombre: Joi.string().required(),
-    accuweather_id: Joi.string().allow(null, "").optional(),
-    openweather_id: Joi.string().allow(null, "").optional(),
-  }),
 };

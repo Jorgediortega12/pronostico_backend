@@ -80,26 +80,3 @@ export const listarCiudadesYaConfiguradas = async (req, res) => {
     return InternalError(res);
   }
 };
-
-export const listarCatalogoCompleto = async (req, res) => {
-  try {
-    const result = await service.listarCatalogoCompleto();
-    if (!result.success) return responseError(200, result.message, 400, res);
-    return SuccessResponse(res, result.data, result.message);
-  } catch (err) {
-    Logger.error(err);
-    return InternalError(res);
-  }
-};
-
-export const actualizarCatalogoCiudad = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const result = await service.actualizarCatalogoCiudad(id, req.body);
-    if (!result.success) return responseError(200, result.message, 400, res);
-    return SuccessResponse(res, result.data, result.message);
-  } catch (err) {
-    Logger.error(err);
-    return InternalError(res);
-  }
-};

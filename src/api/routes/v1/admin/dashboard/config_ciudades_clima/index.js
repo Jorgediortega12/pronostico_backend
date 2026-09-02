@@ -22,14 +22,6 @@ export default function () {
     controllers.buscarAccuweather,
   );
   router.get("/existentes", controllers.listarCiudadesYaConfiguradas);
-  // Administración del catálogo suelto — pensado para superadmin
-  // (Configuración > superadmin), no para el admin de cada empresa.
-  router.get("/catalogo", controllers.listarCatalogoCompleto);
-  router.put(
-    "/catalogo/:id",
-    validator(schema.actualizarCatalogo),
-    controllers.actualizarCatalogoCiudad,
-  );
 
   return router;
 }
