@@ -65,6 +65,24 @@ export const upsertCatalogoCiudad = `
   RETURNING *;
 `;
 
+// Listado completo del catálogo (con id) para poder editarlo — los nombres
+// heredados del CIUDADES_MAP viejo (Bolivar, Planeta, GM, TubosCaribe...)
+// eran etiquetas de mercado, no el nombre real de la ciudad.
+export const listarCatalogoCompleto = `
+  SELECT id, ciudad_nombre, accuweather_id, openweather_id, origen, creado_en
+  FROM catalogo_ciudades_clima
+  ORDER BY ciudad_nombre ASC;
+`;
+
+export const actualizarCatalogoCiudad = `
+  UPDATE catalogo_ciudades_clima
+  SET ciudad_nombre = $2,
+      accuweather_id = $3,
+      openweather_id = $4
+  WHERE id = $1
+  RETURNING *;
+`;
+
 // Ciudades ya "probadas" y disponibles para reusar en cualquier mercado de
 // cualquier empresa — unión de (a) lo que ya se le configuró a algún
 // mercado real en config_ciudades_clima y (b) el catálogo suelto de

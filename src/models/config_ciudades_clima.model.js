@@ -108,4 +108,27 @@ export default class ConfigCiudadesClimaModel {
       return result.rows[0] ?? null;
     }, "upsertCatalogoCiudad");
   }
+
+  async listarCatalogoCompleto() {
+    return this.executeQuery(async (client) => {
+      await client.query(querys.crearTablaCatalogoCiudades);
+      const result = await client.query(querys.listarCatalogoCompleto);
+      return result.rows;
+    }, "listarCatalogoCompleto");
+  }
+
+  async actualizarCatalogoCiudad(
+    id,
+    { ciudad_nombre, accuweather_id, openweather_id },
+  ) {
+    return this.executeQuery(async (client) => {
+      const result = await client.query(querys.actualizarCatalogoCiudad, [
+        id,
+        ciudad_nombre,
+        accuweather_id ?? null,
+        openweather_id ?? null,
+      ]);
+      return result.rows[0] ?? null;
+    }, "actualizarCatalogoCiudad");
+  }
 }

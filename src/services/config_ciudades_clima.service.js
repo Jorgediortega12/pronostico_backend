@@ -138,4 +138,30 @@ export default class ConfigCiudadesClimaService {
       return { success: false, data: null, message: "Error al listar ciudades ya configuradas" };
     }
   };
+
+  // Solo para superadmin: administrar el catálogo suelto (nombres heredados
+  // del CIUDADES_MAP viejo, que eran etiquetas de mercado y no el nombre
+  // real de la ciudad).
+  listarCatalogoCompleto = async () => {
+    try {
+      const rows = await model.listarCatalogoCompleto();
+      return { success: true, data: rows, message: "Listado obtenido correctamente" };
+    } catch (error) {
+      Logger.error(colors.red("Error ConfigCiudadesClimaService listarCatalogoCompleto"), error);
+      return { success: false, data: null, message: "Error al listar el catálogo" };
+    }
+  };
+
+  actualizarCatalogoCiudad = async (id, payload) => {
+    try {
+      const row = await model.actualizarCatalogoCiudad(id, payload);
+      if (!row) {
+        return { success: false, data: null, message: "No se encontró la ciudad a actualizar" };
+      }
+      return { success: true, data: row, message: "Ciudad actualizada correctamente" };
+    } catch (error) {
+      Logger.error(colors.red("Error ConfigCiudadesClimaService actualizarCatalogoCiudad"), error);
+      return { success: false, data: null, message: "Error al actualizar la ciudad" };
+    }
+  };
 }
