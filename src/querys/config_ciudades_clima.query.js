@@ -38,15 +38,48 @@ export const buscarCiudadesOwm = `
   LIMIT 15;
 `;
 
-// Ciudades que YA se le configuraron a algún mercado (de cualquier
-// empresa, la tabla es compartida) — para poder reusar una combinación ya
-// probada (con historial acumulándose en datos_clima) en vez de tener que
-// volver a buscarla o escribirla a mano.
+// catalogo_ciudades_clima: combinaciones ciudad+IDs reusables que NO están
+// atadas a ningún mercado/empresa en particular (a diferencia de
+// config_ciudades_clima, que sí queda scoped por db_empresa+ucp). Aquí
+// viven, por ejemplo, los IDs del viejo CIUDADES_MAP hardcodeado — datos
+// de ciudades que tienen años de historial en datos_clima pero cuyo
+// mercado original ya no está activo en Redis, así que no se puede saber
+// a qué empresa asociarlos. Cualquier empresa puede reusarlos igual.
+export const crearTablaCatalogoCiudades = `
+  CREATE TABLE IF NOT EXISTS catalogo_ciudades_clima (
+    id SERIAL PRIMARY KEY,
+    ciudad_nombre VARCHAR(255) NOT NULL,
+    accuweather_id VARCHAR(50),
+    openweather_id VARCHAR(50),
+    origen VARCHAR(100),
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+    UNIQUE (ciudad_nombre, accuweather_id, openweather_id)
+  );
+`;
+
+export const upsertCatalogoCiudad = `
+  INSERT INTO catalogo_ciudades_clima
+    (ciudad_nombre, accuweather_id, openweather_id, origen)
+  VALUES ($1, $2, $3, $4)
+  ON CONFLICT (ciudad_nombre, accuweather_id, openweather_id) DO NOTHING
+  RETURNING *;
+`;
+
+// Ciudades ya "probadas" y disponibles para reusar en cualquier mercado de
+// cualquier empresa — unión de (a) lo que ya se le configuró a algún
+// mercado real en config_ciudades_clima y (b) el catálogo suelto de
+// catalogo_ciudades_clima (ciudades con historial pero sin mercado activo
+// que las reclame hoy).
 export const listarCiudadesYaConfiguradas = `
-  SELECT DISTINCT ON (ciudad_nombre, accuweather_id, openweather_id)
-    ciudad_nombre, accuweather_id, openweather_id
-  FROM config_ciudades_clima
-  WHERE ciudad_nombre IS NOT NULL
-    AND (accuweather_id IS NOT NULL OR openweather_id IS NOT NULL)
+  SELECT ciudad_nombre, accuweather_id, openweather_id FROM (
+    SELECT DISTINCT ON (ciudad_nombre, accuweather_id, openweather_id)
+      ciudad_nombre, accuweather_id, openweather_id
+    FROM config_ciudades_clima
+    WHERE ciudad_nombre IS NOT NULL
+      AND (accuweather_id IS NOT NULL OR openweather_id IS NOT NULL)
+    UNION
+    SELECT DISTINCT ciudad_nombre, accuweather_id, openweather_id
+    FROM catalogo_ciudades_clima
+  ) AS combinado
   ORDER BY ciudad_nombre ASC, accuweather_id ASC, openweather_id ASC;
 `;
