@@ -126,4 +126,16 @@ export default class ConfigCiudadesClimaService {
       return { success: false, data: null, message: "Error al buscar ciudades en AccuWeather" };
     }
   };
+
+  // Ciudades que ya se le asignaron a algún mercado (de cualquier empresa) —
+  // para reusarlas en vez de volver a buscar/escribir los IDs a mano.
+  listarCiudadesYaConfiguradas = async () => {
+    try {
+      const rows = await model.listarCiudadesYaConfiguradas();
+      return { success: true, data: rows, message: "Listado obtenido correctamente" };
+    } catch (error) {
+      Logger.error(colors.red("Error ConfigCiudadesClimaService listarCiudadesYaConfiguradas"), error);
+      return { success: false, data: null, message: "Error al listar ciudades ya configuradas" };
+    }
+  };
 }

@@ -37,3 +37,16 @@ export const buscarCiudadesOwm = `
   ORDER BY nombre ASC
   LIMIT 15;
 `;
+
+// Ciudades que YA se le configuraron a algún mercado (de cualquier
+// empresa, la tabla es compartida) — para poder reusar una combinación ya
+// probada (con historial acumulándose en datos_clima) en vez de tener que
+// volver a buscarla o escribirla a mano.
+export const listarCiudadesYaConfiguradas = `
+  SELECT DISTINCT ON (ciudad_nombre, accuweather_id, openweather_id)
+    ciudad_nombre, accuweather_id, openweather_id
+  FROM config_ciudades_clima
+  WHERE ciudad_nombre IS NOT NULL
+    AND (accuweather_id IS NOT NULL OR openweather_id IS NOT NULL)
+  ORDER BY ciudad_nombre ASC, accuweather_id ASC, openweather_id ASC;
+`;

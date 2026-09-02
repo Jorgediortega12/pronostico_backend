@@ -21,6 +21,7 @@ export default function () {
     validator(schema.buscar, ValidationSource.QUERY),
     controllers.buscarAccuweather,
   );
+  router.get("/existentes", controllers.listarCiudadesYaConfiguradas);
 
   return router;
 }

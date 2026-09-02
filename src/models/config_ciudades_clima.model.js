@@ -82,4 +82,11 @@ export default class ConfigCiudadesClimaModel {
       return result.rows;
     }, "buscarCiudadesOwm");
   }
+
+  async listarCiudadesYaConfiguradas() {
+    return this.executeQuery(async (client) => {
+      const result = await client.query(querys.listarCiudadesYaConfiguradas);
+      return result.rows;
+    }, "listarCiudadesYaConfiguradas");
+  }
 }
