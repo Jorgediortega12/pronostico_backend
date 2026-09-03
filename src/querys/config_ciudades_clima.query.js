@@ -128,16 +128,19 @@ export const actualizarConfigCiudadPorId = `
 // cualquier empresa — unión de (a) lo que ya se le configuró a algún
 // mercado real en config_ciudades_clima y (b) el catálogo suelto de
 // catalogo_ciudades_clima (ciudades con historial pero sin mercado activo
-// que las reclame hoy).
+// que las reclame hoy). Se trae también el `ucp` original (cuando lo hay)
+// porque es la clave real bajo la que vive el histórico en datos_clima —
+// quien busca suele conocer el mercado (ej. "Antioquia"), no
+// necesariamente el nombre real de la ciudad (ej. "Medellin").
 export const listarCiudadesYaConfiguradas = `
-  SELECT ciudad_nombre, accuweather_id, openweather_id FROM (
-    SELECT DISTINCT ON (ciudad_nombre, accuweather_id, openweather_id)
-      ciudad_nombre, accuweather_id, openweather_id
+  SELECT ciudad_nombre, accuweather_id, openweather_id, ucp FROM (
+    SELECT DISTINCT ON (ciudad_nombre, accuweather_id, openweather_id, ucp)
+      ciudad_nombre, accuweather_id, openweather_id, ucp
     FROM config_ciudades_clima
     WHERE ciudad_nombre IS NOT NULL
       AND (accuweather_id IS NOT NULL OR openweather_id IS NOT NULL)
     UNION
-    SELECT DISTINCT ciudad_nombre, accuweather_id, openweather_id
+    SELECT DISTINCT ciudad_nombre, accuweather_id, openweather_id, NULL::text AS ucp
     FROM catalogo_ciudades_clima
   ) AS combinado
   ORDER BY ciudad_nombre ASC, accuweather_id ASC, openweather_id ASC;
