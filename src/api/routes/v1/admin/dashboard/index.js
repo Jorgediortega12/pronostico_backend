@@ -23,6 +23,7 @@ import noticiasIdeamRoutes from "./noticias_ideam/index.js";
 import noticiasUngrdRoutes from "./noticias_ungrd/index.js";
 import configCiudadesClimaRoutes from "./config_ciudades_clima/index.js";
 import circuitosGeoRoutes from "./circuitos_geo/index.js";
+import ecuacionFronteraRoutes from "./ecuacion_frontera/index.js";
 
 const router = Router();
 
@@ -51,6 +52,7 @@ export default function () {
   router.use("/noticias_ungrd", noticiasUngrdRoutes());
   router.use("/config_ciudades_clima", configCiudadesClimaRoutes());
   router.use("/circuitos_geo", circuitosGeoRoutes());
+  router.use("/ecuacion_frontera", ecuacionFronteraRoutes());
 
   return router;
 }
