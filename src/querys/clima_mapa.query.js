@@ -1,5 +1,18 @@
+// Un punto puede llevar su propia ciudad (nombre + IDs de AccuWeather
+// histórico / OpenWeatherMap pronóstico) además o en vez de un mercado
+// (ucp) — se registra/reusa en catalogo_ciudades_clima (jano_proxy) desde
+// el service al crear/editar, para que jano-proxy también le traiga
+// histórico/pronóstico diario sin pasar por Configuración > Clima.
+export const agregarColumnasCiudadAPuntos = `
+  ALTER TABLE clima_mapa_puntos
+    ADD COLUMN IF NOT EXISTS ciudad_nombre VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS accuweather_id VARCHAR(50),
+    ADD COLUMN IF NOT EXISTS openweather_id VARCHAR(50);
+`;
+
 export const listarPuntosConClima = `
   SELECT p.id, p.nombre, p.lat, p.lng, p.ucp, p.activo, p.orden,
+         p.ciudad_nombre, p.accuweather_id, p.openweather_id,
          a.fecha, a.stemp, a.sensacion, a.vel_viento, a.icon, a.icon_des, a.humedad
   FROM clima_mapa_puntos p
   LEFT JOIN clima_mapa_actual a ON a.id_punto = p.id
@@ -7,14 +20,16 @@ export const listarPuntosConClima = `
 `;
 
 export const crearPunto = `
-  INSERT INTO clima_mapa_puntos (nombre, lat, lng, ucp, orden)
-  VALUES ($1, $2, $3, $4, $5)
+  INSERT INTO clima_mapa_puntos
+    (nombre, lat, lng, ucp, orden, ciudad_nombre, accuweather_id, openweather_id)
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
   RETURNING *
 `;
 
 export const actualizarPunto = `
   UPDATE clima_mapa_puntos
-  SET nombre = $2, lat = $3, lng = $4, ucp = $5, activo = $6, orden = $7
+  SET nombre = $2, lat = $3, lng = $4, ucp = $5, activo = $6, orden = $7,
+      ciudad_nombre = $8, accuweather_id = $9, openweather_id = $10
   WHERE id = $1
   RETURNING *
 `;

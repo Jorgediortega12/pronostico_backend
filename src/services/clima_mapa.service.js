@@ -1,6 +1,7 @@
 import ClimaMapaModel from "../models/clima_mapa.model.js";
 import ConfiguracionModel from "../models/configuracion.model.js";
 import ConfiguracionService from "./configuracion.service.js";
+import ConfigCiudadesClimaService from "./config_ciudades_clima.service.js";
 import Logger from "../helpers/logger.js";
 import colors from "colors";
 import { createConectionPG } from "../helpers/connections.js";
@@ -10,6 +11,37 @@ import { generarXlsxSensacionTermica } from "../utils/generarXlsxSensacionTermic
 const model = ClimaMapaModel.getInstance();
 const configuracionModel = ConfiguracionModel.getInstance();
 const configuracionService = ConfiguracionService.getInstance();
+const configCiudadesService = ConfigCiudadesClimaService.getInstance();
+
+// Un punto con IDs de clima (AccuWeather histórico / OpenWeatherMap
+// pronóstico) también debe existir como ciudad en jano_proxy — si además
+// tiene un mercado (ucp), se vincula a config_ciudades_clima (jano-proxy
+// le trae histórico/pronóstico diario); si no, queda suelta en el
+// catálogo maestro para poder reusarla luego. Es "best effort": si esto
+// falla, el punto igual queda guardado (ya se guardó antes de llamar
+// esto) — solo se loguea, nunca se le devuelve error al usuario por algo
+// que no es el punto en sí.
+const registrarCiudadDePunto = async (datos, session) => {
+  if (!datos.accuweather_id && !datos.openweather_id) return;
+  try {
+    if (datos.ucp) {
+      await configCiudadesService.guardar(session, {
+        ucp: datos.ucp,
+        ciudad_nombre: datos.ciudad_nombre ?? null,
+        accuweather_id: datos.accuweather_id ?? null,
+        openweather_id: datos.openweather_id ?? null,
+      });
+    } else {
+      await configCiudadesService.registrarCiudadSuelta({
+        ciudad_nombre: datos.ciudad_nombre ?? null,
+        accuweather_id: datos.accuweather_id ?? null,
+        openweather_id: datos.openweather_id ?? null,
+      });
+    }
+  } catch (error) {
+    Logger.error(colors.red("Error registrando la ciudad del punto en jano_proxy"), error);
+  }
+};
 
 export default class ClimaMapaService {
   static instance;
@@ -44,6 +76,7 @@ export default class ClimaMapaService {
     try {
       const client = createConectionPG(session);
       const punto = await model.crearPunto(datos, client);
+      await registrarCiudadDePunto(datos, session);
       return {
         success: true,
         data: punto,
@@ -70,6 +103,7 @@ export default class ClimaMapaService {
           message: "Punto no encontrado",
         };
       }
+      await registrarCiudadDePunto(datos, session);
       return {
         success: true,
         data: punto,
