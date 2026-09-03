@@ -84,13 +84,28 @@ export const cargarPeriodosxUCPDesdeFecha = `
   ORDER BY fecha ASC;
 `;
 
-// traer variables climaticas desde fechaInicio hasta el más reciente
+// traer variables climaticas desde fechaInicio hasta el más reciente —
+// resuelve mercado (ucp) -> ciudad_id primero (el histórico ahora se
+// comparte por ciudad, no por mercado) y, si ese mercado todavía no está
+// vinculado a una ciudad (ciudad_id null o sin fila en
+// config_ciudades_clima), cae de vuelta al match viejo por ucp para no
+// perder datos de mercados que aún no se migraron.
 export const cargarVariablesClimaticasxUCPDesdeFecha = `
-  SELECT *
-  FROM datos_clima
-  WHERE LOWER(ucp) = LOWER($1)
-    AND fecha >= $2
-  ORDER BY fecha ASC;
+  WITH mercado AS (
+    SELECT (
+      SELECT ciudad_id FROM config_ciudades_clima
+      WHERE LOWER(ucp) = LOWER($1) AND ciudad_id IS NOT NULL
+      LIMIT 1
+    ) AS ciudad_id
+  )
+  SELECT dc.*
+  FROM datos_clima dc CROSS JOIN mercado m
+  WHERE fecha >= $2
+    AND (
+      (m.ciudad_id IS NOT NULL AND dc.ciudad_id = m.ciudad_id)
+      OR (m.ciudad_id IS NULL AND LOWER(dc.ucp) = LOWER($1))
+    )
+  ORDER BY dc.fecha ASC;
 `;
 
 export const cargarPeriodosxUCPxUnaFechaxLimite = `SELECT * FROM actualizaciondatos ac WHERE ucp =$1 AND fecha<$2 ORDER BY fecha DESC LIMIT $3`;
@@ -439,19 +454,33 @@ export const resumenMensualClima = `
 // una tendencia histórico+pronóstico día a día (ver resumenMensualClima
 // arriba para el motivo de agregar en SQL en vez de reusar
 // traerDatosClimaticos).
+// Resuelve mercado (ucp) -> ciudad_id primero (el histórico ahora se
+// comparte por ciudad, no por mercado) y cae de vuelta al match viejo por
+// ucp si ese mercado aún no está vinculado a una ciudad — misma lógica
+// que cargarVariablesClimaticasxUCPDesdeFecha, ver comentario ahí.
 export const resumenDiarioClima = `
+  WITH mercado AS (
+    SELECT (
+      SELECT ciudad_id FROM config_ciudades_clima
+      WHERE LOWER(ucp) = LOWER($1) AND ciudad_id IS NOT NULL
+      LIMIT 1
+    ) AS ciudad_id
+  )
   SELECT
-    fecha,
+    dc.fecha,
     (${_colsT.join(" + ")}) / 24.0 AS temp_prom,
     GREATEST(${_colsT.join(", ")}) AS temp_max,
     LEAST(${_colsT.join(", ")}) AS temp_min,
     (${_colsH.join(" + ")}) / 24.0 AS humedad_prom,
     (${_colsV.join(" + ")}) / 24.0 AS viento_prom,
     GREATEST(${_colsV.join(", ")}) AS viento_max
-  FROM datos_clima
-  WHERE ucp = $1
-    AND fecha BETWEEN $2 AND $3
-  ORDER BY fecha ASC;
+  FROM datos_clima dc CROSS JOIN mercado m
+  WHERE dc.fecha BETWEEN $2 AND $3
+    AND (
+      (m.ciudad_id IS NOT NULL AND dc.ciudad_id = m.ciudad_id)
+      OR (m.ciudad_id IS NULL AND dc.ucp = $1)
+    )
+  ORDER BY dc.fecha ASC;
 `;
 
 // 🔹 Buscar icono (MISMA lógica que .NET)
