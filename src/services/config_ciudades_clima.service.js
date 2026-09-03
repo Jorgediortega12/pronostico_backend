@@ -139,12 +139,14 @@ export default class ConfigCiudadesClimaService {
     }
   };
 
-  // Solo para superadmin: administrar el catálogo suelto (nombres heredados
-  // del CIUDADES_MAP viejo, que eran etiquetas de mercado y no el nombre
-  // real de la ciudad).
+  // Solo para superadmin: administrar TODAS las ciudades con IDs de clima
+  // reales — tanto las sueltas (catalogo_ciudades_clima, nombres heredados
+  // del CIUDADES_MAP viejo) como las ya atadas a un mercado
+  // (config_ciudades_clima) — para poder verlas/renombrarlas todas desde
+  // un solo lugar, no solo las huérfanas.
   listarCatalogoCompleto = async () => {
     try {
-      const rows = await model.listarCatalogoCompleto();
+      const rows = await model.listarTodasLasCiudades();
       return { success: true, data: rows, message: "Listado obtenido correctamente" };
     } catch (error) {
       Logger.error(colors.red("Error ConfigCiudadesClimaService listarCatalogoCompleto"), error);
@@ -152,9 +154,15 @@ export default class ConfigCiudadesClimaService {
     }
   };
 
-  actualizarCatalogoCiudad = async (id, payload) => {
+  // origenTabla indica en qué tabla vive la fila (viene del listado
+  // unificado de arriba) para editar la de verdad — 'mercado' ya está
+  // atada a un mercado real (config_ciudades_clima), 'catalogo' es suelta.
+  actualizarCatalogoCiudad = async (origenTabla, id, payload) => {
     try {
-      const row = await model.actualizarCatalogoCiudad(id, payload);
+      const row =
+        origenTabla === "mercado"
+          ? await model.actualizarConfigCiudadPorId(id, payload)
+          : await model.actualizarCatalogoCiudad(id, payload);
       if (!row) {
         return { success: false, data: null, message: "No se encontró la ciudad a actualizar" };
       }

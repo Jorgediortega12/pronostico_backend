@@ -8,7 +8,7 @@ const router = Router();
 export default function () {
   router.get("/catalogo", controllers.listarCatalogo);
   router.put(
-    "/catalogo/:id",
+    "/catalogo/:origen/:id",
     validator(schema.actualizar),
     controllers.actualizar,
   );

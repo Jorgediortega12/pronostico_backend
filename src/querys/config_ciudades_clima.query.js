@@ -83,6 +83,47 @@ export const actualizarCatalogoCiudad = `
   RETURNING *;
 `;
 
+// Vista unificada para el catálogo de superadmin: TODO lo que tiene IDs de
+// clima reales, ya esté suelto (catalogo_ciudades_clima) o ya atado a un
+// mercado (config_ciudades_clima) — para poder ver y renombrar cualquiera
+// desde un solo lugar, en vez de solo las huérfanas.
+export const listarTodasLasCiudades = `
+  SELECT
+    id,
+    'catalogo' AS origen_tabla,
+    ciudad_nombre,
+    accuweather_id,
+    openweather_id,
+    origen,
+    NULL::text AS ucp,
+    NULL::text AS db_empresa,
+    creado_en
+  FROM catalogo_ciudades_clima
+  UNION ALL
+  SELECT
+    id,
+    'mercado' AS origen_tabla,
+    ciudad_nombre,
+    accuweather_id,
+    openweather_id,
+    'mercado_configurado' AS origen,
+    ucp,
+    db_empresa,
+    creado_en
+  FROM config_ciudades_clima
+  ORDER BY ciudad_nombre ASC;
+`;
+
+export const actualizarConfigCiudadPorId = `
+  UPDATE config_ciudades_clima
+  SET ciudad_nombre = $2,
+      accuweather_id = $3,
+      openweather_id = $4,
+      actualizado_en = NOW()
+  WHERE id = $1
+  RETURNING *;
+`;
+
 // Ciudades ya "probadas" y disponibles para reusar en cualquier mercado de
 // cualquier empresa — unión de (a) lo que ya se le configuró a algún
 // mercado real en config_ciudades_clima y (b) el catálogo suelto de

@@ -8,8 +8,9 @@ import {
 
 const service = ConfigCiudadesClimaService.getInstance();
 
-// Administración del catálogo suelto de ciudades de clima
-// (catalogo_ciudades_clima) — vive bajo cpanel (no dashboard) porque no
+// Administración de TODAS las ciudades de clima (sueltas en
+// catalogo_ciudades_clima + ya atadas a un mercado en
+// config_ciudades_clima) — vive bajo cpanel (no dashboard) porque no
 // depende de una sesión de BD de mercado: el superadmin no tiene una, y
 // dashboard exige sessionDecrypt para todas sus rutas.
 export const listarCatalogo = async (req, res) => {
@@ -25,8 +26,15 @@ export const listarCatalogo = async (req, res) => {
 
 export const actualizar = async (req, res) => {
   try {
-    const { id } = req.params;
-    const result = await service.actualizarCatalogoCiudad(id, req.body);
+    const { id, origen } = req.params;
+    if (!["catalogo", "mercado"].includes(origen)) {
+      return responseError(200, "Origen de la ciudad inválido", 400, res);
+    }
+    const result = await service.actualizarCatalogoCiudad(
+      origen,
+      id,
+      req.body,
+    );
     if (!result.success) return responseError(200, result.message, 400, res);
     return SuccessResponse(res, result.data, result.message);
   } catch (err) {
