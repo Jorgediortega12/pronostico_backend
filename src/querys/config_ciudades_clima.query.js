@@ -124,6 +124,20 @@ export const actualizarConfigCiudadPorId = `
   RETURNING *;
 `;
 
+// El histórico/pronóstico pasa a compartirse por CIUDAD real, no por
+// mercado — dos mercados en la misma ciudad ya no duplican la llamada a
+// la API ni el histórico. `ciudad_id` referencia la fila real en
+// catalogo_ciudades_clima (la tabla maestra); se agrega sin quitar las
+// columnas viejas (ucp en datos_clima, ciudad_nombre/IDs en
+// config_ciudades_clima) para no romper nada que ya dependa de ellas.
+export const agregarCiudadIdConfigYDatosClima = `
+  ALTER TABLE config_ciudades_clima
+    ADD COLUMN IF NOT EXISTS ciudad_id INTEGER REFERENCES catalogo_ciudades_clima(id);
+  ALTER TABLE datos_clima
+    ADD COLUMN IF NOT EXISTS ciudad_id INTEGER REFERENCES catalogo_ciudades_clima(id);
+  CREATE INDEX IF NOT EXISTS idx_datos_clima_ciudad_id ON datos_clima (ciudad_id);
+`;
+
 // Ciudades ya "probadas" y disponibles para reusar en cualquier mercado de
 // cualquier empresa — unión de (a) lo que ya se le configuró a algún
 // mercado real en config_ciudades_clima y (b) el catálogo suelto de

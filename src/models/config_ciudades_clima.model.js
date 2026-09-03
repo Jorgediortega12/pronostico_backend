@@ -83,9 +83,18 @@ export default class ConfigCiudadesClimaModel {
     }, "buscarCiudadesOwm");
   }
 
+  // Idempotente — crea catalogo_ciudades_clima si falta y agrega
+  // ciudad_id a config_ciudades_clima/datos_clima si faltan (misma
+  // convención lazy que crearTablaCatalogoCiudades, para que también se
+  // aplique solo en producción cuando el código se despliegue).
+  async asegurarEsquemaCiudadId(client) {
+    await client.query(querys.crearTablaCatalogoCiudades);
+    await client.query(querys.agregarCiudadIdConfigYDatosClima);
+  }
+
   async listarCiudadesYaConfiguradas() {
     return this.executeQuery(async (client) => {
-      await client.query(querys.crearTablaCatalogoCiudades);
+      await this.asegurarEsquemaCiudadId(client);
       const result = await client.query(querys.listarCiudadesYaConfiguradas);
       return result.rows;
     }, "listarCiudadesYaConfiguradas");
@@ -98,7 +107,7 @@ export default class ConfigCiudadesClimaModel {
     origen,
   }) {
     return this.executeQuery(async (client) => {
-      await client.query(querys.crearTablaCatalogoCiudades);
+      await this.asegurarEsquemaCiudadId(client);
       const result = await client.query(querys.upsertCatalogoCiudad, [
         ciudad_nombre,
         accuweather_id ?? null,
@@ -111,7 +120,7 @@ export default class ConfigCiudadesClimaModel {
 
   async listarCatalogoCompleto() {
     return this.executeQuery(async (client) => {
-      await client.query(querys.crearTablaCatalogoCiudades);
+      await this.asegurarEsquemaCiudadId(client);
       const result = await client.query(querys.listarCatalogoCompleto);
       return result.rows;
     }, "listarCatalogoCompleto");
@@ -134,7 +143,7 @@ export default class ConfigCiudadesClimaModel {
 
   async listarTodasLasCiudades() {
     return this.executeQuery(async (client) => {
-      await client.query(querys.crearTablaCatalogoCiudades);
+      await this.asegurarEsquemaCiudadId(client);
       const result = await client.query(querys.listarTodasLasCiudades);
       return result.rows;
     }, "listarTodasLasCiudades");
