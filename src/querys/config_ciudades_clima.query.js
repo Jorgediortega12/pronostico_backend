@@ -14,14 +14,26 @@ export const listarConfigsPorEmpresa = `
 
 export const upsertConfig = `
   INSERT INTO config_ciudades_clima
-    (db_empresa, ucp, ciudad_nombre, accuweather_id, openweather_id, actualizado_en)
-  VALUES ($1, $2, $3, $4, $5, NOW())
+    (db_empresa, ucp, ciudad_nombre, accuweather_id, openweather_id, ciudad_id, actualizado_en)
+  VALUES ($1, $2, $3, $4, $5, $6, NOW())
   ON CONFLICT (db_empresa, ucp) DO UPDATE SET
     ciudad_nombre = EXCLUDED.ciudad_nombre,
     accuweather_id = EXCLUDED.accuweather_id,
     openweather_id = EXCLUDED.openweather_id,
+    ciudad_id = EXCLUDED.ciudad_id,
     actualizado_en = NOW()
   RETURNING *;
+`;
+
+// Resuelve la fila del catálogo maestro que corresponde a estos IDs (misma
+// combinación AccuWeather/OpenWeatherMap = misma ciudad, sin importar el
+// nombre que se le haya puesto) para no crear un duplicado en el catálogo
+// cada vez que un mercado guarda su config.
+export const buscarCiudadIdPorIds = `
+  SELECT id FROM catalogo_ciudades_clima
+  WHERE accuweather_id IS NOT DISTINCT FROM $1
+    AND openweather_id IS NOT DISTINCT FROM $2
+  LIMIT 1;
 `;
 
 export const eliminarConfig = `

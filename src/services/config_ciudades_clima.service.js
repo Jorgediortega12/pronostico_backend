@@ -54,9 +54,17 @@ export default class ConfigCiudadesClimaService {
     }
   };
 
+  // Resuelve/crea la ciudad en el catálogo maestro ANTES de guardar el
+  // mercado, para que quede vinculada desde el día uno (así jano-proxy
+  // puede compartir histórico entre mercados que usan la misma ciudad sin
+  // necesitar una migración manual después).
   guardar = async (session, payload) => {
     try {
-      const row = await model.upsertConfig(session.basededatos, payload);
+      const ciudadId = await model.resolverOcrearCiudadId(payload);
+      const row = await model.upsertConfig(session.basededatos, {
+        ...payload,
+        ciudad_id: ciudadId,
+      });
       return { success: true, data: row, message: "Configuración guardada correctamente" };
     } catch (error) {
       Logger.error(colors.red("Error ConfigCiudadesClimaService guardar"), error);

@@ -50,18 +50,54 @@ export default class ConfigCiudadesClimaModel {
 
   async upsertConfig(
     dbEmpresa,
-    { ucp, ciudad_nombre, accuweather_id, openweather_id },
+    { ucp, ciudad_nombre, accuweather_id, openweather_id, ciudad_id },
   ) {
     return this.executeQuery(async (client) => {
+      await this.asegurarEsquemaCiudadId(client);
       const result = await client.query(querys.upsertConfig, [
         dbEmpresa,
         ucp,
         ciudad_nombre ?? null,
         accuweather_id ?? null,
         openweather_id ?? null,
+        ciudad_id ?? null,
       ]);
       return result.rows[0] ?? null;
     }, "upsertConfig");
+  }
+
+  // Resuelve la fila del catálogo maestro para esta combinación de IDs
+  // (misma ciudad, sin importar el nombre que se le haya puesto) — la crea
+  // si no existe todavía. Así cada mercado que se configura queda
+  // vinculado a una ciudad compartible desde el día uno, sin necesitar una
+  // migración manual después. Si no hay ningún ID (ni accu ni owm), no hay
+  // identidad real que resolver — se deja sin vincular (ciudad_id null).
+  async resolverOcrearCiudadId({ ciudad_nombre, accuweather_id, openweather_id }) {
+    if (!accuweather_id && !openweather_id) return null;
+    return this.executeQuery(async (client) => {
+      await this.asegurarEsquemaCiudadId(client);
+      const buscar = () =>
+        client.query(querys.buscarCiudadIdPorIds, [
+          accuweather_id ?? null,
+          openweather_id ?? null,
+        ]);
+
+      const existente = await buscar();
+      if (existente.rowCount > 0) return existente.rows[0].id;
+
+      const insertado = await client.query(querys.upsertCatalogoCiudad, [
+        ciudad_nombre || "Sin nombre",
+        accuweather_id ?? null,
+        openweather_id ?? null,
+        "config_mercado",
+      ]);
+      if (insertado.rows[0]) return insertado.rows[0].id;
+
+      // ON CONFLICT DO NOTHING no retornó fila (ya existía con ese mismo
+      // nombre+IDs) — buscar de nuevo para tomar el id existente.
+      const reintento = await buscar();
+      return reintento.rows[0]?.id ?? null;
+    }, "resolverOcrearCiudadId");
   }
 
   async eliminarConfig(dbEmpresa, ucp) {
