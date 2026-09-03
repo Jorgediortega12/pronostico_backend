@@ -72,6 +72,30 @@ export default class ConfigCiudadesClimaService {
     }
   };
 
+  // Solo para puntos del mapa climático SIN mercado asociado: registra/
+  // reusa la ciudad en el catálogo maestro (catalogo_ciudades_clima), sin
+  // crear ninguna fila en config_ciudades_clima (que es específica de un
+  // mercado). Si el punto sí tiene un mercado, usar guardar() en su lugar
+  // — así jano-proxy también le trae histórico/pronóstico diario a ese
+  // mercado.
+  registrarCiudadSuelta = async ({ ciudad_nombre, accuweather_id, openweather_id }) => {
+    try {
+      const ciudadId = await model.resolverOcrearCiudadId({
+        ciudad_nombre,
+        accuweather_id,
+        openweather_id,
+      });
+      return {
+        success: true,
+        data: { ciudad_id: ciudadId },
+        message: "Ciudad registrada correctamente",
+      };
+    } catch (error) {
+      Logger.error(colors.red("Error ConfigCiudadesClimaService registrarCiudadSuelta"), error);
+      return { success: false, data: null, message: "Error al registrar la ciudad" };
+    }
+  };
+
   eliminar = async (session, ucp) => {
     try {
       const row = await model.eliminarConfig(session.basededatos, ucp);
