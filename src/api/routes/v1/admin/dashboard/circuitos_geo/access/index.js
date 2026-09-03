@@ -8,6 +8,7 @@ import {
 
 export const cargar = async (req, res) => {
   try {
+    const { session } = req.user;
     const { departamento } = req.body;
     const archivo = req.file;
     if (!archivo) {
@@ -15,6 +16,7 @@ export const cargar = async (req, res) => {
     }
 
     const result = await circuitosGeoService.cargarCircuitosDepartamento(
+      session,
       departamento,
       archivo.path,
     );
@@ -28,8 +30,12 @@ export const cargar = async (req, res) => {
 
 export const obtener = async (req, res) => {
   try {
+    const { session } = req.user;
     const { departamento } = req.params;
-    const result = await circuitosGeoService.obtenerCircuitosDepartamento(departamento);
+    const result = await circuitosGeoService.obtenerCircuitosDepartamento(
+      session,
+      departamento,
+    );
     if (!result.success) return responseError(200, result.message, 400, res);
     return SuccessResponse(res, result.data, "Consulta completada.");
   } catch (err) {
@@ -40,7 +46,8 @@ export const obtener = async (req, res) => {
 
 export const listarDepartamentos = async (req, res) => {
   try {
-    const result = await circuitosGeoService.listarDepartamentosCargados();
+    const { session } = req.user;
+    const result = await circuitosGeoService.listarDepartamentosCargados(session);
     if (!result.success) return responseError(200, result.message, 400, res);
     return SuccessResponse(res, result.data, "Consulta completada.");
   } catch (err) {
@@ -51,8 +58,9 @@ export const listarDepartamentos = async (req, res) => {
 
 export const buscar = async (req, res) => {
   try {
+    const { session } = req.user;
     const { departamento, q } = req.query;
-    const result = await circuitosGeoService.buscarCircuitos(departamento, q);
+    const result = await circuitosGeoService.buscarCircuitos(session, departamento, q);
     if (!result.success) return responseError(200, result.message, 400, res);
     return SuccessResponse(res, result.data, "Búsqueda completada.");
   } catch (err) {
@@ -63,8 +71,10 @@ export const buscar = async (req, res) => {
 
 export const relacionados = async (req, res) => {
   try {
+    const { session } = req.user;
     const { departamento, circuito } = req.query;
     const result = await circuitosGeoService.obtenerPuntosDeCircuito(
+      session,
       departamento,
       circuito,
     );

@@ -1,26 +1,23 @@
 // Carga y consulta de circuitos eléctricos (líneas) y sus puntos (fusibles,
-// seccionadores, interruptores, etc.) por departamento, a partir de
+// seccionadores, interruptores, etc.) por departamento/punto, a partir de
 // archivos KMZ/KML (Google Earth) — para pintarlos como capa en el Mapa
 // Climático. Cada Placemark del KML se guarda como una fila con su
 // geometría en GeoJSON (MultiLineString para circuitos, Point para el
 // resto).
+//
+// Vive en la BD de la propia empresa (session), NO en una BD fija — este
+// módulo se escribió antes de que existiera Redis/multi-tenant (cuando
+// solo había una empresa), así que originalmente usaba las variables de
+// entorno POSTGRES_* directo. Con varias empresas ya en producción, cada
+// una debe tener sus propios circuitos, igual que cualquier otro dato de
+// la empresa.
 
 import AdmZip from "adm-zip";
 import { XMLParser } from "fast-xml-parser";
 import fs from "fs";
-import pkg from "pg";
-const { Client } = pkg;
 import Logger from "../helpers/logger.js";
 import colors from "colors";
-
-const createClient = () =>
-  new Client({
-    user: process.env.POSTGRES_USER,
-    host: process.env.POSTGRES_HOST || "localhost",
-    database: process.env.POSTGRES_DB,
-    password: process.env.POSTGRES_PASSWORD,
-    port: process.env.POSTGRES_PORT || 5432,
-  });
+import { createConectionPG } from "../helpers/connections.js";
 
 const crearTablaSiNoExiste = async (client) => {
   await client.query(`
@@ -163,8 +160,12 @@ export const parsearKmz = (rutaArchivo) => {
   return circuitos;
 };
 
-export const cargarCircuitosDepartamento = async (departamento, rutaArchivo) => {
-  const client = createClient();
+export const cargarCircuitosDepartamento = async (
+  session,
+  departamento,
+  rutaArchivo,
+) => {
+  const client = createConectionPG(session);
   await client.connect();
   try {
     await crearTablaSiNoExiste(client);
@@ -227,8 +228,8 @@ export const cargarCircuitosDepartamento = async (departamento, rutaArchivo) => 
   }
 };
 
-export const obtenerCircuitosDepartamento = async (departamento) => {
-  const client = createClient();
+export const obtenerCircuitosDepartamento = async (session, departamento) => {
+  const client = createConectionPG(session);
   await client.connect();
   try {
     await crearTablaSiNoExiste(client);
@@ -261,8 +262,8 @@ export const obtenerCircuitosDepartamento = async (departamento) => {
   }
 };
 
-export const listarDepartamentosCargados = async () => {
-  const client = createClient();
+export const listarDepartamentosCargados = async (session) => {
+  const client = createConectionPG(session);
   await client.connect();
   try {
     await crearTablaSiNoExiste(client);
@@ -286,8 +287,8 @@ export const listarDepartamentosCargados = async () => {
 // Búsqueda liviana por nombre (circuitos y puntos) para el panel de
 // búsqueda del mapa — devuelve solo lo necesario para listar y volar hasta
 // ahí (primera coordenada como "ubicación representativa").
-export const buscarCircuitos = async (departamento, texto) => {
-  const client = createClient();
+export const buscarCircuitos = async (session, departamento, texto) => {
+  const client = createConectionPG(session);
   await client.connect();
   try {
     await crearTablaSiNoExiste(client);
@@ -321,8 +322,12 @@ export const buscarCircuitos = async (departamento, texto) => {
 // Puntos relacionados a un circuito (para "desplegar" sus relaciones en el
 // panel de búsqueda) — matchea por el nombre exacto del circuito, tal como
 // viene en "NOMBRE CIRCUITO/LINEA" en el KML original.
-export const obtenerPuntosDeCircuito = async (departamento, nombreCircuito) => {
-  const client = createClient();
+export const obtenerPuntosDeCircuito = async (
+  session,
+  departamento,
+  nombreCircuito,
+) => {
+  const client = createConectionPG(session);
   await client.connect();
   try {
     await crearTablaSiNoExiste(client);
