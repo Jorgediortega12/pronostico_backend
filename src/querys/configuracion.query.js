@@ -389,7 +389,24 @@ export const agregarUCPActualizacionDatos = `INSERT INTO actualizaciondatos (ucp
 
 export const actualizarUCPActualizacionDatos = `UPDATE actualizaciondatos SET p1=$1, p2=$2, p3=$3, p4=$4, p5=$5, p6=$6, p7=$7, p8=$8, p9=$9, p10=$10, p11=$11, p12=$12, p13=$13, p14=$14, p15=$15, p16=$16, p17=$17, p18=$18, p19=$19, p20=$20, p21=$21, p22=$22, p23=$23, p24=$24, estado=$25, observacion=$26, festivo=$27 WHERE ucp=$28 AND fecha=$29 RETURNING *`;
 
-export const buscarClimaPeriodos = `SELECT * FROM datos_clima WHERE ucp=$1 AND fecha=$2`;
+// Misma resolución mercado -> ciudad_id (con fallback a ucp) que las demás
+// consultas de datos_clima de este archivo.
+export const buscarClimaPeriodos = `
+  WITH mercado AS (
+    SELECT (
+      SELECT ciudad_id FROM config_ciudades_clima
+      WHERE LOWER(ucp) = LOWER($1) AND ciudad_id IS NOT NULL
+      LIMIT 1
+    ) AS ciudad_id
+  )
+  SELECT dc.*
+  FROM datos_clima dc CROSS JOIN mercado m
+  WHERE dc.fecha = $2
+    AND (
+      (m.ciudad_id IS NOT NULL AND dc.ciudad_id = m.ciudad_id)
+      OR (m.ciudad_id IS NULL AND LOWER(dc.ucp) = LOWER($1))
+    );
+`;
 
 export const agregarClimaPronosticoLog = `
   INSERT INTO datos_climalog (fecha, ucp)
@@ -404,13 +421,26 @@ export const buscarTipicidad = `
   LIMIT 1;
 `;
 
-// 🔹 Traer datos climáticos por rango
+// 🔹 Traer datos climáticos por rango — resuelve mercado (ucp) -> ciudad_id
+// primero (el histórico ahora se comparte por ciudad, no por mercado) y cae
+// de vuelta al match viejo por ucp si ese mercado aún no está vinculado a
+// una ciudad. Ver el mismo patrón/comentario en resumenDiarioClima.
 export const cargarVariablesClimaticasxFechaPeriodos = `
-  SELECT *
-  FROM datos_clima
-  WHERE ucp = $1
-    AND fecha BETWEEN $2 AND $3
-  ORDER BY fecha ASC;
+  WITH mercado AS (
+    SELECT (
+      SELECT ciudad_id FROM config_ciudades_clima
+      WHERE LOWER(ucp) = LOWER($1) AND ciudad_id IS NOT NULL
+      LIMIT 1
+    ) AS ciudad_id
+  )
+  SELECT dc.*
+  FROM datos_clima dc CROSS JOIN mercado m
+  WHERE dc.fecha BETWEEN $2 AND $3
+    AND (
+      (m.ciudad_id IS NOT NULL AND dc.ciudad_id = m.ciudad_id)
+      OR (m.ciudad_id IS NULL AND LOWER(dc.ucp) = LOWER($1))
+    )
+  ORDER BY dc.fecha ASC;
 `;
 
 // 🔹 Resumen mensual de clima (temperatura/humedad/viento) por rango de
@@ -422,7 +452,16 @@ export const cargarVariablesClimaticasxFechaPeriodos = `
 const _colsT = Array.from({ length: 24 }, (_, i) => `p${i + 1}_t`);
 const _colsH = Array.from({ length: 24 }, (_, i) => `p${i + 1}_h`);
 const _colsV = Array.from({ length: 24 }, (_, i) => `p${i + 1}_v`);
+// Misma resolución mercado -> ciudad_id (con fallback a ucp) que las demás
+// consultas de datos_clima de este archivo.
 export const resumenMensualClima = `
+  WITH mercado AS (
+    SELECT (
+      SELECT ciudad_id FROM config_ciudades_clima
+      WHERE LOWER(ucp) = LOWER($1) AND ciudad_id IS NOT NULL
+      LIMIT 1
+    ) AS ciudad_id
+  )
   SELECT
     to_char(mes, 'YYYY-MM') AS mes,
     AVG(dia_prom_t) AS temp_prom,
@@ -434,16 +473,19 @@ export const resumenMensualClima = `
     COUNT(*) AS dias_con_dato
   FROM (
     SELECT
-      fecha AS mes,
+      dc.fecha AS mes,
       (${_colsT.join(" + ")}) / 24.0 AS dia_prom_t,
       GREATEST(${_colsT.join(", ")}) AS dia_max_t,
       LEAST(${_colsT.join(", ")}) AS dia_min_t,
       (${_colsH.join(" + ")}) / 24.0 AS dia_prom_h,
       (${_colsV.join(" + ")}) / 24.0 AS dia_prom_v,
       GREATEST(${_colsV.join(", ")}) AS dia_max_v
-    FROM datos_clima
-    WHERE ucp = $1
-      AND fecha BETWEEN $2 AND $3
+    FROM datos_clima dc CROSS JOIN mercado m
+    WHERE dc.fecha BETWEEN $2 AND $3
+      AND (
+        (m.ciudad_id IS NOT NULL AND dc.ciudad_id = m.ciudad_id)
+        OR (m.ciudad_id IS NULL AND LOWER(dc.ucp) = LOWER($1))
+      )
   ) dias
   GROUP BY 1
   ORDER BY 1 ASC;
