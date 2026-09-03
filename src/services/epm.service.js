@@ -3,6 +3,7 @@ import colors from "colors";
 import Logger from "../helpers/logger.js";
 import FactoresModel from "../models/factores.model.js";
 import { createConectionPG } from "../helpers/connections.js";
+import { obtenerConfigInterna } from "./epm_config.service.js";
 
 const model = FactoresModel.getInstance();
 
@@ -20,13 +21,20 @@ const mapearFlujo = (nombre) => {
 
 export const consultarEPM = async ({ consulta, desde, hasta, session }) => {
   try {
+    const config = await obtenerConfigInterna();
+    if (!config || !config.tenantId || !config.clientSecret) {
+      throw new Error(
+        "La API de EPM no está configurada — vaya a Configuración > EPM.",
+      );
+    }
+
     // ── PASO 1: Token Microsoft ─────────────────────────────
-    const tokenUrl = `https://login.microsoftonline.com/${process.env.EPM_TENANT_ID}/oauth2/v2.0/token`;
+    const tokenUrl = `https://login.microsoftonline.com/${config.tenantId}/oauth2/v2.0/token`;
 
     const tokenBody = new URLSearchParams({
-      client_id: process.env.EPM_CLIENT_ID,
-      client_secret: process.env.EPM_CLIENT_SECRET,
-      scope: process.env.EPM_SCOPE,
+      client_id: config.clientId,
+      client_secret: config.clientSecret,
+      scope: config.scope,
       grant_type: "client_credentials",
     });
 
@@ -41,13 +49,13 @@ export const consultarEPM = async ({ consulta, desde, hasta, session }) => {
     if (!microsoftToken) throw new Error("No se obtuvo el token de Microsoft");
 
     // ── PASO 2: Login EPM ───────────────────────────────────
-    const loginRes = await fetch(process.env.EPM_LOGIN_URL, {
+    const loginRes = await fetch(config.loginUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         aplicacionOrigen: "sphaerai",
         Authorization: `Bearer ${microsoftToken}`,
-        "Ocp-Apim-Subscription-Key": process.env.EPM_SUBSCRIPTION_KEY,
+        "Ocp-Apim-Subscription-Key": config.subscriptionKey,
       },
       body: JSON.stringify({}),
     });
@@ -62,7 +70,7 @@ export const consultarEPM = async ({ consulta, desde, hasta, session }) => {
     if (!epmToken) throw new Error("No se obtuvo el accessToken de EPM");
 
     // ── PASO 3: Consulta EPM ────────────────────────────────
-    const url = new URL(`${process.env.EPM_CONSULTA_URL}/${consulta}`);
+    const url = new URL(`${config.consultaUrl}/${consulta}`);
     url.searchParams.append("desde", desde);
     url.searchParams.append("hasta", hasta);
 
@@ -70,7 +78,7 @@ export const consultarEPM = async ({ consulta, desde, hasta, session }) => {
       method: "GET",
       headers: {
         Authorization: `Bearer ${epmToken}`,
-        "Ocp-Apim-Subscription-Key": process.env.EPM_SUBSCRIPTION_KEY,
+        "Ocp-Apim-Subscription-Key": config.subscriptionKey,
         "Content-Type": "application/json",
       },
     });
