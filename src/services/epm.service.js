@@ -157,7 +157,7 @@ export const consultarEPM = async ({ consulta, desde, hasta, session }) => {
     const medidas = Array.from(grupos.values());
     await model.insertarMedidasRapido(medidas, client2);
 
-    return { success: true, insertadas: medidas.length };
+    return { success: true, insertadas: medidas.length, medidas, datosEPM };
   } catch (err) {
     Logger.error(colors.red("Error consultarEPM:"), err?.message);
     return { success: false, message: err.message || "Error consultando EPM" };

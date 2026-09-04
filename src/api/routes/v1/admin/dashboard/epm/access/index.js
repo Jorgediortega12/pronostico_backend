@@ -21,9 +21,12 @@ export const consultarEPM = async (req, res) => {
       return res.status(502).json({ success: false, message: result.message });
     }
 
-    return res
-      .status(200)
-      .json({ success: true, insertadas: result.insertadas });
+    return res.status(200).json({
+      success: true,
+      insertadas: result.insertadas,
+      medidas: result.medidas,
+      datosEPM: result.datosEPM,
+    });
   } catch (err) {
     Logger.error(colors.red("Error controller consultarEPM"), err);
     return res
