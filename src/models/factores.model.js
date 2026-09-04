@@ -72,9 +72,14 @@ export default class FactoresModel {
     }
   };
 
+  asegurarColumnasAgrupaciones = async (client) => {
+    await client.query(querys.asegurarColumnasEpmAgrupaciones);
+  };
+
   guardarAgrupacion = async (data, client) => {
     try {
       await client.connect();
+      await this.asegurarColumnasAgrupaciones(client);
       const result = await client.query(querys.guardarAgrupacion, [
         data.barra_id,
         data.codigo_rpm,
@@ -82,6 +87,8 @@ export default class FactoresModel {
         data.habilitar,
         data.revision,
         data.factor,
+        data.dividir_por_1000 ?? false,
+        data.valor_absoluto ?? false,
       ]);
       return result.rows[0];
     } finally {
@@ -90,17 +97,18 @@ export default class FactoresModel {
   };
 
   // En FactoresModel
-  consultarAgrupacion_xCodigoRpm = async (codigoRpm, client) => {
+  consultarAgrupacion_xCodigoRpmYFlujo = async (codigoRpm, flujo, client) => {
     try {
       await client.connect();
+      await this.asegurarColumnasAgrupaciones(client);
       const { rows } = await client.query(
-        querys.consultarAgrupacion_xCodigoRpm,
-        [codigoRpm],
+        querys.consultarAgrupacion_xCodigoRpmYFlujo,
+        [codigoRpm, flujo],
       );
       return rows[0] ?? null;
     } catch (error) {
       Logger.error(
-        colors.red("Error FactoresModel consultarAgrupacionesIndex_xBarraId"),
+        colors.red("Error FactoresModel consultarAgrupacion_xCodigoRpmYFlujo"),
         error,
       );
       throw error;
@@ -112,6 +120,7 @@ export default class FactoresModel {
   consultarAgrupacionesIndex_xBarraId = async (barra_id, client) => {
     try {
       await client.connect();
+      await this.asegurarColumnasAgrupaciones(client);
       const result = await client.query(
         querys.consultarAgrupacionesIndex_xBarraId,
         [barra_id],
@@ -131,6 +140,7 @@ export default class FactoresModel {
   actualizarAgrupacion = async (id, data, client) => {
     try {
       await client.connect();
+      await this.asegurarColumnasAgrupaciones(client);
       await client.query(querys.actualizarAgrupacion, [
         data.barra_id,
         data.codigo_rpm,
@@ -138,6 +148,8 @@ export default class FactoresModel {
         data.habilitar,
         data.revision,
         data.factor,
+        data.dividir_por_1000 ?? false,
+        data.valor_absoluto ?? false,
         id,
       ]);
       return true;

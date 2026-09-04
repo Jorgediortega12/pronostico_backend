@@ -14,11 +14,6 @@ const construirCodigoRpm = (estacion, nivelTension, campo) => {
   return `${est}${nt}${cam}`;
 };
 
-const mapearFlujo = (nombre) => {
-  if (nombre === "MVAr") return "R1";
-  return "AE";
-};
-
 export const consultarEPM = async ({ consulta, desde, hasta, session }) => {
   try {
     const config = await obtenerConfigInterna();
@@ -86,34 +81,60 @@ export const consultarEPM = async ({ consulta, desde, hasta, session }) => {
     const datosEPM = await consultaRes.json();
 
     // ── PASO 4: Procesar y agrupar ──────────────────────────
+    // Solo se agrupan/insertan mediciones de potencia (P activa, Q
+    // reactiva) — el resto (ej. corriente "I T") se descarta acá, aunque
+    // sigue viniendo completo en `datosEPM` (la respuesta cruda).
+    const ELEMENTOS_VALIDOS = new Set(["P", "Q"]);
+
     const grupos = new Map();
-    const mapaFlujo = new Map(); // cache para no consultar el mismo codigo_rpm dos veces
+    // cache "codigo_rpm||flujo" -> config de agrupación. Un mismo codigo_rpm
+    // suele tener DOS agrupaciones (AE para P, R1 para Q) — cachear solo por
+    // codigo_rpm mezclaba la config de una con los items de la otra.
+    const mapaAgrupacion = new Map();
 
     for (const item of datosEPM) {
+      const elemento = String(item.ELEMENTO ?? "").trim().toUpperCase();
+      if (!ELEMENTOS_VALIDOS.has(elemento)) continue;
+
       const codigoRpm = construirCodigoRpm(
         item.ESTACION,
         item.NIVEL_TENSION,
         item.CAMPO,
       );
 
-      const fechaCompleta = new Date(item.FECHA);
-      const fechaDia = fechaCompleta.toISOString().split("T")[0];
-      const hora = fechaCompleta.getUTCHours();
+      // FECHA llega sin 'Z' (ej. "2026-06-01 01:00:00.000") — parsearla con
+      // Date().getUTCHours() la interpreta como hora LOCAL del servidor y
+      // la corre según su timezone (+5h en un server en Bogotá). Se toma la
+      // hora tal cual aparece en el string, sin pasar por Date/timezone.
+      const fechaDia = String(item.FECHA).slice(0, 10);
+      const horaMatch = String(item.FECHA).match(/\s(\d{2}):/);
+      const hora = horaMatch ? Number(horaMatch[1]) : 0;
       const periodo = hora + 1;
 
-      // Buscar flujo en cache o en BD
-      let flujo;
-      if (mapaFlujo.has(codigoRpm)) {
-        flujo = mapaFlujo.get(codigoRpm);
+      // El elemento ya dice si es activa (P->AE) o reactiva (Q->R1) — se
+      // busca la agrupación de ESE flujo puntual, no una cualquiera del
+      // codigo_rpm, porque P y Q normalmente son agrupaciones distintas.
+      const flujoEsperado = elemento === "Q" ? "R1" : "AE";
+      const cacheKey = `${codigoRpm}||${flujoEsperado}`;
+
+      let config;
+      if (mapaAgrupacion.has(cacheKey)) {
+        config = mapaAgrupacion.get(cacheKey);
       } else {
         const client = createConectionPG(session);
-        const agrupacion = await model.consultarAgrupacion_xCodigoRpm(
+        const agrupacion = await model.consultarAgrupacion_xCodigoRpmYFlujo(
           codigoRpm,
+          flujoEsperado,
           client,
         );
-        flujo = agrupacion ? agrupacion.flujo : mapearFlujo(item.NOMBRE);
-        mapaFlujo.set(codigoRpm, flujo);
+        config = {
+          flujo: agrupacion?.flujo ?? flujoEsperado,
+          dividirPor1000: agrupacion?.dividir_por_1000 ?? false,
+          valorAbsoluto: agrupacion?.valor_absoluto ?? false,
+        };
+        mapaAgrupacion.set(cacheKey, config);
       }
+      const { flujo, dividirPor1000, valorAbsoluto } = config;
 
       const key = `${codigoRpm}||${fechaDia}||${flujo}`;
 
@@ -149,7 +170,11 @@ export const consultarEPM = async ({ consulta, desde, hasta, session }) => {
         });
       }
 
-      grupos.get(key)[`p${periodo}`] = item.INTEGRAL;
+      let valor = Number(item.INTEGRAL);
+      if (valorAbsoluto) valor = Math.abs(valor);
+      if (dividirPor1000) valor = valor / 1000;
+
+      grupos.get(key)[`p${periodo}`] = valor;
     }
 
     const client2 = createConectionPG(session);

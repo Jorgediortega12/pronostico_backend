@@ -64,6 +64,8 @@ export default {
     habilitar: Joi.number().required(),
     revision: Joi.string().required(),
     factor: Joi.number().required(),
+    dividir_por_1000: Joi.boolean().optional(),
+    valor_absoluto: Joi.boolean().optional(),
   }),
 
   consultarAgrupacionesIndex_xBarraId: Joi.object().keys({
@@ -78,6 +80,8 @@ export default {
     habilitar: Joi.number().required(),
     revision: Joi.string().required(),
     factor: Joi.number().required(),
+    dividir_por_1000: Joi.boolean().optional(),
+    valor_absoluto: Joi.boolean().optional(),
   }),
 
   eliminarBarra: Joi.object({
