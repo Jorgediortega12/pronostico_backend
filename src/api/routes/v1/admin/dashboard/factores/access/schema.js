@@ -287,6 +287,8 @@ export default {
     ucp: Joi.string().required(),
     fecha_inicio: Joi.string().required(),
     fecha_fin: Joi.string().required(),
+    // registros puede llegar vacío cuando se genera el reporte de potencia
+    // sin DNA (sin archivo MTTO ni incidencias IDO cargadas).
     registros: Joi.array()
       .items(
         Joi.object({
@@ -296,7 +298,7 @@ export default {
           periodo: Joi.number().integer().min(1).max(24).required(),
         }),
       )
-      .min(1)
+      .min(0)
       .required(),
     registrosPotencia: Joi.array()
       .items(
