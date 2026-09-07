@@ -18,17 +18,30 @@ SET barra = $1,
 WHERE id = $7
 `;
 
+// EPM: columnas por-agrupación para normalizar las medidas que llegan de la
+// API externa (dividir /1000 y/o forzar valor absoluto). agrupaciones vive
+// en la BD de cada empresa (no hay migración central), así que se aseguran
+// perezosamente antes de leer/escribir.
+export const asegurarColumnasEpmAgrupaciones = `
+ALTER TABLE agrupaciones ADD COLUMN IF NOT EXISTS dividir_por_1000 BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE agrupaciones ADD COLUMN IF NOT EXISTS valor_absoluto BOOLEAN NOT NULL DEFAULT false;
+`;
+
 export const guardarAgrupacion = `
 INSERT INTO agrupaciones
-(barra_id, codigo_rpm, flujo, habilitar, revision, estado, factor)
-VALUES ($1, $2, $3, $4, $5, 1, $6)
+(barra_id, codigo_rpm, flujo, habilitar, revision, estado, factor, dividir_por_1000, valor_absoluto)
+VALUES ($1, $2, $3, $4, $5, 1, $6, $7, $8)
 RETURNING *
 `;
 
-export const consultarAgrupacion_xCodigoRpm = `
-  SELECT flujo FROM agrupaciones WHERE codigo_rpm = $1 AND estado = 1 LIMIT 1
+// Un mismo codigo_rpm suele tener DOS agrupaciones (una AE para P, otra R1
+// para Q) — hay que filtrar también por flujo, si no, un LIMIT 1 sin más
+// trae una al azar y le aplica su config (÷1000/valor_absoluto/flujo) a
+// ambos elementos indistintamente.
+export const consultarAgrupacion_xCodigoRpmYFlujo = `
+  SELECT flujo, dividir_por_1000, valor_absoluto FROM agrupaciones WHERE codigo_rpm = $1 AND flujo = $2 AND estado = 1 LIMIT 1
 `;
-export const consultarAgrupacionesIndex_xBarraId = `SELECT id, barra_id, codigo_rpm, flujo, habilitar, revision, estado, factor FROM agrupaciones WHERE barra_id = $1 AND estado = 1 ORDER BY id`;
+export const consultarAgrupacionesIndex_xBarraId = `SELECT id, barra_id, codigo_rpm, flujo, habilitar, revision, estado, factor, dividir_por_1000, valor_absoluto FROM agrupaciones WHERE barra_id = $1 AND estado = 1 ORDER BY id`;
 
 export const actualizarAgrupacion = `
 UPDATE agrupaciones
@@ -37,8 +50,10 @@ SET barra_id = $1,
     flujo = $3,
     habilitar = $4,
     revision = $5,
-    factor = $6
-WHERE id = $7
+    factor = $6,
+    dividir_por_1000 = $7,
+    valor_absoluto = $8
+WHERE id = $9
 `;
 
 // querys/barras.query.ts
