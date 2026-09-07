@@ -16,7 +16,7 @@ const construirCodigoRpm = (estacion, nivelTension, campo) => {
 
 export const consultarEPM = async ({ consulta, desde, hasta, session }) => {
   try {
-    const config = await obtenerConfigInterna();
+    const config = await obtenerConfigInterna(session);
     if (!config || !config.tenantId || !config.clientSecret) {
       throw new Error(
         "La API de EPM no está configurada — vaya a Configuración > EPM.",

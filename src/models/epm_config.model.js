@@ -1,17 +1,4 @@
-import pkg from "pg";
-const { Client } = pkg;
 import * as querys from "../querys/epm_config.query.js";
-
-// Config compartida por toda la app (no por mercado) — misma convención de
-// conexión directa a la BD principal que usa circuitos_geo.
-export const createClient = () =>
-  new Client({
-    user: process.env.POSTGRES_USER,
-    host: process.env.POSTGRES_HOST || "localhost",
-    database: process.env.POSTGRES_DB,
-    password: process.env.POSTGRES_PASSWORD,
-    port: process.env.POSTGRES_PORT || 5432,
-  });
 
 export const crearTablaSiNoExiste = async (client) => {
   await client.query(querys.crearTablaEpmConfig);
