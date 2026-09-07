@@ -31,6 +31,26 @@ export function ensureDirSync(dirPath) {
   if (!fs.existsSync(dirPath)) fs.mkdirSync(dirPath, { recursive: true });
 }
 
+// Sin esta unicidad, dos llamadas concurrentes a findOrCreateFolder para la
+// misma carpeta (ej. guardar el reporte de varios días en paralelo) pueden
+// pasar ambas el SELECT antes de que cualquiera termine el INSERT, creando
+// carpetas duplicadas con el mismo nombre bajo el mismo padre. El catch de
+// 23505 de más abajo ya asumía que este índice existía, pero nunca se había
+// creado. lower(nombre) porque la búsqueda es case-insensitive.
+export async function asegurarConstraintUnicaCarpetas(client) {
+  try {
+    await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS carpetas_nombre_lower_codsuperior_idx
+      ON carpetas (lower(nombre), codsuperior)
+    `);
+  } catch (err) {
+    // Varias conexiones creando el índice por primera vez a la vez: Postgres
+    // puede lanzar 23505 sobre el catálogo interno (pg_class) aunque el
+    // índice termine existiendo igual — no es un error real, se ignora.
+    if (err.code !== "23505") throw err;
+  }
+}
+
 /**
  * findOrCreateFolder (DB): busca o crea registro en tabla 'carpetas'
  * client: pg client ya conectado
@@ -41,6 +61,8 @@ export async function findOrCreateFolder(
   codsuperior = 0,
   nivel = 1
 ) {
+  await asegurarConstraintUnicaCarpetas(client);
+
   // NO convertimos codsuperior a NULL: asumimos que la raíz usa 0 en tu esquema
   // 1) Intentamos encontrar
   const qFind = `
