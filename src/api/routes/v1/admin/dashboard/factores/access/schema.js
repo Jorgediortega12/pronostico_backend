@@ -314,10 +314,16 @@ export default {
 
   guardarFactDna: Joi.object({
     ucp: Joi.string().required(),
+    tipo_dia: Joi.string()
+      .valid("ORDINARIO", "SABADO", "DOMINGO", "FESTIVO")
+      .required(),
     periodos: Joi.array().items(Joi.number().required()).length(24).required(),
   }),
 
   getFactDna: Joi.object({
     ucp: Joi.string().required(),
+    tipo_dia: Joi.string()
+      .valid("ORDINARIO", "SABADO", "DOMINGO", "FESTIVO")
+      .required(),
   }),
 };

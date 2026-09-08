@@ -12,11 +12,21 @@ export default class FactDnaModel {
     return FactDnaModel.instance;
   }
 
+  asegurarColumnaTipoDia = async (client) => {
+    await client.query(querys.asegurarColumnaTipoDia);
+    try {
+      await client.query(querys.asegurarIndiceUnicoFactDna);
+    } catch (err) {
+      if (err.code !== "23505") throw err;
+    }
+  };
+
   upsertFactDna = async (data, client) => {
     try {
       await client.connect();
-      const { ucp, periodos } = data;
-      const params = [ucp, ...periodos];
+      await this.asegurarColumnaTipoDia(client);
+      const { ucp, tipo_dia, periodos } = data;
+      const params = [ucp, tipo_dia, ...periodos];
       const result = await client.query(querys.upsertFactDna, params);
       return result.rows[0];
     } catch (error) {
@@ -27,10 +37,11 @@ export default class FactDnaModel {
     }
   };
 
-  getFactDna = async (ucp, client) => {
+  getFactDna = async (ucp, tipo_dia, client) => {
     try {
       await client.connect();
-      const result = await client.query(querys.getFactDna, [ucp]);
+      await this.asegurarColumnaTipoDia(client);
+      const result = await client.query(querys.getFactDna, [ucp, tipo_dia]);
       return result.rows[0] ?? null;
     } catch (error) {
       Logger.error(colors.red("Error FactDnaModel getFactDna"), error);
