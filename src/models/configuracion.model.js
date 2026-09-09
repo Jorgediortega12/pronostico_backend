@@ -500,7 +500,18 @@ export default class ConfiguracionModel {
 
   // AGREGAR FUENTES
   agregarUCPMedida = async (
-    { nombre, factor, codigo_rpm, codpadre, estado, aux, aux2, aux3, aux4 },
+    {
+      nombre,
+      factor,
+      codigo_rpm,
+      codpadre,
+      estado,
+      aux,
+      aux2,
+      aux3,
+      aux4,
+      factor_flujo,
+    },
     client,
   ) => {
     try {
@@ -515,6 +526,7 @@ export default class ConfiguracionModel {
         aux2,
         aux3,
         aux4,
+        factor_flujo ?? "AE",
       ];
       const result = await client.query(querys.agregarUCPMedida, params);
       return result.rows && result.rows.length > 0 ? result.rows[0] : null;
@@ -553,6 +565,7 @@ export default class ConfiguracionModel {
       aux2,
       aux3,
       aux4,
+      factor_flujo,
     },
     client,
   ) => {
@@ -568,6 +581,7 @@ export default class ConfiguracionModel {
         aux2,
         aux3,
         aux4,
+        factor_flujo ?? "AE",
         codigo,
       ];
       const result = await client.query(querys.actualizarUCPMedida, params);

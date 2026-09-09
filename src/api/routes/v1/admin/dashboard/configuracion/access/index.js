@@ -359,6 +359,7 @@ export const agregarUCPMedida = async (req, res) => {
       aux2,
       aux3,
       aux4,
+      factor_flujo,
     } = req.body;
 
     const payload = {
@@ -371,6 +372,7 @@ export const agregarUCPMedida = async (req, res) => {
       aux2,
       aux3,
       aux4,
+      factor_flujo,
     };
 
     const result = await service.agregarUCPMedida(payload, session);
@@ -415,6 +417,7 @@ export const actualizarUCPMedida = async (req, res) => {
       aux2,
       aux3,
       aux4,
+      factor_flujo,
     } = req.body;
     const { session } = req.user;
     const payload = {
@@ -428,6 +431,7 @@ export const actualizarUCPMedida = async (req, res) => {
       aux2,
       aux3,
       aux4,
+      factor_flujo,
     };
 
     const result = await service.actualizarUCPMedida(payload, session);
