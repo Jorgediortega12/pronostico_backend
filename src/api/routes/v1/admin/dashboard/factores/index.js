@@ -1,5 +1,7 @@
 import { Router } from "express";
-import validator from "../../../../../middleware/validator.js";
+import validator, {
+  ValidationSource,
+} from "../../../../../middleware/validator.js";
 import schema from "./access/schema.js";
 import * as controllers from "./access/index.js";
 
@@ -200,8 +202,8 @@ export default function () {
   );
 
   router.get(
-    "/getFactDna/:ucp",
-    validator(schema.getFactDna),
+    "/getFactDna/:ucp/:tipo_dia",
+    validator(schema.getFactDna, ValidationSource.PARAM),
     controllers.getFactDna,
   );
 

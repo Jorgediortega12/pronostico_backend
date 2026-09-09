@@ -957,10 +957,10 @@ export const guardarFactDna = async (req, res) => {
 };
 
 export const getFactDna = async (req, res) => {
-  const { ucp } = req.params;
+  const { ucp, tipo_dia } = req.params;
   const { session } = req.user;
   try {
-    const result = await factDnaService.getFactDna({ ucp }, session);
+    const result = await factDnaService.getFactDna({ ucp, tipo_dia }, session);
     if (!result.success) return responseError(200, result.message, 500, res);
     return SuccessResponse(res, result, "FACT DNA obtenido correctamente");
   } catch (err) {
