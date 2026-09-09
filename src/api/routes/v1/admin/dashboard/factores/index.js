@@ -205,5 +205,21 @@ export default function () {
     controllers.getFactDna,
   );
 
+  router.get(
+    "/consultarCoberturaDemanda_xMCyRangoFecha",
+    validator(schema.consultarCoberturaDemanda_xMCyRangoFecha, "query"),
+    controllers.consultarCoberturaDemanda_xMCyRangoFecha,
+  );
+  router.get(
+    "/consultarBarrasSinMedida_xMCyFecha",
+    validator(schema.consultarBarrasSinMedida_xMCyFecha, "query"),
+    controllers.consultarBarrasSinMedida_xMCyFecha,
+  );
+  router.get(
+    "/consultarDemandaPorBarra_xMCyFecha",
+    validator(schema.consultarDemandaPorBarra_xMCyFecha, "query"),
+    controllers.consultarDemandaPorBarra_xMCyFecha,
+  );
+
   return router;
 }

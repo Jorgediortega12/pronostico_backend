@@ -801,4 +801,89 @@ export default class FactoresModel {
       await client.end();
     }
   };
+
+  // ── Cobertura de demanda ──────────────────────────────────────────────
+  // Un rango/fecha sin datos es una respuesta válida (no un error), así
+  // que siempre se devuelve result.rows (aunque sea []).
+
+  consultarCoberturaDemanda_xMCyRangoFecha = async (
+    mc,
+    fechaInicio,
+    fechaFin,
+    client,
+  ) => {
+    try {
+      await client.connect();
+      const result = await client.query(
+        querys.consultarCoberturaDemanda_xMCyRangoFecha,
+        [mc, fechaInicio, fechaFin],
+      );
+      // demanda_oficial/suma_barras salen de sumas con columnas numeric
+      // (por el ::numeric de factor y del ROUND), pg las devuelve como
+      // string para no perder precisión -> convertir a Number acá.
+      return result.rows.map((row) => ({
+        ...row,
+        demanda_oficial: Number(row.demanda_oficial),
+        suma_barras: Number(row.suma_barras),
+        cobertura_pct:
+          row.cobertura_pct === null ? null : Number(row.cobertura_pct),
+      }));
+    } catch (error) {
+      Logger.error(
+        colors.red(
+          "Error FactoresModel consultarCoberturaDemanda_xMCyRangoFecha",
+        ),
+        error,
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  consultarBarrasSinMedida_xMCyFecha = async (mc, fecha, client) => {
+    try {
+      await client.connect();
+      const result = await client.query(
+        querys.consultarBarrasSinMedida_xMCyFecha,
+        [mc, fecha],
+      );
+      return result.rows;
+    } catch (error) {
+      Logger.error(
+        colors.red("Error FactoresModel consultarBarrasSinMedida_xMCyFecha"),
+        error,
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  consultarDemandaPorBarra_xMCyFecha = async (mc, fecha, client) => {
+    try {
+      await client.connect();
+      const result = await client.query(
+        querys.consultarDemandaPorBarra_xMCyFecha,
+        [mc, fecha],
+      );
+      // total/p1..p24 salen de SUM(... * factor::numeric) -> string, igual
+      // que en consultarCoberturaDemanda_xMCyRangoFecha.
+      return result.rows.map((row) => {
+        const fila = { ...row, total: Number(row.total) };
+        for (let p = 1; p <= 24; p++) {
+          fila[`p${p}`] = Number(row[`p${p}`]);
+        }
+        return fila;
+      });
+    } catch (error) {
+      Logger.error(
+        colors.red("Error FactoresModel consultarDemandaPorBarra_xMCyFecha"),
+        error,
+      );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
 }

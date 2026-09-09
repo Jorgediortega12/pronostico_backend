@@ -320,4 +320,18 @@ export default {
   getFactDna: Joi.object({
     ucp: Joi.string().required(),
   }),
+
+  consultarCoberturaDemanda_xMCyRangoFecha: Joi.object({
+    mc: Joi.string().required(),
+    fecha_inicio: Joi.string().isoDate().required(),
+    fecha_fin: Joi.string().isoDate().required(),
+  }),
+  consultarBarrasSinMedida_xMCyFecha: Joi.object({
+    mc: Joi.string().required(),
+    fecha: Joi.string().isoDate().required(),
+  }),
+  consultarDemandaPorBarra_xMCyFecha: Joi.object({
+    mc: Joi.string().required(),
+    fecha: Joi.string().isoDate().required(),
+  }),
 };
