@@ -139,6 +139,7 @@ export default {
     aux2: Joi.string().allow(null, ""),
     aux3: Joi.string().allow(null, ""),
     aux4: Joi.string().allow(null, ""),
+    factor_flujo: Joi.string().valid("AE", "AS", "AMBOS").allow(null, ""),
   }),
   actualizarUCPMedida: Joi.object().keys({
     codigo: Joi.number().required(),
@@ -151,6 +152,7 @@ export default {
     aux2: Joi.string().allow(null, ""),
     aux3: Joi.number().allow(null, ""),
     aux4: Joi.string().allow(null, ""),
+    factor_flujo: Joi.string().valid("AE", "AS", "AMBOS").allow(null, ""),
   }),
   eliminarUCPMedidaParams: Joi.object().keys({
     codigo: Joi.number().required(),
