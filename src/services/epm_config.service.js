@@ -2,11 +2,16 @@
 // Antes vivían en variables de entorno (EPM_TENANT_ID, EPM_CLIENT_SECRET,
 // etc.) — ahora se guardan en BD, con el secreto/clave encriptados, y se
 // configuran desde Configuración > EPM.
+//
+// Vive en la BD de la propia empresa (session), NO en una BD fija — cada
+// empresa tiene sus propias credenciales EPM (antes vivía en una única BD
+// compartida por todas, el mismo bug que tenía circuitos_geo).
 
 import crypto from "crypto-js";
 import Logger from "../helpers/logger.js";
 import colors from "colors";
 import * as model from "../models/epm_config.model.js";
+import { createConectionPG } from "../helpers/connections.js";
 
 // Marcador que el formulario muestra en vez del valor real de un campo
 // secreto ya configurado — si el usuario guarda sin tocarlo, se conserva
@@ -32,8 +37,8 @@ const desencriptar = (textoEncriptado) => {
 };
 
 // Para el formulario en Configuración: nunca devuelve el secreto real.
-export const obtenerConfigParaFormulario = async () => {
-  const client = model.createClient();
+export const obtenerConfigParaFormulario = async (session) => {
+  const client = createConectionPG(session);
   try {
     await client.connect();
     await model.crearTablaSiNoExiste(client);
@@ -60,8 +65,8 @@ export const obtenerConfigParaFormulario = async () => {
 };
 
 // Para uso interno (epm.service.js): valores reales, desencriptados.
-export const obtenerConfigInterna = async () => {
-  const client = model.createClient();
+export const obtenerConfigInterna = async (session) => {
+  const client = createConectionPG(session);
   try {
     await client.connect();
     await model.crearTablaSiNoExiste(client);
@@ -85,8 +90,8 @@ export const obtenerConfigInterna = async () => {
   }
 };
 
-export const guardarConfig = async (payload) => {
-  const client = model.createClient();
+export const guardarConfig = async (payload, session) => {
+  const client = createConectionPG(session);
   try {
     await client.connect();
     await model.crearTablaSiNoExiste(client);

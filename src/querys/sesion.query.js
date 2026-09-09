@@ -71,7 +71,28 @@ export const cargarPeriodosxUCPxFecha = `
 
 export const verificarFechaActualizaciondedatos = `SELECT * FROM actualizaciondatos WHERE ucp=$1 ORDER BY fecha DESC LIMIT 1`;
 
-export const verificarFechaClima = `SELECT * FROM datos_clima WHERE ucp=$1 ORDER BY fecha DESC LIMIT 1`;
+// Resuelve mercado (ucp) -> ciudad_id primero (el histórico/pronóstico de
+// clima ahora se comparte por ciudad, no por mercado) y cae de vuelta al
+// match viejo por ucp si ese mercado aún no está vinculado a una ciudad —
+// mismo patrón que las consultas de datos_clima en configuracion.query.js.
+// Corre contra jano_proxy (ver SesionModel.createClient), así que
+// config_ciudades_clima sí es alcanzable desde el mismo cliente.
+export const verificarFechaClima = `
+  WITH mercado AS (
+    SELECT (
+      SELECT ciudad_id FROM config_ciudades_clima
+      WHERE LOWER(ucp) = LOWER($1) AND ciudad_id IS NOT NULL
+      LIMIT 1
+    ) AS ciudad_id
+  )
+  SELECT dc.*
+  FROM datos_clima dc CROSS JOIN mercado m
+  WHERE
+    (m.ciudad_id IS NOT NULL AND dc.ciudad_id = m.ciudad_id)
+    OR (m.ciudad_id IS NULL AND LOWER(dc.ucp) = LOWER($1))
+  ORDER BY dc.fecha DESC
+  LIMIT 1;
+`;
 
 export const borrarDatosPronostico = `DELETE FROM pronosticos`;
 

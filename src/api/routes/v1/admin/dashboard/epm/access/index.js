@@ -21,9 +21,12 @@ export const consultarEPM = async (req, res) => {
       return res.status(502).json({ success: false, message: result.message });
     }
 
-    return res
-      .status(200)
-      .json({ success: true, insertadas: result.insertadas });
+    return res.status(200).json({
+      success: true,
+      insertadas: result.insertadas,
+      medidas: result.medidas,
+      datosEPM: result.datosEPM,
+    });
   } catch (err) {
     Logger.error(colors.red("Error controller consultarEPM"), err);
     return res
@@ -34,7 +37,8 @@ export const consultarEPM = async (req, res) => {
 
 export const obtenerConfigEpm = async (req, res) => {
   try {
-    const result = await configService.obtenerConfigParaFormulario();
+    const { session } = req.user;
+    const result = await configService.obtenerConfigParaFormulario(session);
     if (!result.success) {
       return res.status(500).json({ success: false, message: result.message });
     }
@@ -49,7 +53,8 @@ export const obtenerConfigEpm = async (req, res) => {
 
 export const guardarConfigEpm = async (req, res) => {
   try {
-    const result = await configService.guardarConfig(req.body);
+    const { session } = req.user;
+    const result = await configService.guardarConfig(req.body, session);
     if (!result.success) {
       return res.status(500).json({ success: false, message: result.message });
     }

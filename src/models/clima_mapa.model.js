@@ -12,9 +12,16 @@ export default class ClimaMapaModel {
     return ClimaMapaModel.instance;
   }
 
+  // Idempotente — agrega las columnas de ciudad si faltan (misma
+  // convención lazy usada en config_ciudades_clima.model.js).
+  asegurarColumnasCiudad = async (client) => {
+    await client.query(querys.agregarColumnasCiudadAPuntos);
+  };
+
   listarPuntosConClima = async (client) => {
     try {
       await client.connect();
+      await this.asegurarColumnasCiudad(client);
       const result = await client.query(querys.listarPuntosConClima);
       return result.rows;
     } catch (error) {
@@ -25,15 +32,22 @@ export default class ClimaMapaModel {
     }
   };
 
-  crearPunto = async ({ nombre, lat, lng, ucp, orden }, client) => {
+  crearPunto = async (
+    { nombre, lat, lng, ucp, orden, ciudad_nombre, accuweather_id, openweather_id },
+    client,
+  ) => {
     try {
       await client.connect();
+      await this.asegurarColumnasCiudad(client);
       const result = await client.query(querys.crearPunto, [
         nombre,
         lat,
         lng,
         ucp ?? null,
         orden ?? 0,
+        ciudad_nombre ?? null,
+        accuweather_id ?? null,
+        openweather_id ?? null,
       ]);
       return result.rows[0];
     } catch (error) {
@@ -45,11 +59,23 @@ export default class ClimaMapaModel {
   };
 
   actualizarPunto = async (
-    { id, nombre, lat, lng, ucp, activo, orden },
+    {
+      id,
+      nombre,
+      lat,
+      lng,
+      ucp,
+      activo,
+      orden,
+      ciudad_nombre,
+      accuweather_id,
+      openweather_id,
+    },
     client,
   ) => {
     try {
       await client.connect();
+      await this.asegurarColumnasCiudad(client);
       const result = await client.query(querys.actualizarPunto, [
         id,
         nombre,
@@ -58,6 +84,9 @@ export default class ClimaMapaModel {
         ucp ?? null,
         activo,
         orden ?? 0,
+        ciudad_nombre ?? null,
+        accuweather_id ?? null,
+        openweather_id ?? null,
       ]);
       return result.rows[0] ?? null;
     } catch (error) {

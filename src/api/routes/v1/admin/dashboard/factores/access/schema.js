@@ -64,6 +64,8 @@ export default {
     habilitar: Joi.number().required(),
     revision: Joi.string().required(),
     factor: Joi.number().required(),
+    dividir_por_1000: Joi.boolean().optional(),
+    valor_absoluto: Joi.boolean().optional(),
   }),
 
   consultarAgrupacionesIndex_xBarraId: Joi.object().keys({
@@ -78,6 +80,8 @@ export default {
     habilitar: Joi.number().required(),
     revision: Joi.string().required(),
     factor: Joi.number().required(),
+    dividir_por_1000: Joi.boolean().optional(),
+    valor_absoluto: Joi.boolean().optional(),
   }),
 
   eliminarBarra: Joi.object({
@@ -283,6 +287,8 @@ export default {
     ucp: Joi.string().required(),
     fecha_inicio: Joi.string().required(),
     fecha_fin: Joi.string().required(),
+    // registros puede llegar vacío cuando se genera el reporte de potencia
+    // sin DNA (sin archivo MTTO ni incidencias IDO cargadas).
     registros: Joi.array()
       .items(
         Joi.object({
@@ -292,7 +298,7 @@ export default {
           periodo: Joi.number().integer().min(1).max(24).required(),
         }),
       )
-      .min(1)
+      .min(0)
       .required(),
     registrosPotencia: Joi.array()
       .items(
