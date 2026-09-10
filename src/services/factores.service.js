@@ -1525,4 +1525,91 @@ export default class FactoresService {
       };
     }
   }
+
+  // ── Cobertura de demanda (oficial vs suma de barras) ──────────────────
+  async consultarCoberturaDemanda_xMCyRangoFecha(
+    mc,
+    fechaInicio,
+    fechaFin,
+    session,
+  ) {
+    try {
+      const client = createConectionPG(session);
+      const res = await model.consultarCoberturaDemanda_xMCyRangoFecha(
+        mc,
+        fechaInicio,
+        fechaFin,
+        client,
+      );
+      return {
+        success: true,
+        data: res,
+        message: "Cobertura de demanda obtenida correctamente.",
+      };
+    } catch (err) {
+      Logger.error(
+        colors.red(
+          "Error FactoresService consultarCoberturaDemanda_xMCyRangoFecha",
+        ),
+        err,
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al obtener la cobertura de demanda.",
+      };
+    }
+  }
+
+  async consultarBarrasSinMedida_xMCyFecha(mc, fecha, session) {
+    try {
+      const client = createConectionPG(session);
+      const res = await model.consultarBarrasSinMedida_xMCyFecha(
+        mc,
+        fecha,
+        client,
+      );
+      return {
+        success: true,
+        data: res,
+        message: "Barras sin medida obtenidas correctamente.",
+      };
+    } catch (err) {
+      Logger.error(
+        colors.red("Error FactoresService consultarBarrasSinMedida_xMCyFecha"),
+        err,
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al obtener las barras sin medida.",
+      };
+    }
+  }
+
+  async consultarDemandaPorBarra_xMCyFecha(mc, fecha, session) {
+    try {
+      const client = createConectionPG(session);
+      const res = await model.consultarDemandaPorBarra_xMCyFecha(
+        mc,
+        fecha,
+        client,
+      );
+      return {
+        success: true,
+        data: res,
+        message: "Demanda por barra obtenida correctamente.",
+      };
+    } catch (err) {
+      Logger.error(
+        colors.red("Error FactoresService consultarDemandaPorBarra_xMCyFecha"),
+        err,
+      );
+      return {
+        success: false,
+        data: null,
+        message: "Error al obtener la demanda por barra.",
+      };
+    }
+  }
 }
