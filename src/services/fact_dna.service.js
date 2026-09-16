@@ -15,13 +15,24 @@ export default class FactDnaService {
 
   #model = FactDnaModel.getInstance();
 
-  async guardarFactDna({ ucp, periodos }, session) {
+  async guardarFactDna({ ucp, tipo_dia, periodos }, session) {
     try {
-      if (!ucp || !Array.isArray(periodos) || periodos.length !== 24) {
-        return { success: false, message: "UCP y 24 periodos son requeridos." };
+      if (
+        !ucp ||
+        !tipo_dia ||
+        !Array.isArray(periodos) ||
+        periodos.length !== 24
+      ) {
+        return {
+          success: false,
+          message: "UCP, tipo_dia y 24 periodos son requeridos.",
+        };
       }
       const client = createConectionPG(session);
-      const row = await this.#model.upsertFactDna({ ucp, periodos }, client);
+      const row = await this.#model.upsertFactDna(
+        { ucp, tipo_dia, periodos },
+        client,
+      );
       return { success: true, data: row };
     } catch (err) {
       Logger.error(colors.red("Error FactDnaService guardarFactDna"), err);
@@ -29,10 +40,10 @@ export default class FactDnaService {
     }
   }
 
-  async getFactDna({ ucp }, session) {
+  async getFactDna({ ucp, tipo_dia }, session) {
     try {
       const client = createConectionPG(session);
-      const row = await this.#model.getFactDna(ucp, client);
+      const row = await this.#model.getFactDna(ucp, tipo_dia, client);
       return { success: true, data: row };
     } catch (err) {
       Logger.error(colors.red("Error FactDnaService getFactDna"), err);

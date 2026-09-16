@@ -314,10 +314,30 @@ export default {
 
   guardarFactDna: Joi.object({
     ucp: Joi.string().required(),
+    tipo_dia: Joi.string()
+      .valid("ORDINARIO", "SABADO", "DOMINGO", "FESTIVO")
+      .required(),
     periodos: Joi.array().items(Joi.number().required()).length(24).required(),
   }),
 
   getFactDna: Joi.object({
     ucp: Joi.string().required(),
+    tipo_dia: Joi.string()
+      .valid("ORDINARIO", "SABADO", "DOMINGO", "FESTIVO")
+      .required(),
+  }),
+
+  consultarCoberturaDemanda_xMCyRangoFecha: Joi.object({
+    mc: Joi.string().required(),
+    fecha_inicio: Joi.string().isoDate().required(),
+    fecha_fin: Joi.string().isoDate().required(),
+  }),
+  consultarBarrasSinMedida_xMCyFecha: Joi.object({
+    mc: Joi.string().required(),
+    fecha: Joi.string().isoDate().required(),
+  }),
+  consultarDemandaPorBarra_xMCyFecha: Joi.object({
+    mc: Joi.string().required(),
+    fecha: Joi.string().isoDate().required(),
   }),
 };

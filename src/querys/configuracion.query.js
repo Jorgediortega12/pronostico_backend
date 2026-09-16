@@ -139,9 +139,9 @@ export const crearDiaPotencia = `
 // AGREGAR FUENTES
 export const agregarUCPMedida = `
   INSERT INTO ucp
-    (nombre, factor, codigo_rpm, codpadre, estado, aux, aux2, aux3, aux4)
+    (nombre, factor, codigo_rpm, codpadre, estado, aux, aux2, aux3, aux4, factor_flujo)
   VALUES
-    ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
   RETURNING *;
 `;
 
@@ -168,8 +168,9 @@ export const actualizarUCPMedida = `
       aux = $6,
       aux2 = $7,
       aux3 = $8,
-      aux4 = $9
-  WHERE codigo = $10
+      aux4 = $9,
+      factor_flujo = $10
+  WHERE codigo = $11
   RETURNING *;
 `;
 

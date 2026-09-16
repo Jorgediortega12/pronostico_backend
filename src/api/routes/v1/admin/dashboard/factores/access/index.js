@@ -957,12 +957,64 @@ export const guardarFactDna = async (req, res) => {
 };
 
 export const getFactDna = async (req, res) => {
-  const { ucp } = req.params;
+  const { ucp, tipo_dia } = req.params;
   const { session } = req.user;
   try {
-    const result = await factDnaService.getFactDna({ ucp }, session);
+    const result = await factDnaService.getFactDna({ ucp, tipo_dia }, session);
     if (!result.success) return responseError(200, result.message, 500, res);
     return SuccessResponse(res, result, "FACT DNA obtenido correctamente");
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const consultarCoberturaDemanda_xMCyRangoFecha = async (req, res) => {
+  const { mc, fecha_inicio, fecha_fin } = req.query;
+  const { session } = req.user;
+  try {
+    const result = await service.consultarCoberturaDemanda_xMCyRangoFecha(
+      mc,
+      fecha_inicio,
+      fecha_fin,
+      session,
+    );
+    if (!result.success) return responseError(200, result.message, 500, res);
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const consultarBarrasSinMedida_xMCyFecha = async (req, res) => {
+  const { mc, fecha } = req.query;
+  const { session } = req.user;
+  try {
+    const result = await service.consultarBarrasSinMedida_xMCyFecha(
+      mc,
+      fecha,
+      session,
+    );
+    if (!result.success) return responseError(200, result.message, 500, res);
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const consultarDemandaPorBarra_xMCyFecha = async (req, res) => {
+  const { mc, fecha } = req.query;
+  const { session } = req.user;
+  try {
+    const result = await service.consultarDemandaPorBarra_xMCyFecha(
+      mc,
+      fecha,
+      session,
+    );
+    if (!result.success) return responseError(200, result.message, 500, res);
+    return SuccessResponse(res, result.data, result.message);
   } catch (err) {
     Logger.error(err);
     return InternalError(res);

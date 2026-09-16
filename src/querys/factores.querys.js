@@ -371,3 +371,125 @@ export const marcarSesionVigente = `
   WHERE codigo = $1
   RETURNING *
 `;
+
+/* =========================
+   COBERTURA DE DEMANDA
+   (demanda oficial vs suma de barras, para detectar circuitos sin
+   medida o en cero — ver factor='-1' fix de agrupaciones)
+   ========================= */
+
+// factor es varchar en agrupaciones -> ::numeric obligatorio al sumar.
+const SUMA_24_PERIODOS_ME = `(COALESCE(me.p1,0)+COALESCE(me.p2,0)+COALESCE(me.p3,0)+COALESCE(me.p4,0)+COALESCE(me.p5,0)+COALESCE(me.p6,0)+COALESCE(me.p7,0)+COALESCE(me.p8,0)+COALESCE(me.p9,0)+COALESCE(me.p10,0)+COALESCE(me.p11,0)+COALESCE(me.p12,0)+COALESCE(me.p13,0)+COALESCE(me.p14,0)+COALESCE(me.p15,0)+COALESCE(me.p16,0)+COALESCE(me.p17,0)+COALESCE(me.p18,0)+COALESCE(me.p19,0)+COALESCE(me.p20,0)+COALESCE(me.p21,0)+COALESCE(me.p22,0)+COALESCE(me.p23,0)+COALESCE(me.p24,0))`;
+
+const SUMA_24_PERIODOS_AD = `(COALESCE(ad.p1,0)+COALESCE(ad.p2,0)+COALESCE(ad.p3,0)+COALESCE(ad.p4,0)+COALESCE(ad.p5,0)+COALESCE(ad.p6,0)+COALESCE(ad.p7,0)+COALESCE(ad.p8,0)+COALESCE(ad.p9,0)+COALESCE(ad.p10,0)+COALESCE(ad.p11,0)+COALESCE(ad.p12,0)+COALESCE(ad.p13,0)+COALESCE(ad.p14,0)+COALESCE(ad.p15,0)+COALESCE(ad.p16,0)+COALESCE(ad.p17,0)+COALESCE(ad.p18,0)+COALESCE(ad.p19,0)+COALESCE(ad.p20,0)+COALESCE(ad.p21,0)+COALESCE(ad.p22,0)+COALESCE(ad.p23,0)+COALESCE(ad.p24,0))`;
+
+// Por fecha en el rango: demanda oficial (actualizaciondatos, ancla del
+// LEFT JOIN) vs suma de barras (medidas.pN * factor, flujo AE, barra
+// habilitada, agrupación activa). COALESCE a 0 si una fecha oficial no
+// tiene ninguna fila de barras ese día (hueco total).
+export const consultarCoberturaDemanda_xMCyRangoFecha = `
+WITH suma_barras_dia AS (
+  SELECT
+    me.fecha::date AS fecha,
+    SUM(${SUMA_24_PERIODOS_ME} * a.factor::numeric) AS suma_barras
+  FROM medidas me
+  INNER JOIN agrupaciones a
+    ON a.codigo_rpm = me.codigo_rpm
+    AND a.flujo = me.flujo
+    AND a.estado = 1
+  INNER JOIN barras b
+    ON b.id = a.barra_id
+    AND b.estado = 1
+    AND b.habilitar = 1
+  WHERE b.mc = $1
+    AND me.flujo = 'AE'
+    AND me.fecha BETWEEN $2::date AND $3::date
+  GROUP BY me.fecha
+)
+SELECT
+  TO_CHAR(ad.fecha, 'YYYY-MM-DD') AS fecha,
+  ${SUMA_24_PERIODOS_AD} AS demanda_oficial,
+  COALESCE(sbd.suma_barras, 0) AS suma_barras,
+  CASE
+    WHEN ${SUMA_24_PERIODOS_AD} = 0 THEN NULL
+    ELSE ROUND(((COALESCE(sbd.suma_barras, 0) / ${SUMA_24_PERIODOS_AD}) * 100)::numeric, 2)
+  END AS cobertura_pct
+FROM actualizaciondatos ad
+LEFT JOIN suma_barras_dia sbd ON sbd.fecha = ad.fecha::date
+WHERE LOWER(ad.ucp) = LOWER($1)
+  AND ad.fecha BETWEEN $2::date AND $3::date
+ORDER BY ad.fecha ASC
+`;
+
+// Barras/agrupaciones AE activas de un mercado que NO tienen ninguna fila
+// en medidas para la fecha dada (circuito que nunca reportó ese día).
+export const consultarBarrasSinMedida_xMCyFecha = `
+SELECT
+  b.barra,
+  a.codigo_rpm
+FROM barras b
+INNER JOIN agrupaciones a
+  ON a.barra_id = b.id
+  AND a.estado = 1
+  AND a.flujo = 'AE'
+WHERE b.mc = $1
+  AND b.estado = 1
+  AND b.habilitar = 1
+  AND NOT EXISTS (
+    SELECT 1
+    FROM medidas me
+    WHERE me.codigo_rpm = a.codigo_rpm
+      AND me.flujo = 'AE'
+      AND me.fecha = $2::date
+  )
+ORDER BY b.barra ASC
+`;
+
+// Desglose de demanda por barra para una fecha puntual (drill-down). INNER
+// JOIN contra medidas: una barra sin ninguna fila ese día no aparece aquí
+// (ver consultarBarrasSinMedida_xMCyFecha); una barra con fila pero en
+// cero SÍ aparece, con total ≈ 0 — esa es la señal de "reportó pero en
+// cero".
+export const consultarDemandaPorBarra_xMCyFecha = `
+SELECT
+  b.barra,
+  SUM(${SUMA_24_PERIODOS_ME} * a.factor::numeric) AS total,
+  SUM(COALESCE(me.p1,0)  * a.factor::numeric) AS p1,
+  SUM(COALESCE(me.p2,0)  * a.factor::numeric) AS p2,
+  SUM(COALESCE(me.p3,0)  * a.factor::numeric) AS p3,
+  SUM(COALESCE(me.p4,0)  * a.factor::numeric) AS p4,
+  SUM(COALESCE(me.p5,0)  * a.factor::numeric) AS p5,
+  SUM(COALESCE(me.p6,0)  * a.factor::numeric) AS p6,
+  SUM(COALESCE(me.p7,0)  * a.factor::numeric) AS p7,
+  SUM(COALESCE(me.p8,0)  * a.factor::numeric) AS p8,
+  SUM(COALESCE(me.p9,0)  * a.factor::numeric) AS p9,
+  SUM(COALESCE(me.p10,0) * a.factor::numeric) AS p10,
+  SUM(COALESCE(me.p11,0) * a.factor::numeric) AS p11,
+  SUM(COALESCE(me.p12,0) * a.factor::numeric) AS p12,
+  SUM(COALESCE(me.p13,0) * a.factor::numeric) AS p13,
+  SUM(COALESCE(me.p14,0) * a.factor::numeric) AS p14,
+  SUM(COALESCE(me.p15,0) * a.factor::numeric) AS p15,
+  SUM(COALESCE(me.p16,0) * a.factor::numeric) AS p16,
+  SUM(COALESCE(me.p17,0) * a.factor::numeric) AS p17,
+  SUM(COALESCE(me.p18,0) * a.factor::numeric) AS p18,
+  SUM(COALESCE(me.p19,0) * a.factor::numeric) AS p19,
+  SUM(COALESCE(me.p20,0) * a.factor::numeric) AS p20,
+  SUM(COALESCE(me.p21,0) * a.factor::numeric) AS p21,
+  SUM(COALESCE(me.p22,0) * a.factor::numeric) AS p22,
+  SUM(COALESCE(me.p23,0) * a.factor::numeric) AS p23,
+  SUM(COALESCE(me.p24,0) * a.factor::numeric) AS p24
+FROM barras b
+INNER JOIN agrupaciones a
+  ON a.barra_id = b.id
+  AND a.estado = 1
+  AND a.flujo = 'AE'
+INNER JOIN medidas me
+  ON me.codigo_rpm = a.codigo_rpm
+  AND me.flujo = a.flujo
+  AND me.fecha = $2::date
+WHERE b.mc = $1
+  AND b.estado = 1
+  AND b.habilitar = 1
+GROUP BY b.barra
+ORDER BY b.barra ASC
+`;
