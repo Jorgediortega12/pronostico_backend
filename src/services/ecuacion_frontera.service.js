@@ -82,6 +82,7 @@ async function obtenerFactorCorreccionRespaldo(client, codigoUcp, ucpNombre, ses
   const fechaFinISO = fechaFinVentana.toISOString().slice(0, 10);
 
   let resultado = { factor: 1, diasUsados: 0, calculadoEn: Date.now() };
+  let calculoExitoso = false;
   try {
     const [crudoRows, playRes] = await Promise.all([
       calcularRawPromedioPorFecha(client, codigoUcp, fechaInicioISO, fechaFinISO),
@@ -121,6 +122,7 @@ async function obtenerFactorCorreccionRespaldo(client, codigoUcp, ucpNombre, ses
           diasUsados: fechasUsadas.size,
           calculadoEn: Date.now(),
         };
+        calculoExitoso = true;
       }
     }
   } catch (err) {
@@ -131,7 +133,14 @@ async function obtenerFactorCorreccionRespaldo(client, codigoUcp, ucpNombre, ses
     );
   }
 
-  cacheFactorCorreccion.set(ucpNombre, resultado);
+  // Solo se cachea un cálculo que realmente encontró superposición — si
+  // falló (o no hubo días en común esta vez) se usa 1 sin corregir para
+  // ESTA respuesta, pero no se guarda: así una falla transitoria (el
+  // modelo de pronóstico tardó, un timeout, etc.) no queda "pegada" 24h
+  // en vez de reintentarse en la próxima llamada.
+  if (calculoExitoso) {
+    cacheFactorCorreccion.set(ucpNombre, resultado);
+  }
   return resultado;
 }
 
