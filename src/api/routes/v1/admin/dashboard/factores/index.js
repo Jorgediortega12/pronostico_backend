@@ -141,6 +141,12 @@ export default function () {
   );
 
   router.post(
+    "/calculosCurvasTipicasUcp",
+    validator(schema.calculosCurvasTipicasUcp),
+    controllers.calculosCurvasTipicasUcp,
+  );
+
+  router.post(
     "/calculoFda",
     validator(schema.calculoFdaFdp),
     controllers.calculoFda,

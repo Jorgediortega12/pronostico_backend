@@ -19,6 +19,19 @@ export default function () {
     controllers.procesar,
   );
 
+  router.post(
+    "/guardar-ecuacion",
+    uploadExcel.fields([{ name: "ecuacion", maxCount: 1 }]),
+    validator(schema.guardarEcuacion),
+    controllers.guardarEcuacion,
+  );
+
+  router.post(
+    "/guardar-respaldo",
+    validator(schema.guardarRespaldo),
+    controllers.guardarRespaldo,
+  );
+
   router.get(
     "/calcular-respaldo",
     validator(schema.calcularRespaldo, ValidationSource.QUERY),

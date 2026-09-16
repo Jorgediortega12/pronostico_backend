@@ -171,7 +171,9 @@ export const consultarBarraFactorNombre = `
 SELECT
   a.factor,
   a.codigo_rpm,
-  a.flujo
+  a.flujo,
+  a.dividir_por_1000,
+  a.valor_absoluto
 FROM barras b
 INNER JOIN agrupaciones a ON b.id = a.barra_id
 WHERE b.barra = $1
@@ -381,6 +383,25 @@ export const marcarSesionVigente = `
 // factor es varchar en agrupaciones -> ::numeric obligatorio al sumar.
 const SUMA_24_PERIODOS_ME = `(COALESCE(me.p1,0)+COALESCE(me.p2,0)+COALESCE(me.p3,0)+COALESCE(me.p4,0)+COALESCE(me.p5,0)+COALESCE(me.p6,0)+COALESCE(me.p7,0)+COALESCE(me.p8,0)+COALESCE(me.p9,0)+COALESCE(me.p10,0)+COALESCE(me.p11,0)+COALESCE(me.p12,0)+COALESCE(me.p13,0)+COALESCE(me.p14,0)+COALESCE(me.p15,0)+COALESCE(me.p16,0)+COALESCE(me.p17,0)+COALESCE(me.p18,0)+COALESCE(me.p19,0)+COALESCE(me.p20,0)+COALESCE(me.p21,0)+COALESCE(me.p22,0)+COALESCE(me.p23,0)+COALESCE(me.p24,0))`;
 
+// Aplica dividir_por_1000 -> factor -> valor_absoluto (en ese orden) a UNA
+// columna de periodo, igual que aplicarConfigAgrupacion en JS/Python — acá
+// hace falta repetirlo en SQL puro porque estas queries suman en la propia
+// base de datos. valor_absoluto se aplica por periodo, no sobre la suma ya
+// hecha (abs(suma) no es lo mismo que suma(abs) si los periodos de una
+// misma fila tuvieran signos distintos entre sí).
+const expresionPeriodoConFactor = (colPeriodo) => {
+  const escalado = `(CASE WHEN a.dividir_por_1000 THEN COALESCE(${colPeriodo},0)/1000 ELSE COALESCE(${colPeriodo},0) END)`;
+  const conFactor = `(${escalado} * a.factor::numeric)`;
+  return `(CASE WHEN a.valor_absoluto THEN ABS(${conFactor}) ELSE ${conFactor} END)`;
+};
+
+// Suma de los 24 periodos de una fila, cada uno ya pasado por
+// expresionPeriodoConFactor — para usar dentro de un SUM(...) que agrega
+// por filas/fechas.
+const SUMA_24_PERIODOS_ME_CON_FACTOR = Array.from({ length: 24 }, (_, i) =>
+  expresionPeriodoConFactor(`me.p${i + 1}`),
+).join("+");
+
 const SUMA_24_PERIODOS_AD = `(COALESCE(ad.p1,0)+COALESCE(ad.p2,0)+COALESCE(ad.p3,0)+COALESCE(ad.p4,0)+COALESCE(ad.p5,0)+COALESCE(ad.p6,0)+COALESCE(ad.p7,0)+COALESCE(ad.p8,0)+COALESCE(ad.p9,0)+COALESCE(ad.p10,0)+COALESCE(ad.p11,0)+COALESCE(ad.p12,0)+COALESCE(ad.p13,0)+COALESCE(ad.p14,0)+COALESCE(ad.p15,0)+COALESCE(ad.p16,0)+COALESCE(ad.p17,0)+COALESCE(ad.p18,0)+COALESCE(ad.p19,0)+COALESCE(ad.p20,0)+COALESCE(ad.p21,0)+COALESCE(ad.p22,0)+COALESCE(ad.p23,0)+COALESCE(ad.p24,0))`;
 
 // Por fecha en el rango: demanda oficial (actualizaciondatos, ancla del
@@ -391,7 +412,7 @@ export const consultarCoberturaDemanda_xMCyRangoFecha = `
 WITH suma_barras_dia AS (
   SELECT
     me.fecha::date AS fecha,
-    SUM(${SUMA_24_PERIODOS_ME} * a.factor::numeric) AS suma_barras
+    SUM(${SUMA_24_PERIODOS_ME_CON_FACTOR}) AS suma_barras
   FROM medidas me
   INNER JOIN agrupaciones a
     ON a.codigo_rpm = me.codigo_rpm
@@ -453,31 +474,31 @@ ORDER BY b.barra ASC
 export const consultarDemandaPorBarra_xMCyFecha = `
 SELECT
   b.barra,
-  SUM(${SUMA_24_PERIODOS_ME} * a.factor::numeric) AS total,
-  SUM(COALESCE(me.p1,0)  * a.factor::numeric) AS p1,
-  SUM(COALESCE(me.p2,0)  * a.factor::numeric) AS p2,
-  SUM(COALESCE(me.p3,0)  * a.factor::numeric) AS p3,
-  SUM(COALESCE(me.p4,0)  * a.factor::numeric) AS p4,
-  SUM(COALESCE(me.p5,0)  * a.factor::numeric) AS p5,
-  SUM(COALESCE(me.p6,0)  * a.factor::numeric) AS p6,
-  SUM(COALESCE(me.p7,0)  * a.factor::numeric) AS p7,
-  SUM(COALESCE(me.p8,0)  * a.factor::numeric) AS p8,
-  SUM(COALESCE(me.p9,0)  * a.factor::numeric) AS p9,
-  SUM(COALESCE(me.p10,0) * a.factor::numeric) AS p10,
-  SUM(COALESCE(me.p11,0) * a.factor::numeric) AS p11,
-  SUM(COALESCE(me.p12,0) * a.factor::numeric) AS p12,
-  SUM(COALESCE(me.p13,0) * a.factor::numeric) AS p13,
-  SUM(COALESCE(me.p14,0) * a.factor::numeric) AS p14,
-  SUM(COALESCE(me.p15,0) * a.factor::numeric) AS p15,
-  SUM(COALESCE(me.p16,0) * a.factor::numeric) AS p16,
-  SUM(COALESCE(me.p17,0) * a.factor::numeric) AS p17,
-  SUM(COALESCE(me.p18,0) * a.factor::numeric) AS p18,
-  SUM(COALESCE(me.p19,0) * a.factor::numeric) AS p19,
-  SUM(COALESCE(me.p20,0) * a.factor::numeric) AS p20,
-  SUM(COALESCE(me.p21,0) * a.factor::numeric) AS p21,
-  SUM(COALESCE(me.p22,0) * a.factor::numeric) AS p22,
-  SUM(COALESCE(me.p23,0) * a.factor::numeric) AS p23,
-  SUM(COALESCE(me.p24,0) * a.factor::numeric) AS p24
+  SUM(${SUMA_24_PERIODOS_ME_CON_FACTOR}) AS total,
+  SUM(${expresionPeriodoConFactor("me.p1")})  AS p1,
+  SUM(${expresionPeriodoConFactor("me.p2")})  AS p2,
+  SUM(${expresionPeriodoConFactor("me.p3")})  AS p3,
+  SUM(${expresionPeriodoConFactor("me.p4")})  AS p4,
+  SUM(${expresionPeriodoConFactor("me.p5")})  AS p5,
+  SUM(${expresionPeriodoConFactor("me.p6")})  AS p6,
+  SUM(${expresionPeriodoConFactor("me.p7")})  AS p7,
+  SUM(${expresionPeriodoConFactor("me.p8")})  AS p8,
+  SUM(${expresionPeriodoConFactor("me.p9")})  AS p9,
+  SUM(${expresionPeriodoConFactor("me.p10")}) AS p10,
+  SUM(${expresionPeriodoConFactor("me.p11")}) AS p11,
+  SUM(${expresionPeriodoConFactor("me.p12")}) AS p12,
+  SUM(${expresionPeriodoConFactor("me.p13")}) AS p13,
+  SUM(${expresionPeriodoConFactor("me.p14")}) AS p14,
+  SUM(${expresionPeriodoConFactor("me.p15")}) AS p15,
+  SUM(${expresionPeriodoConFactor("me.p16")}) AS p16,
+  SUM(${expresionPeriodoConFactor("me.p17")}) AS p17,
+  SUM(${expresionPeriodoConFactor("me.p18")}) AS p18,
+  SUM(${expresionPeriodoConFactor("me.p19")}) AS p19,
+  SUM(${expresionPeriodoConFactor("me.p20")}) AS p20,
+  SUM(${expresionPeriodoConFactor("me.p21")}) AS p21,
+  SUM(${expresionPeriodoConFactor("me.p22")}) AS p22,
+  SUM(${expresionPeriodoConFactor("me.p23")}) AS p23,
+  SUM(${expresionPeriodoConFactor("me.p24")}) AS p24
 FROM barras b
 INNER JOIN agrupaciones a
   ON a.barra_id = b.id

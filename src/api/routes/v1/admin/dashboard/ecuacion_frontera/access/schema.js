@@ -4,6 +4,12 @@ export default {
   procesar: Joi.object().keys({
     ucp: Joi.string().required(),
   }),
+  guardarEcuacion: Joi.object().keys({
+    ucp: Joi.string().required(),
+  }),
+  guardarRespaldo: Joi.object().keys({
+    ucp: Joi.string().required(),
+  }),
   calcularRespaldo: Joi.object().keys({
     ucp: Joi.string().required(),
     fechaInicio: Joi.string()
