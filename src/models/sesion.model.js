@@ -208,7 +208,13 @@ export default class SesionModel {
         fechainicio,
         fechafin,
       ]);
-      return result.rows.length > 0 ? result.rows : null;
+      // Antes devolvía null si no había filas, lo que el service de arriba
+      // (cargarPeriodosxUCPxFecha) trataba como un ERROR ("no se pudo
+      // obtener") — un rango sin dato Real (p.ej. días futuros, donde el
+      // dato real todavía no existe) no es un error, es un resultado válido
+      // vacío. Se devuelve siempre el array (puede venir vacío) para que el
+      // frontend pueda seguir de largo y mostrar Respaldo/Pronóstico ahí.
+      return result.rows;
     } catch (error) {
       Logger.error(colors.red("Error sesionModel cargarPeriodosxUCPxFecha"));
       throw error;

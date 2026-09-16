@@ -87,9 +87,10 @@ export const consultarEPM = async ({ consulta, desde, hasta, session }) => {
     const ELEMENTOS_VALIDOS = new Set(["P", "Q"]);
 
     const grupos = new Map();
-    // cache "codigo_rpm||flujo" -> config de agrupación. Un mismo codigo_rpm
-    // suele tener DOS agrupaciones (AE para P, R1 para Q) — cachear solo por
-    // codigo_rpm mezclaba la config de una con los items de la otra.
+    // cache "codigo_rpm||flujoEsperado" -> flujo real de la agrupación. Un
+    // mismo codigo_rpm suele tener DOS agrupaciones (AE para P, R1 para Q)
+    // — cachear solo por codigo_rpm mezclaba el flujo de una con los items
+    // de la otra.
     const mapaAgrupacion = new Map();
 
     for (const item of datosEPM) {
@@ -117,9 +118,15 @@ export const consultarEPM = async ({ consulta, desde, hasta, session }) => {
       const flujoEsperado = elemento === "Q" ? "R1" : "AE";
       const cacheKey = `${codigoRpm}||${flujoEsperado}`;
 
-      let config;
+      // dividir_por_1000 y valor_absoluto ya NO se aplican acá — la medida
+      // se guarda siempre cruda, tal cual la manda la API. Esos ajustes
+      // (junto con factor) se aplican al leer/usar la medida, no al
+      // insertarla, para que un cambio de configuración se refleje al
+      // instante sin tener que resincronizar. Solo se necesita resolver
+      // `flujo` (AE/R1) de la agrupación.
+      let flujo;
       if (mapaAgrupacion.has(cacheKey)) {
-        config = mapaAgrupacion.get(cacheKey);
+        flujo = mapaAgrupacion.get(cacheKey);
       } else {
         const client = createConectionPG(session);
         const agrupacion = await model.consultarAgrupacion_xCodigoRpmYFlujo(
@@ -127,14 +134,9 @@ export const consultarEPM = async ({ consulta, desde, hasta, session }) => {
           flujoEsperado,
           client,
         );
-        config = {
-          flujo: agrupacion?.flujo ?? flujoEsperado,
-          dividirPor1000: agrupacion?.dividir_por_1000 ?? false,
-          valorAbsoluto: agrupacion?.valor_absoluto ?? false,
-        };
-        mapaAgrupacion.set(cacheKey, config);
+        flujo = agrupacion?.flujo ?? flujoEsperado;
+        mapaAgrupacion.set(cacheKey, flujo);
       }
-      const { flujo, dividirPor1000, valorAbsoluto } = config;
 
       const key = `${codigoRpm}||${fechaDia}||${flujo}`;
 
@@ -170,11 +172,7 @@ export const consultarEPM = async ({ consulta, desde, hasta, session }) => {
         });
       }
 
-      let valor = Number(item.INTEGRAL);
-      if (valorAbsoluto) valor = Math.abs(valor);
-      if (dividirPor1000) valor = valor / 1000;
-
-      grupos.get(key)[`p${periodo}`] = valor;
+      grupos.get(key)[`p${periodo}`] = Number(item.INTEGRAL);
     }
 
     const client2 = createConectionPG(session);

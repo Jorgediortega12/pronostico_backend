@@ -50,7 +50,9 @@ SELECT
   b.barra,
   a.id AS agrupacion_id,
   a.revision,
-  a.factor
+  a.factor,
+  a.dividir_por_1000,
+  a.valor_absoluto
 FROM medidas me
 INNER JOIN agrupaciones a
   ON a.codigo_rpm = me.codigo_rpm
