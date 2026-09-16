@@ -1,8 +1,9 @@
 // Fallback de consumo por "ecuación de frontera" (3er nivel de prioridad,
 // después de PrimeGrid y SCADA): dado un archivo de ecuación (código de
 // frontera + signo por UCP) y un archivo de consumo horario por frontera,
-// calcula el consumo diario y lo guarda en actualizaciondatos — sólo en las
-// fechas donde ese UCP no tenga ya un dato de otra fuente.
+// calcula el consumo diario y lo guarda en su propia tabla (respaldo_frontera,
+// ver helpers/respaldoFronteraData.js) — nunca en actualizaciondatos, para no
+// competir con la demanda oficial de otras fuentes (Loyal/SCADA/PrimeGrid).
 //
 // Misma lógica que los scripts standalone (scripts/importar_ecuacion_frontera.js,
 // importar_consumo_horario_frontera.js, calcular_consumo_ecuacion_frontera.js),
@@ -10,22 +11,129 @@
 // línea de comandos.
 
 import ExcelJS from "exceljs";
-import pkg from "pg";
-const { Client } = pkg;
 import Logger from "../helpers/logger.js";
 import colors from "colors";
+import { createConectionPG } from "../helpers/connections.js";
+import PronosticosService from "./pronosticos.service.js";
+import { guardarRespaldoFrontera } from "../helpers/respaldoFronteraData.js";
+
+const pronosticosService = PronosticosService.getInstance();
 
 const NOMBRE_FUENTE = "ECUACION FRONTERA";
 const cols = Array.from({ length: 24 }, (_, i) => `p${i + 1}`);
 
-const createClient = () =>
-  new Client({
-    user: process.env.POSTGRES_USER,
-    host: process.env.POSTGRES_HOST || "localhost",
-    database: process.env.POSTGRES_DB,
-    password: process.env.POSTGRES_PASSWORD,
-    port: process.env.POSTGRES_PORT || 5432,
-  });
+// ── Corrección de sesgo Pronóstico vs Respaldo ───────────────────────────────
+// El cálculo crudo de ecuación de frontera puede quedar sistemáticamente por
+// encima o por debajo de lo que arroja el modelo de pronóstico. Se estima un
+// factor multiplicativo único (walk-forward, ventana móvil de los últimos
+// DIAS_VENTANA_CORRECCION días ya cerrados) comparando, hora a hora, el
+// pronóstico del modelo contra el cálculo crudo de esos mismos días, y se
+// aplica ese factor a TODO el cálculo de Respaldo — incluidos días futuros
+// que el modelo de pronóstico todavía no cubre. factor=1 (sin corregir) si
+// no hay suficiente superposición o falla el modelo de pronóstico.
+const DIAS_VENTANA_CORRECCION = 30;
+const VENTANA_CACHE_MS = 24 * 60 * 60 * 1000; // recalcular como máximo 1 vez/día por mercado — correr el modelo de pronóstico es costoso
+const cacheFactorCorreccion = new Map(); // ucpNombre -> {factor, diasUsados, calculadoEn}
+
+// Limpia el caché del factor de corrección. Hay que llamarla cada vez que
+// cambian los datos de entrada del cálculo crudo (nuevo archivo de consumo
+// horario o de ecuación importado) — si no, el factor queda calculado sobre
+// datos que ya no existen (p.ej. días que antes tenían consumo y ahora no)
+// hasta que expire el TTL de 24h, mostrando un Respaldo con un sesgo que no
+// corresponde a los datos actuales. `flujo_datos_horarios` no está separado
+// por mercado, así que un archivo de consumo puede afectar el factor de
+// varios mercados a la vez — más simple y seguro limpiar todo el caché.
+function invalidarCacheFactorCorreccion() {
+  cacheFactorCorreccion.clear();
+}
+
+async function calcularRawPromedioPorFecha(client, codigoUcp, fechaInicio, fechaFin) {
+  const res = await client.query(
+    `
+    SELECT
+      fd.fecha,
+      ${cols.map((c) => `SUM(ef.valor * fd.${c}) / 1000.0 AS ${c}`).join(",\n      ")}
+    FROM equivalencia_flujo ef
+    JOIN flujo_datos_horarios fd ON fd.id_flujo = ef.id_flujo
+    WHERE ef.codigo_ucp = $1 AND ef.estado = 1
+      AND fd.fecha >= $2 AND fd.fecha <= $3
+    GROUP BY fd.fecha
+    ORDER BY fd.fecha;
+    `,
+    [codigoUcp, fechaInicio, fechaFin],
+  );
+  return res.rows;
+}
+
+async function obtenerFactorCorreccionRespaldo(client, codigoUcp, ucpNombre, session) {
+  const cacheado = cacheFactorCorreccion.get(ucpNombre);
+  if (cacheado && Date.now() - cacheado.calculadoEn < VENTANA_CACHE_MS) {
+    return cacheado;
+  }
+
+  const hoy = new Date();
+  const fechaFinVentana = new Date(hoy);
+  fechaFinVentana.setDate(fechaFinVentana.getDate() - 1); // ayer — hoy puede venir incompleto
+  const fechaInicioVentana = new Date(fechaFinVentana);
+  fechaInicioVentana.setDate(
+    fechaInicioVentana.getDate() - DIAS_VENTANA_CORRECCION,
+  );
+  const fechaInicioISO = fechaInicioVentana.toISOString().slice(0, 10);
+  const fechaFinISO = fechaFinVentana.toISOString().slice(0, 10);
+
+  let resultado = { factor: 1, diasUsados: 0, calculadoEn: Date.now() };
+  try {
+    const [crudoRows, playRes] = await Promise.all([
+      calcularRawPromedioPorFecha(client, codigoUcp, fechaInicioISO, fechaFinISO),
+      pronosticosService.play(
+        ucpNombre,
+        fechaInicioISO,
+        fechaFinISO,
+        false,
+        true,
+        [],
+        session,
+      ),
+    ]);
+
+    if (playRes?.success && playRes.data?.pronosticosTabla?.length && crudoRows.length) {
+      const pronoPorFecha = new Map(
+        playRes.data.pronosticosTabla.map((p) => [p.fecha, p]),
+      );
+      const ratios = [];
+      const fechasUsadas = new Set();
+      for (const row of crudoRows) {
+        const fechaISO = row.fecha.toISOString().slice(0, 10);
+        const prono = pronoPorFecha.get(fechaISO);
+        if (!prono) continue;
+        for (const c of cols) {
+          const crudo = Number(row[c]);
+          const pronoVal = Number(prono[c]);
+          if (crudo > 0 && Number.isFinite(pronoVal)) {
+            ratios.push(pronoVal / crudo);
+          }
+        }
+        fechasUsadas.add(fechaISO);
+      }
+      if (ratios.length > 0) {
+        resultado = {
+          factor: ratios.reduce((a, b) => a + b, 0) / ratios.length,
+          diasUsados: fechasUsadas.size,
+          calculadoEn: Date.now(),
+        };
+      }
+    }
+  } catch (err) {
+    Logger.warn(
+      colors.yellow(
+        `No se pudo calcular el factor de corrección de Respaldo para ${ucpNombre}, se usa 1 (sin corregir): ${err.message}`,
+      ),
+    );
+  }
+
+  cacheFactorCorreccion.set(ucpNombre, resultado);
+  return resultado;
+}
 
 async function resolverCodigoUcp(client, ucpNombre) {
   const res = await client.query("SELECT codigo FROM ucp WHERE aux2 = $1", [
@@ -64,8 +172,8 @@ async function crearTablaFlujoDatosHorarios(client) {
 }
 
 // ── 1. Ecuación de frontera (código + signo -> flujo/equivalencia_flujo) ────
-export const importarEcuacion = async (rutaArchivo, ucpNombre) => {
-  const client = createClient();
+export const importarEcuacion = async (rutaArchivo, ucpNombre, session) => {
+  const client = createConectionPG(session);
   await client.connect();
   try {
     const codigoUcp = await resolverCodigoUcp(client, ucpNombre);
@@ -125,6 +233,7 @@ export const importarEcuacion = async (rutaArchivo, ucpNombre) => {
       else equivalenciasActualizadas++;
     }
     await client.query("COMMIT");
+    invalidarCacheFactorCorreccion();
 
     return {
       codigoUcp,
@@ -142,8 +251,8 @@ export const importarEcuacion = async (rutaArchivo, ucpNombre) => {
 };
 
 // ── 2. Consumo horario por frontera -> flujo_datos_horarios ─────────────────
-export const importarConsumoHorario = async (rutaArchivo) => {
-  const client = createClient();
+export const importarConsumoHorario = async (rutaArchivo, session) => {
+  const client = createConectionPG(session);
   await client.connect();
   try {
     await crearTablaFlujoDatosHorarios(client);
@@ -219,7 +328,24 @@ export const importarConsumoHorario = async (rutaArchivo) => {
     }
     await client.query("COMMIT");
 
-    return { filasLeidas, filasUsadas, diasFlujoGuardados: procesados };
+    // Rango de fechas cubierto por el archivo — para que el frontend pueda
+    // precargar el rango de "Traer datos actualizados" sin que el usuario
+    // tenga que volver a escribirlo a mano.
+    const fechasArchivo = Array.from(
+      new Set(Array.from(acumulado.values()).map((v) => v.fecha)),
+    ).sort();
+    const fechaMinima = fechasArchivo[0] ?? null;
+    const fechaMaxima = fechasArchivo[fechasArchivo.length - 1] ?? null;
+
+    invalidarCacheFactorCorreccion();
+
+    return {
+      filasLeidas,
+      filasUsadas,
+      diasFlujoGuardados: procesados,
+      fechaMinima,
+      fechaMaxima,
+    };
   } catch (err) {
     await client.query("ROLLBACK").catch(() => {});
     throw err;
@@ -228,9 +354,15 @@ export const importarConsumoHorario = async (rutaArchivo) => {
   }
 };
 
-// ── 3. Calcular (Σ signo × horario, kWh->MWh) y guardar en actualizaciondatos
-export const calcularYGuardar = async (ucpNombre) => {
-  const client = createClient();
+// ── 3. Calcular (Σ signo × horario, kWh->MWh) y guardar en respaldo_frontera
+// Guarda TODAS las fechas calculadas, sin importar si esa fecha ya tiene
+// demanda real en `actualizaciondatos` — esta fuente es solo respaldo, vive
+// en su propia tabla y nunca compite por la misma fila que la demanda
+// oficial de otras fuentes (Loyal/SCADA/PrimeGrid). Pronóstico la usa como
+// relleno de su histórico donde no haya demanda real (ver
+// obtenerRespaldoGuardado, consumido desde pronosticos.service.js).
+export const calcularYGuardar = async (ucpNombre, session) => {
+  const client = createConectionPG(session);
   await client.connect();
   try {
     const codigoUcp = await resolverCodigoUcp(client, ucpNombre);
@@ -249,30 +381,24 @@ export const calcularYGuardar = async (ucpNombre) => {
       [codigoUcp],
     );
 
-    let insertados = 0;
-    let saltados = 0;
+    const { factor: factorCorreccion, diasUsados: diasUsadosCorreccion } =
+      await obtenerFactorCorreccionRespaldo(client, codigoUcp, ucpNombre, session);
+
+    const filas = calculo.rows.map((row) => ({
+      fecha: row.fecha.toISOString().slice(0, 10),
+      valores: cols.map((c) => Number(row[c]) * factorCorreccion),
+    }));
+
     await client.query("BEGIN");
-    for (const row of calculo.rows) {
-      const fechaISO = row.fecha.toISOString().slice(0, 10);
-      const existe = await client.query(
-        "SELECT 1 FROM actualizaciondatos WHERE ucp = $1 AND fecha = $2",
-        [ucpNombre, fechaISO],
-      );
-      if (existe.rowCount > 0) {
-        saltados++;
-        continue;
-      }
-      const valoresCols = cols.map((c) => row[c]);
-      await client.query(
-        `INSERT INTO actualizaciondatos (ucp, fecha, ${cols.join(", ")}, estado, observacion)
-         VALUES ($1, $2, ${cols.map((_, i) => `$${i + 3}`).join(", ")}, 'Tipico', 'Calculado desde ecuación de frontera (fallback)')`,
-        [ucpNombre, fechaISO, ...valoresCols],
-      );
-      insertados++;
-    }
+    await guardarRespaldoFrontera(client, ucpNombre, filas, factorCorreccion);
     await client.query("COMMIT");
 
-    return { diasCalculados: calculo.rowCount, diasInsertados: insertados, diasSaltados: saltados };
+    return {
+      diasCalculados: calculo.rowCount,
+      diasGuardados: filas.length,
+      factorCorreccion,
+      diasUsadosCorreccion,
+    };
   } catch (err) {
     await client.query("ROLLBACK").catch(() => {});
     throw err;
@@ -292,8 +418,12 @@ export const calcularYGuardar = async (ucpNombre) => {
 // devuelve el valor calculado por ecuación de frontera (esRespaldo=true). La
 // escritura real a la DB sigue a cargo del flujo normal de "Guardar" que ya
 // usan todas las fuentes en Actualización de datos.
-export const calcularRespaldoSinGuardar = async (ucpNombre, fechaInicio) => {
-  const client = createClient();
+export const calcularRespaldoSinGuardar = async (
+  ucpNombre,
+  fechaInicio,
+  session,
+) => {
+  const client = createConectionPG(session);
   await client.connect();
   try {
     const codigoUcp = await resolverCodigoUcp(client, ucpNombre);
@@ -320,40 +450,57 @@ export const calcularRespaldoSinGuardar = async (ucpNombre, fechaInicio) => {
       [codigoUcp, fechaInicio],
     );
 
+    const { factor: factorCorreccion, diasUsados: diasUsadosCorreccion } =
+      await obtenerFactorCorreccionRespaldo(client, codigoUcp, ucpNombre, session);
+
     const dias = [];
     let diasReales = 0;
     let diasRespaldo = 0;
     for (const row of calculo.rows) {
       const fechaISO = row.fecha.toISOString().slice(0, 10);
       const existente = await client.query(
-        `SELECT ${cols.join(", ")}, observacion FROM actualizaciondatos WHERE ucp = $1 AND fecha = $2`,
+        `SELECT ${cols.join(", ")} FROM actualizaciondatos WHERE ucp = $1 AND fecha = $2`,
         [ucpNombre, fechaISO],
       );
+      // El valor recién calculado por ecuación de frontera va siempre en
+      // periodosCalculados, exista o no ya un dato real guardado — así el
+      // frontend puede mostrarlo como serie de comparación aunque ese día
+      // ya tenga demanda oficial (que sigue siendo la fuente de verdad en
+      // `periodos`, sin tocar). Ya corregido por el sesgo vs Pronóstico.
+      const periodosCalculados = cols.map(
+        (c) => Number(row[c]) * factorCorreccion,
+      );
+
       if (existente.rowCount > 0) {
-        // Ya había fila (no se recalcula ni se toca) — pero si esa fila YA
-        // era un respaldo de una corrida anterior, se sigue marcando como
-        // tal para que el badge no la muestre como si fuera oficial.
-        const yaEraRespaldo = (existente.rows[0].observacion || "").includes(
-          "ecuación de frontera",
-        );
-        if (!yaEraRespaldo) diasReales++;
-        else diasRespaldo++;
+        // Ya había fila en actualizaciondatos — el respaldo ya no se guarda
+        // ahí (vive en respaldo_frontera, tabla aparte), así que cualquier
+        // fila encontrada acá es siempre demanda real de otra fuente.
+        diasReales++;
         dias.push({
           fecha: fechaISO,
           periodos: cols.map((c) => Number(existente.rows[0][c])),
-          esRespaldo: yaEraRespaldo,
+          esRespaldo: false,
+          periodosCalculados,
         });
       } else {
         diasRespaldo++;
         dias.push({
           fecha: fechaISO,
-          periodos: cols.map((c) => Number(row[c])),
+          periodos: periodosCalculados,
           esRespaldo: true,
+          periodosCalculados,
         });
       }
     }
 
-    return { success: true, diasReales, diasRespaldo, dias };
+    return {
+      success: true,
+      diasReales,
+      diasRespaldo,
+      dias,
+      factorCorreccion,
+      diasUsadosCorreccion,
+    };
   } catch (err) {
     Logger.error(colors.red("Error calcularRespaldoSinGuardar"), err);
     return { success: false, message: err.message };
@@ -362,19 +509,60 @@ export const calcularRespaldoSinGuardar = async (ucpNombre, fechaInicio) => {
   }
 };
 
-// ── Orquestador: corre los 3 pasos en secuencia ──────────────────────────────
+// ── Orquestador: importa ecuación (opcional) + consumo ───────────────────────
+// rutaEcuacion es opcional — el archivo de ecuación (códigos Frt + signo)
+// casi no cambia entre cargas; si ya se subió antes para este mercado, no
+// hace falta volver a subirlo cada vez que llega un archivo de consumo
+// nuevo. Si no hay ecuación configurada aún, importarConsumoHorario lo
+// detecta solo (0 códigos coinciden) y lanza un mensaje claro.
+//
+// A propósito NO llama a calcularYGuardar: cargar el archivo solo deja el
+// consumo horario listo (en flujo_datos_horarios) para que el usuario vea
+// la línea de Respaldo calculada (vista previa, vía calcularRespaldoSinGuardar)
+// y decida guardarla con el botón "Actualizar Respaldo" — mismo patrón de
+// "cargar -> previsualizar -> confirmar" que ya usan PrimeGrid/Loyal, en vez
+// de guardar en actualizaciondatos de una al subir el archivo.
 export const procesarEcuacionYConsumo = async (
   rutaEcuacion,
   rutaConsumo,
   ucpNombre,
+  session,
 ) => {
   try {
-    const ecuacion = await importarEcuacion(rutaEcuacion, ucpNombre);
-    const consumo = await importarConsumoHorario(rutaConsumo);
-    const calculo = await calcularYGuardar(ucpNombre);
-    return { success: true, ecuacion, consumo, calculo };
+    const ecuacion = rutaEcuacion
+      ? await importarEcuacion(rutaEcuacion, ucpNombre, session)
+      : null;
+    const consumo = await importarConsumoHorario(rutaConsumo, session);
+    return { success: true, ecuacion, consumo };
   } catch (error) {
     Logger.error(colors.red("Error procesarEcuacionYConsumo"), error);
+    return { success: false, message: error.message };
+  }
+};
+
+// ── Guardar solo la ecuación (códigos Frt + signo), sin consumo ─────────────
+// Para el panel "Ecuación frontera (opcional)": configurarla una vez por
+// mercado, sin necesidad de subir también un archivo de consumo horario.
+export const guardarSoloEcuacion = async (rutaEcuacion, ucpNombre, session) => {
+  try {
+    const ecuacion = await importarEcuacion(rutaEcuacion, ucpNombre, session);
+    return { success: true, ecuacion };
+  } catch (error) {
+    Logger.error(colors.red("Error guardarSoloEcuacion"), error);
+    return { success: false, message: error.message };
+  }
+};
+
+// ── Guardar solo el Respaldo (recalcula y guarda contra lo que YA esté en
+// flujo_datos_horarios/equivalencia_flujo) — sin subir ningún archivo. Para
+// re-guardar después de ajustar algo, o simplemente persistir lo que ya se
+// venía viendo en "Traer datos actualizados".
+export const guardarSoloRespaldo = async (ucpNombre, session) => {
+  try {
+    const calculo = await calcularYGuardar(ucpNombre, session);
+    return { success: true, calculo };
+  } catch (error) {
+    Logger.error(colors.red("Error guardarSoloRespaldo"), error);
     return { success: false, message: error.message };
   }
 };

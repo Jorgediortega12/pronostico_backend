@@ -913,6 +913,40 @@ export const marcarSesionVigente = async (req, res) => {
   }
 };
 
+export const calculosCurvasTipicasUcp = async (req, res) => {
+  const { fecha_inicio, fecha_fin, ucp, tipo_dia, n_max } = req.body;
+  const { session } = req.user;
+  try {
+    const result = await service.calculosCurvasTipicasUcp(
+      fecha_inicio,
+      fecha_fin,
+      ucp,
+      tipo_dia,
+      n_max,
+      600000,
+      session,
+    );
+
+    if (!result.success) {
+      return responseError(
+        200,
+        "No fue posible obtener el calculo de curvas tipicas del mercado",
+        404,
+        res,
+      );
+    }
+
+    return SuccessResponse(
+      res,
+      result.data,
+      "Calculo de curvas tipicas del mercado obtenido correctamente",
+    );
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
 export const calculosCurvasTipicasCircuitos = async (req, res) => {
   const { medidas, n_max } = req.body;
   try {

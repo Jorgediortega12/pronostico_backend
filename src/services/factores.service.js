@@ -454,6 +454,90 @@ export default class FactoresService {
     return { success: false, statusCode: 0, data: null };
   }
 
+  // Igual que calculosCurvasTipicas pero sobre la demanda TOTAL del mercado
+  // (actualizaciondatos) — usado en Actualización de datos para comparar
+  // contra "Demanda Real (DB)", que es esa misma suma total.
+  async calculosCurvasTipicasUcp(
+    inicioIso,
+    finIso,
+    ucp,
+    tipo_dia,
+    n_max,
+    timeoutMs = 600000,
+    session,
+  ) {
+    const generateDbUrl = (session) => {
+      const { host, usuario, contrasenia, puerto, basededatos } = session;
+      if (!host || !usuario || !puerto || !basededatos) {
+        throw new Error("Missing required database connection parameters");
+      }
+      return contrasenia
+        ? `postgresql://${usuario}:${contrasenia}@${host}:${puerto}/${basededatos}`
+        : `postgresql://${usuario}@${host}:${puerto}/${basededatos}`;
+    };
+
+    const database_url = generateDbUrl(session);
+    const hostsToTry = ["127.0.0.1", "localhost"];
+    const port = 8003;
+
+    for (const host of hostsToTry) {
+      let timer;
+      try {
+        const url = `http://${host}:${port}/factores/calculos/curvas-tipicas-ucp`;
+        const controller = new AbortController();
+        timer = setTimeout(() => controller.abort(), timeoutMs);
+
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            fecha_inicial: inicioIso,
+            fecha_final: finIso,
+            mc: ucp,
+            tipo_dia,
+            n_max,
+            database_url,
+          }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timer);
+        const statusCode = res.status;
+        const json = await res.json().catch(() => null);
+
+        if (!res.ok) {
+          Logger.warn(
+            colors.yellow(
+              `errorFeedback: HTTP ${statusCode} desde ${host}:${port} [curvas-tipicas-ucp]`,
+            ),
+          );
+          return { success: false, statusCode, data: json };
+        }
+
+        return { success: true, statusCode, data: json };
+      } catch (err) {
+        clearTimeout(timer);
+        const msg =
+          err?.name === "AbortError"
+            ? `timeout (${timeoutMs}ms)`
+            : err?.message || err;
+        Logger.warn(
+          colors.yellow(
+            `errorFeedback: error conectando a ${host}:${port} [curvas-tipicas-ucp] — ${msg}`,
+          ),
+        );
+      }
+    }
+
+    Logger.error(
+      colors.red(`errorFeedback: Falló en todos los hosts [curvas-tipicas-ucp]`),
+    );
+    return { success: false, statusCode: 0, data: null };
+  }
+
   async calculoFda(
     inicioIso,
     finIso,

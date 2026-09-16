@@ -182,6 +182,13 @@ export default {
     n_max: Joi.number().required(),
     barra: Joi.string().required(),
   }),
+  calculosCurvasTipicasUcp: Joi.object({
+    fecha_inicio: Joi.string().required(),
+    fecha_fin: Joi.string().required(),
+    ucp: Joi.string().required(),
+    tipo_dia: Joi.string().valid("ORDINARIO", "SABADO", "FESTIVO").required(),
+    n_max: Joi.number().required(),
+  }),
   calculoFdaFdp: Joi.object({
     fecha_inicio: Joi.string().required(),
     fecha_fin: Joi.string().required(),

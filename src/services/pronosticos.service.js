@@ -18,6 +18,7 @@ import path from "path";
 import moment from "moment";
 import { createConectionPG } from "../helpers/connections.js";
 import DnaIdoConfigModel from "../models/dna_ido_config.model.js";
+import { obtenerRespaldoGuardado } from "../helpers/respaldoFronteraData.js";
 
 const model = PronosticosModel.getInstance();
 const configuracionModel = ConfiguracionModel.getInstance();
@@ -1569,6 +1570,35 @@ export default class PronosticosService {
           const k = toISODateString(r.fecha);
           if (!rowsMapByDate.has(k)) rowsMapByDate.set(k, r);
         }
+      }
+      // Completar con Respaldo (ecuación de frontera, fuente "DA API EPM")
+      // las fechas del rango que no tengan demanda real — indiferentemente
+      // de por qué falta (día futuro, aún no sincronizado, etc.). Para
+      // mercados que no usan esa fuente esta tabla simplemente no tiene
+      // filas para ese ucp, así que este merge no cambia nada.
+      try {
+        const respaldoRows = await obtenerRespaldoGuardado(
+          session,
+          mc,
+          inicioIso,
+          finIso,
+        );
+        for (const r of respaldoRows) {
+          const k = toISODateString(r.fecha);
+          if (!rowsMapByDate.has(k)) {
+            rowsMapByDate.set(k, {
+              ...r,
+              observacion: "Respaldo (ecuación de frontera)",
+              resumen_climatico: null,
+            });
+          }
+        }
+      } catch (e) {
+        Logger.warn(
+          colors.yellow(
+            `No se pudo completar histórico con Respaldo para ${mc}: ${e.message}`,
+          ),
+        );
       }
       const PeriodosHistoricosGrafica = [];
       if (inicioIso && finIso) {
