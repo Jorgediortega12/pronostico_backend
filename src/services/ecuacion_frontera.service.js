@@ -52,6 +52,7 @@ async function calcularRawPromedioPorFecha(client, codigoUcp, fechaInicio, fecha
     `
     SELECT
       fd.fecha,
+      COUNT(*) AS filas,
       ${cols.map((c) => `SUM(ef.valor * fd.${c}) / 1000.0 AS ${c}`).join(",\n      ")}
     FROM equivalencia_flujo ef
     JOIN flujo_datos_horarios fd ON fd.id_flujo = ef.id_flujo
@@ -63,6 +64,25 @@ async function calcularRawPromedioPorFecha(client, codigoUcp, fechaInicio, fecha
     [codigoUcp, fechaInicio, fechaFin],
   );
   return res.rows;
+}
+
+// Días con muchos menos circuitos reportando que lo normal (archivo de
+// consumo incompleto para esa fecha) distorsionan el factor de corrección:
+// el crudo de ese día sale artificialmente bajo, lo que dispara el cociente
+// Pronóstico/crudo para esas 24 horas muy por encima del resto — y como el
+// factor es un solo promedio compartido por toda la ventana, ese día
+// arrastra hacia arriba la corrección de TODOS los demás días. Se descartan
+// del cálculo del factor los días cuya cantidad de circuitos (`filas`) esté
+// muy por debajo de la mediana de la ventana.
+const UMBRAL_COBERTURA_MINIMA = 0.7; // 70% de la mediana de circuitos/día
+function filtrarDiasConCoberturaSuficiente(crudoRows) {
+  if (crudoRows.length === 0) return crudoRows;
+  const conteos = crudoRows.map((r) => Number(r.filas)).sort((a, b) => a - b);
+  const mediana = conteos[Math.floor(conteos.length / 2)];
+  if (!mediana) return crudoRows;
+  return crudoRows.filter(
+    (r) => Number(r.filas) >= mediana * UMBRAL_COBERTURA_MINIMA,
+  );
 }
 
 async function obtenerFactorCorreccionRespaldo(client, codigoUcp, ucpNombre, session) {
@@ -97,13 +117,15 @@ async function obtenerFactorCorreccionRespaldo(client, codigoUcp, ucpNombre, ses
       ),
     ]);
 
-    if (playRes?.success && playRes.data?.pronosticosTabla?.length && crudoRows.length) {
+    const crudoRowsConfiables = filtrarDiasConCoberturaSuficiente(crudoRows);
+
+    if (playRes?.success && playRes.data?.pronosticosTabla?.length && crudoRowsConfiables.length) {
       const pronoPorFecha = new Map(
         playRes.data.pronosticosTabla.map((p) => [p.fecha, p]),
       );
       const ratios = [];
       const fechasUsadas = new Set();
-      for (const row of crudoRows) {
+      for (const row of crudoRowsConfiables) {
         const fechaISO = row.fecha.toISOString().slice(0, 10);
         const prono = pronoPorFecha.get(fechaISO);
         if (!prono) continue;
