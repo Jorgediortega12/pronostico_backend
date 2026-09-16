@@ -1,6 +1,7 @@
 import FactoresService from "../../../../../../../services/factores.service.js";
 import FactDnaService from "../../../../../../../services/fact_dna.service.js";
 import Logger from "../../../../../../../helpers/logger.js";
+import { aplicarConfigAgrupacion } from "../../../../../../../helpers/agrupacionCalculo.js";
 import {
   SuccessResponse,
   InternalError,
@@ -496,9 +497,13 @@ export const exportarMedidasExcel = async (req, res) => {
 
       if (!factoresRes.success) continue;
 
-      const factorMap = {};
+      const configMap = {};
       for (const f of factoresRes.data) {
-        factorMap[`${f.codigo_rpm}|${f.flujo}`] = Number(f.factor);
+        configMap[`${f.codigo_rpm}|${f.flujo}`] = {
+          factor: f.factor,
+          dividir_por_1000: f.dividir_por_1000,
+          valor_absoluto: f.valor_absoluto,
+        };
       }
 
       // medidas crudas
@@ -531,12 +536,20 @@ export const exportarMedidasExcel = async (req, res) => {
           };
         }
 
-        const factor = factorMap[`${m.mecodigo_rpm}|${m.meflujo}`] ?? 1;
+        const config = configMap[`${m.mecodigo_rpm}|${m.meflujo}`] ?? {
+          factor: 1,
+          dividir_por_1000: false,
+          valor_absoluto: false,
+        };
 
-        agrupado[key].total += Number(m.metotal) * factor;
-
+        // El total se recalcula como suma de los periodos ya procesados
+        // (no aplicando la config sobre el total pre-sumado) — con
+        // valor_absoluto de por medio, abs(suma) no es lo mismo que
+        // suma(abs por periodo).
         for (let i = 0; i < 24; i++) {
-          agrupado[key].periodos[i] += Number(m[`mep${i + 1}`]) * factor;
+          const valor = aplicarConfigAgrupacion(m[`mep${i + 1}`], config);
+          agrupado[key].periodos[i] += valor;
+          agrupado[key].total += valor;
         }
       }
 

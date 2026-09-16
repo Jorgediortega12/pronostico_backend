@@ -1,7 +1,25 @@
 import MedidasFactoresModel from "../models/medidas_factores.model.js";
 import Logger from "../helpers/logger.js";
+import { aplicarConfigAgrupacion } from "../helpers/agrupacionCalculo.js";
 
 const LIMIT_MAXIMO = 200; // "son muchísimas" — nunca dejar traer todo de golpe
+const PERIODOS = Array.from({ length: 24 }, (_, i) => `p${i + 1}`);
+
+// La fila trae el valor crudo de `medidas` — se le aplica acá
+// dividir_por_1000 -> factor -> valor_absoluto, en ese orden, en vez de
+// depender de que la ingesta ya lo haya normalizado.
+const aplicarConfigAFila = (fila) => {
+  const config = {
+    factor: fila.factor,
+    dividir_por_1000: fila.dividir_por_1000,
+    valor_absoluto: fila.valor_absoluto,
+  };
+  const filaProcesada = { ...fila };
+  for (const p of PERIODOS) {
+    filaProcesada[p] = aplicarConfigAgrupacion(fila[p], config);
+  }
+  return filaProcesada;
+};
 
 export default class MedidasFactoresService {
   static instance;
@@ -33,7 +51,7 @@ export default class MedidasFactoresService {
 
       return {
         success: true,
-        data: result.rows,
+        data: result.rows.map(aplicarConfigAFila),
         total: result.total,
         page,
         limit,
