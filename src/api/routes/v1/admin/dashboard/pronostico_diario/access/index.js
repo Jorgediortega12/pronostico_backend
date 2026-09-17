@@ -5,6 +5,7 @@ import {
   InternalError,
   responseError,
 } from "../../../../../../../helpers/api.response.js";
+import { resolveSessionByUcp } from "../../../../../../../helpers/resolveSessionByUcp.js";
 
 export const procesar = async (req, res) => {
   try {
@@ -101,6 +102,47 @@ export const actualizarEstado = async (req, res) => {
     }
 
     return SuccessResponse(res, result, "Estado actualizado.");
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+// Sin auth (montado también en configuracion-interna) — llamado por el
+// servicio Python (epm) para construir el CSV de histórico diario que
+// alimenta el reentrenamiento de /predict-daily. Resuelve la sesión del
+// cliente por ucp, igual que cargarPeriodosxUCPDesdeFecha para el módulo
+// horario.
+export const cargarHistoricoDesdeFecha = async (req, res) => {
+  try {
+    const { ucp, fechaInicio } = req.params;
+    const session = req.user?.session ?? (await resolveSessionByUcp(ucp));
+
+    if (!session) {
+      return responseError(
+        200,
+        `No se encontró cliente para el ucp ${ucp}`,
+        404,
+        res,
+      );
+    }
+
+    const rows = await pronosticoDiarioService.cargarHistoricoDiarioDesdeFecha(
+      ucp,
+      fechaInicio,
+      session,
+    );
+
+    if (!rows || rows.length === 0) {
+      return responseError(
+        200,
+        `no se pudo encontrar los historicos diarios de ${ucp}`,
+        404,
+        res,
+      );
+    }
+
+    return SuccessResponse(res, rows, `Historicos diarios de ${ucp} entontrados`);
   } catch (err) {
     Logger.error(err);
     return InternalError(res);

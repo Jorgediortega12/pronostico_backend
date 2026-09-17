@@ -169,6 +169,33 @@ export const ultimaActualizacionPorUcp = async (session) => {
   }
 };
 
+// ── 1e. Histórico diario completo desde una fecha (sin cota superior) —
+// consumido por el servicio Python (epm) para entrenar el modelo diario.
+// Mismo rol que configuracion.query.js -> cargarPeriodosxUCPDesdeFecha para
+// el módulo horario, pero sobre actualizaciondatos_diario (fecha/total en
+// vez de p1..p24) ───────────────────────────────────────────────────────
+export const cargarHistoricoDiarioDesdeFecha = async (
+  ucpNombre,
+  fechaInicio,
+  session,
+) => {
+  const client = createConectionPG(session);
+  await client.connect();
+  try {
+    await crearTablaActualizacionDiaria(client);
+    const res = await client.query(
+      `SELECT fecha, total, tipo_dia
+       FROM actualizaciondatos_diario
+       WHERE LOWER(ucp) = LOWER($1) AND fecha >= $2
+       ORDER BY fecha ASC`,
+      [ucpNombre, fechaInicio],
+    );
+    return res.rows;
+  } finally {
+    await client.end();
+  }
+};
+
 // ── 2. Cargar datos diarios guardados (para la tabla/gráfico) ───────────────
 export const cargarDatosDiarios = async (ucpNombre, fechaInicio, fechaFin, session) => {
   const client = createConectionPG(session);
