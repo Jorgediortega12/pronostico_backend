@@ -28,5 +28,11 @@ export default function () {
     controllers.actualizarEstado,
   );
 
+  router.post(
+    "/pronosticar",
+    validator(schema.pronosticar),
+    controllers.pronosticar,
+  );
+
   return router;
 }

@@ -18,4 +18,12 @@ export default {
     estado: Joi.string().required(),
     observacion: Joi.string().allow("").required(),
   }),
+  pronosticar: Joi.object().keys({
+    ucp: Joi.string().required(),
+    fechaInicio: Joi.string()
+      .pattern(/^\d{4}-\d{2}-\d{2}$/)
+      .required(),
+    nDias: Joi.number().min(1).max(90).required(),
+    forceRetrain: Joi.boolean().default(false),
+  }),
 };

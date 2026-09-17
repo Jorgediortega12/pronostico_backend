@@ -75,3 +75,30 @@ export const actualizarEstado = async (req, res) => {
     return InternalError(res);
   }
 };
+
+export const pronosticar = async (req, res) => {
+  try {
+    const { ucp, fechaInicio, nDias, forceRetrain } = req.body;
+
+    const result = await pronosticoDiarioService.obtenerPronosticoDiario(
+      ucp,
+      fechaInicio,
+      nDias,
+      forceRetrain,
+    );
+
+    if (!result.success) {
+      return responseError(
+        200,
+        result.data?.detail || "No se pudo generar el pronóstico diario.",
+        400,
+        res,
+      );
+    }
+
+    return SuccessResponse(res, result.data, "Pronóstico diario generado.");
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};

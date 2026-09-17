@@ -157,3 +157,78 @@ export const actualizarEstadoDemandaDiaria = async (
     await client.end();
   }
 };
+
+// ── 4. Pronóstico diario (llama al servicio Python /predict-daily) ─────────
+// Mismo servicio ML que ya usa Pronósticos horario (callPredict en
+// pronosticos.service.js) — mismos hosts/puerto — pero pegándole al
+// endpoint /predict-daily (sin desagregación horaria, ver análisis de la
+// issue "Desarrollar módulo pronostico en la Temporalidad Diaria").
+export const obtenerPronosticoDiario = async (
+  ucpNombre,
+  fechaInicio,
+  nDias,
+  forceRetrain = false,
+) => {
+  const hostsToTry = ["127.0.0.1", "localhost"];
+  const port = 8001;
+  const timeoutMs = 600000;
+
+  const requestBody = {
+    ucp: ucpNombre,
+    start_date: fechaInicio,
+    n_days: nDias,
+    force_retrain: forceRetrain,
+  };
+
+  for (const host of hostsToTry) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const url = `http://${host}:${port}/predict-daily`;
+      Logger.info(
+        colors.cyan(`obtenerPronosticoDiario: Ejecutando ${url} para UCP ${ucpNombre}`),
+      );
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { accept: "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+
+      const statusCode = res.status;
+      const json = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        Logger.warn(
+          colors.yellow(
+            `obtenerPronosticoDiario: HTTP ${statusCode} desde ${host}:${port}`,
+          ),
+        );
+        return { success: false, statusCode, data: json };
+      }
+
+      Logger.info(
+        colors.green(`obtenerPronosticoDiario: Predicción exitosa desde ${host}:${port}`),
+      );
+      return { success: true, statusCode, data: json };
+    } catch (err) {
+      clearTimeout(timer);
+      const msg =
+        err?.name === "AbortError"
+          ? `timeout (${timeoutMs}ms)`
+          : err?.message || err;
+      Logger.warn(
+        colors.yellow(
+          `obtenerPronosticoDiario: error conectando a ${host}:${port} — ${msg}`,
+        ),
+      );
+    }
+  }
+
+  Logger.error(
+    colors.red(`obtenerPronosticoDiario: Falló en todos los hosts para ${ucpNombre}`),
+  );
+  return { success: false, statusCode: 0, data: null };
+};
