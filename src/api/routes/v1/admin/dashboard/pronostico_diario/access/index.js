@@ -151,13 +151,14 @@ export const cargarHistoricoDesdeFecha = async (req, res) => {
 
 export const pronosticar = async (req, res) => {
   try {
-    const { ucp, fechaInicio, nDias, forceRetrain } = req.body;
+    const { ucp, fechaInicio, nDias, forceRetrain, modoReentreno } = req.body;
 
     const result = await pronosticoDiarioService.obtenerPronosticoDiario(
       ucp,
       fechaInicio,
       nDias,
       forceRetrain,
+      modoReentreno,
     );
 
     if (!result.success) {

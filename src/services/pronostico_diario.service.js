@@ -254,31 +254,49 @@ function addDaysISO(startISO, days) {
 // endpoint /predict-daily (sin desagregación horaria, ver análisis de la
 // issue "Desarrollar módulo pronostico en la Temporalidad Diaria").
 //
-// Igual que /predict-with-base-curve para el módulo horario: `fechaInicio`
-// es el primer día que el usuario quiere pronosticar (editable, cualquier
-// fecha), y se traduce a `end_date = fechaInicio - 1 día` — el corte de
-// histórico que el pipeline usa para decidir "hasta acá hay datos reales,
-// de ahí en adelante se pronostica" (ver run_automated_pipeline en
-// epm/src/api/main.py, mismo mecanismo que usa run_predict_flow/
-// /predict-with-base-curve vía derived_end_date). No se manda `start_date`:
-// ese campo solo filtra el piso del histórico de entrenamiento y Python ya
-// tiene un default razonable ('2015-01-01') cuando no se especifica.
+// Dos modos, igual que el horario (pronosticos.service.js -> play()):
+//
+// - Pronosticar (modoReentreno=false): `fechaInicio` es el primer día que
+//   el usuario quiere pronosticar (editable, cualquier fecha, incluso
+//   pasada para backtesting) y se traduce a `end_date = fechaInicio - 1
+//   día` — el corte de histórico que decide dónde termina el dato real y
+//   empieza la predicción (ver run_automated_pipeline en epm/src/api/
+//   main.py, mismo mecanismo que /predict-with-base-curve vía
+//   derived_end_date). nDias = tamaño exacto del rango pedido.
+//
+// - Reentreno (modoReentreno=true): igual que play() cuando fecha_fin es
+//   null → usa /predict (no /predict-with-base-curve): `fechaInicio` es
+//   el piso del histórico de ENTRENAMIENTO (start_date, no end_date) y
+//   nDias queda fijo en 30 — reentrenar con "todo el histórico" (un
+//   rango de cientos de días) no puede mandarse como nDias porque el
+//   pronóstico en sí sigue limitado a 90 días (ver Joi schema); acá solo
+//   importa desde cuándo se toma el histórico para entrenar, el
+//   pronóstico resultante es solo un vistazo de 30 días con el modelo ya
+//   reentrenado.
 export const obtenerPronosticoDiario = async (
   ucpNombre,
   fechaInicio,
   nDias,
   forceRetrain = false,
+  modoReentreno = false,
 ) => {
   const hostsToTry = ["127.0.0.1", "localhost"];
   const port = 8001;
   const timeoutMs = 600000;
 
-  const requestBody = {
-    ucp: ucpNombre,
-    end_date: addDaysISO(fechaInicio, -1),
-    n_days: nDias,
-    force_retrain: forceRetrain,
-  };
+  const requestBody = modoReentreno
+    ? {
+        ucp: ucpNombre,
+        start_date: fechaInicio,
+        n_days: 30,
+        force_retrain: true,
+      }
+    : {
+        ucp: ucpNombre,
+        end_date: addDaysISO(fechaInicio, -1),
+        n_days: nDias,
+        force_retrain: forceRetrain,
+      };
 
   for (const host of hostsToTry) {
     const controller = new AbortController();

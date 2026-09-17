@@ -40,5 +40,13 @@ export default {
       .required(),
     nDias: Joi.number().min(1).max(90).required(),
     forceRetrain: Joi.boolean().default(false),
+    // Reentreno (botón "Reentreno"): fechaInicio es el piso del histórico
+    // de entrenamiento, no un punto de partida exacto del pronóstico — se
+    // manda como start_date (sin end_date) y nDias fijo (30, igual que
+    // el módulo horario en pronosticos.service.js -> play()/callPredict
+    // cuando fecha_fin es null). Sin este flag, "reentrenar con todo el
+    // histórico" (rango de cientos de días) rompía la validación
+    // nDias <= 90.
+    modoReentreno: Joi.boolean().default(false),
   }),
 };
