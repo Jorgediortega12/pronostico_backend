@@ -238,11 +238,31 @@ export const actualizarEstadoDemandaDiaria = async (
   }
 };
 
+function addDaysISO(startISO, days) {
+  const dateStr = startISO.includes("T") ? startISO : `${startISO}T00:00:00Z`;
+  const d = new Date(dateStr);
+  d.setUTCDate(d.getUTCDate() + Number(days));
+  const year = d.getUTCFullYear();
+  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 // ── 4. Pronóstico diario (llama al servicio Python /predict-daily) ─────────
 // Mismo servicio ML que ya usa Pronósticos horario (callPredict en
 // pronosticos.service.js) — mismos hosts/puerto — pero pegándole al
 // endpoint /predict-daily (sin desagregación horaria, ver análisis de la
 // issue "Desarrollar módulo pronostico en la Temporalidad Diaria").
+//
+// Igual que /predict-with-base-curve para el módulo horario: `fechaInicio`
+// es el primer día que el usuario quiere pronosticar (editable, cualquier
+// fecha), y se traduce a `end_date = fechaInicio - 1 día` — el corte de
+// histórico que el pipeline usa para decidir "hasta acá hay datos reales,
+// de ahí en adelante se pronostica" (ver run_automated_pipeline en
+// epm/src/api/main.py, mismo mecanismo que usa run_predict_flow/
+// /predict-with-base-curve vía derived_end_date). No se manda `start_date`:
+// ese campo solo filtra el piso del histórico de entrenamiento y Python ya
+// tiene un default razonable ('2015-01-01') cuando no se especifica.
 export const obtenerPronosticoDiario = async (
   ucpNombre,
   fechaInicio,
@@ -255,7 +275,7 @@ export const obtenerPronosticoDiario = async (
 
   const requestBody = {
     ucp: ucpNombre,
-    start_date: fechaInicio,
+    end_date: addDaysISO(fechaInicio, -1),
     n_days: nDias,
     force_retrain: forceRetrain,
   };
