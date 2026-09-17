@@ -34,6 +34,24 @@ export const procesar = async (req, res) => {
   }
 };
 
+export const guardar = async (req, res) => {
+  try {
+    const { session } = req.user;
+    const { ucp, filas } = req.body;
+
+    const result = await pronosticoDiarioService.guardarConsumoDiario(
+      ucp,
+      filas,
+      session,
+    );
+
+    return SuccessResponse(res, result, "Consumo diario guardado.");
+  } catch (err) {
+    Logger.error(err);
+    return responseError(200, err.message, 400, res);
+  }
+};
+
 export const cargar = async (req, res) => {
   try {
     const { session } = req.user;

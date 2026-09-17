@@ -36,42 +36,51 @@ async function crearTablaActualizacionDiaria(client) {
   `);
 }
 
-// ── 1. Importar archivo de consumo diario (un mercado por archivo) ──────────
+// Guarda (INSERT/UPDATE por fecha) un arreglo ya armado de
+// {fecha, tipoDia, total} — usado tanto por importarConsumoDiario (parsea
+// el archivo del lado del servidor) como por guardarConsumoDiario (recibe
+// filas ya parseadas/validadas del lado del cliente, mismo flujo
+// Cargar->Validar->Actualizar que usa Update_data.tsx).
+async function guardarFilasDiarias(client, ucpNombre, filas) {
+  await client.query("BEGIN");
+  let insertados = 0;
+  let actualizados = 0;
+  for (const { fecha, tipoDia, total } of filas) {
+    const res = await client.query(
+      `INSERT INTO actualizaciondatos_diario (ucp, fecha, total, tipo_dia)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (ucp, fecha) DO UPDATE SET
+         total = EXCLUDED.total,
+         tipo_dia = EXCLUDED.tipo_dia,
+         actualizado_en = NOW()
+       RETURNING (xmax = 0) AS insertado`,
+      [ucpNombre, fecha, total, tipoDia],
+    );
+    if (res.rows[0].insertado) insertados++;
+    else actualizados++;
+  }
+  await client.query("COMMIT");
+
+  const fechasOrdenadas = filas.map((f) => f.fecha).sort();
+  return {
+    diasGuardados: filas.length,
+    diasInsertados: insertados,
+    diasActualizados: actualizados,
+    fechaMinima: fechasOrdenadas[0] ?? null,
+    fechaMaxima: fechasOrdenadas[fechasOrdenadas.length - 1] ?? null,
+  };
+}
+
+// ── 1a. Importar archivo de consumo diario del lado del servidor ────────────
+// (un mercado por archivo) — parsea Y guarda de una. Se mantiene por si
+// alguna integración lo sigue llamando directo; el flujo de la UI
+// (Cargar->Validar->Actualizar) usa parsearArchivoDiario + guardarConsumoDiario.
 export const importarConsumoDiario = async (rutaArchivo, ucpNombre, session) => {
   const client = createConectionPG(session);
   await client.connect();
   try {
     await crearTablaActualizacionDiaria(client);
-
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.readFile(rutaArchivo);
-    const sheet = workbook.worksheets[0];
-
-    const filas = [];
-    let filasLeidas = 0;
-    sheet.eachRow((row, rowNumber) => {
-      if (rowNumber === 1) return;
-      filasLeidas++;
-
-      const variable = row.getCell(1).value;
-      const fechaCell = row.getCell(2).value;
-      const tipoDia = row.getCell(4).value;
-      const total = row.getCell(5).value;
-
-      if (variable !== VARIABLE_DEMANDA_REAL) return;
-      if (!fechaCell || total == null) return;
-
-      const fechaISO =
-        fechaCell instanceof Date
-          ? fechaCell.toISOString().slice(0, 10)
-          : String(fechaCell).slice(0, 10);
-
-      filas.push({
-        fecha: fechaISO,
-        tipoDia: tipoDia ? String(tipoDia).trim() : null,
-        total: Number(total),
-      });
-    });
+    const { filas, filasLeidas } = await parsearArchivoDiario(rutaArchivo);
 
     if (filas.length === 0) {
       throw new Error(
@@ -79,35 +88,61 @@ export const importarConsumoDiario = async (rutaArchivo, ucpNombre, session) => 
       );
     }
 
-    await client.query("BEGIN");
-    let insertados = 0;
-    let actualizados = 0;
-    for (const { fecha, tipoDia, total } of filas) {
-      const res = await client.query(
-        `INSERT INTO actualizaciondatos_diario (ucp, fecha, total, tipo_dia)
-         VALUES ($1, $2, $3, $4)
-         ON CONFLICT (ucp, fecha) DO UPDATE SET
-           total = EXCLUDED.total,
-           tipo_dia = EXCLUDED.tipo_dia,
-           actualizado_en = NOW()
-         RETURNING (xmax = 0) AS insertado`,
-        [ucpNombre, fecha, total, tipoDia],
-      );
-      if (res.rows[0].insertado) insertados++;
-      else actualizados++;
+    const resultado = await guardarFilasDiarias(client, ucpNombre, filas);
+    return { filasLeidas, ...resultado };
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw err;
+  } finally {
+    await client.end();
+  }
+};
+
+// ── 1b. Parsear el archivo SIN guardar — para el paso "Validar" de la UI ────
+export async function parsearArchivoDiario(rutaArchivo) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(rutaArchivo);
+  const sheet = workbook.worksheets[0];
+
+  const filas = [];
+  let filasLeidas = 0;
+  sheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return;
+    filasLeidas++;
+
+    const variable = row.getCell(1).value;
+    const fechaCell = row.getCell(2).value;
+    const tipoDia = row.getCell(4).value;
+    const total = row.getCell(5).value;
+
+    if (variable !== VARIABLE_DEMANDA_REAL) return;
+    if (!fechaCell || total == null) return;
+
+    const fechaISO =
+      fechaCell instanceof Date
+        ? fechaCell.toISOString().slice(0, 10)
+        : String(fechaCell).slice(0, 10);
+
+    filas.push({
+      fecha: fechaISO,
+      tipoDia: tipoDia ? String(tipoDia).trim() : null,
+      total: Number(total),
+    });
+  });
+
+  return { filas, filasLeidas };
+}
+
+// ── 1c. Guardar filas ya validadas del lado del cliente (paso "Actualizar") ─
+export const guardarConsumoDiario = async (ucpNombre, filas, session) => {
+  const client = createConectionPG(session);
+  await client.connect();
+  try {
+    await crearTablaActualizacionDiaria(client);
+    if (!Array.isArray(filas) || filas.length === 0) {
+      throw new Error("No hay filas para guardar.");
     }
-    await client.query("COMMIT");
-
-    const fechasOrdenadas = filas.map((f) => f.fecha).sort();
-
-    return {
-      filasLeidas,
-      diasGuardados: filas.length,
-      diasInsertados: insertados,
-      diasActualizados: actualizados,
-      fechaMinima: fechasOrdenadas[0] ?? null,
-      fechaMaxima: fechasOrdenadas[fechasOrdenadas.length - 1] ?? null,
-    };
+    return await guardarFilasDiarias(client, ucpNombre, filas);
   } catch (err) {
     await client.query("ROLLBACK").catch(() => {});
     throw err;

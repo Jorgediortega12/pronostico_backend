@@ -16,6 +16,12 @@ export default function () {
     controllers.procesar,
   );
 
+  router.post(
+    "/guardar",
+    validator(schema.guardar),
+    controllers.guardar,
+  );
+
   router.get(
     "/cargar",
     validator(schema.cargar, ValidationSource.QUERY),
