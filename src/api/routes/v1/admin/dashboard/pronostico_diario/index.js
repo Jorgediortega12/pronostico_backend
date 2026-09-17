@@ -34,6 +34,8 @@ export default function () {
     controllers.actualizarEstado,
   );
 
+  router.get("/ultima-actualizacion", controllers.ultimaActualizacion);
+
   router.post(
     "/pronosticar",
     validator(schema.pronosticar),

@@ -71,6 +71,19 @@ export const cargar = async (req, res) => {
   }
 };
 
+export const ultimaActualizacion = async (req, res) => {
+  try {
+    const { session } = req.user;
+
+    const result = await pronosticoDiarioService.ultimaActualizacionPorUcp(session);
+
+    return SuccessResponse(res, result, "Última actualización por mercado.");
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
 export const actualizarEstado = async (req, res) => {
   try {
     const { session } = req.user;

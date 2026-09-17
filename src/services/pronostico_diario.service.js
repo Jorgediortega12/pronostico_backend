@@ -151,6 +151,24 @@ export const guardarConsumoDiario = async (ucpNombre, filas, session) => {
   }
 };
 
+// ── 1d. Última actualización por mercado (mismo patrón que el horario:
+// sesion.service.js -> verificarUltimaActualizacionPorUcp) ─────────────────
+export const ultimaActualizacionPorUcp = async (session) => {
+  const client = createConectionPG(session);
+  await client.connect();
+  try {
+    await crearTablaActualizacionDiaria(client);
+    const res = await client.query(
+      `SELECT DISTINCT ON (ucp) *
+       FROM actualizaciondatos_diario
+       ORDER BY ucp, fecha DESC`,
+    );
+    return res.rows;
+  } finally {
+    await client.end();
+  }
+};
+
 // ── 2. Cargar datos diarios guardados (para la tabla/gráfico) ───────────────
 export const cargarDatosDiarios = async (ucpNombre, fechaInicio, fechaFin, session) => {
   const client = createConectionPG(session);
