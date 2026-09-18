@@ -42,5 +42,7 @@ export default function () {
     controllers.pronosticar,
   );
 
+  router.get("/ejecuciones", controllers.listarEjecuciones);
+
   return router;
 }

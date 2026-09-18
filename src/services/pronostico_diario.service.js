@@ -350,3 +350,62 @@ export const obtenerPronosticoDiario = async (
   );
   return { success: false, statusCode: 0, data: null };
 };
+
+// ── 5. Ejecuciones de pronóstico guardadas (para "Cargar Pronóstico") ──────
+// Cada corrida exitosa de /pronosticar se guarda acá — no es una sesión
+// editable como en el módulo horario (no hay P1-P24, ni versiones/preview),
+// solo un historial simple de "estas fueron las últimas veces que se
+// pronosticó este mercado" para poder volver a cargar una sin tener que
+// pronosticar de nuevo.
+async function crearTablaEjecuciones(client) {
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS pronostico_diario_ejecuciones (
+      codigo SERIAL PRIMARY KEY,
+      ucp VARCHAR NOT NULL,
+      fecha_inicio DATE NOT NULL,
+      fecha_fin DATE NOT NULL,
+      predicciones JSONB NOT NULL,
+      creado_en TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+  `);
+}
+
+export const guardarEjecucionPronostico = async (
+  ucpNombre,
+  fechaInicio,
+  fechaFin,
+  predicciones,
+  session,
+) => {
+  const client = createConectionPG(session);
+  await client.connect();
+  try {
+    await crearTablaEjecuciones(client);
+    await client.query(
+      `INSERT INTO pronostico_diario_ejecuciones (ucp, fecha_inicio, fecha_fin, predicciones)
+       VALUES ($1, $2, $3, $4)`,
+      [ucpNombre, fechaInicio, fechaFin, JSON.stringify(predicciones)],
+    );
+  } finally {
+    await client.end();
+  }
+};
+
+export const listarEjecucionesPronostico = async (ucpNombre, session) => {
+  const client = createConectionPG(session);
+  await client.connect();
+  try {
+    await crearTablaEjecuciones(client);
+    const res = await client.query(
+      `SELECT codigo, ucp, fecha_inicio, fecha_fin, predicciones, creado_en
+       FROM pronostico_diario_ejecuciones
+       WHERE ucp = $1
+       ORDER BY creado_en DESC
+       LIMIT 10`,
+      [ucpNombre],
+    );
+    return res.rows;
+  } finally {
+    await client.end();
+  }
+};
