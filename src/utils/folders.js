@@ -156,3 +156,52 @@ export async function getOrCreatePronosticosMonthFolder(
     folderPathPhysical,
   };
 }
+
+/**
+ * Busca/crea jerarquía para Pronóstico Diario — raíz propia (no anidada
+ * bajo "reportes"/"pronosticos" como el módulo horario) para que aparezca
+ * como una rama separada en Descargas:
+ * "Pronósticos diarios" -> {UCP} -> {YEAR} -> {MONTH}
+ * Retorna { codcarpeta, folderPathLogical, folderPathPhysical }
+ */
+export async function getOrCreateDiarioMonthFolder(
+  client,
+  ucpName,
+  year,
+  monthName,
+  reportDirPhysicalRoot,
+) {
+  const root = await findOrCreateFolder(client, "Pronósticos diarios", 0, 1);
+  const ucpFolder = await findOrCreateFolder(client, ucpName, root.codigo, 2);
+  const yearFolder = await findOrCreateFolder(
+    client,
+    String(year),
+    ucpFolder.codigo,
+    3,
+  );
+  const monthFolder = await findOrCreateFolder(
+    client,
+    monthName,
+    yearFolder.codigo,
+    4,
+  );
+
+  const folderPathLogical = `~/Pronósticos diarios/${ucpFolder.nombre}/${yearFolder.nombre}/${monthFolder.nombre}`;
+
+  const ucpClean = String(ucpName).replace(/\s+/g, "");
+  const folderPathPhysical = path.join(
+    reportDirPhysicalRoot,
+    "pronosticos_diario",
+    `${ucpClean}`,
+    String(yearFolder.nombre),
+    String(monthFolder.nombre),
+  );
+
+  ensureDirSync(folderPathPhysical);
+
+  return {
+    codcarpeta: monthFolder.codigo,
+    folderPathLogical,
+    folderPathPhysical,
+  };
+}

@@ -166,6 +166,67 @@ export const cargarHistoricoDesdeFecha = async (req, res) => {
   }
 };
 
+export const exportar = async (req, res) => {
+  try {
+    const { session } = req.user;
+    const { ucp, fechaInicio, fechaFin, predicciones, observacion, usuario } =
+      req.body;
+
+    const result = await pronosticoDiarioService.exportarPronosticoDiario(
+      ucp,
+      fechaInicio,
+      fechaFin,
+      predicciones,
+      usuario || "superadmin",
+      observacion,
+      session,
+    );
+
+    return SuccessResponse(res, result, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const listarEjecucionesPorCarpeta = async (req, res) => {
+  try {
+    const { session } = req.user;
+    const { codcarpeta } = req.params;
+
+    const result = await pronosticoDiarioService.listarEjecucionesPorCarpeta(
+      codcarpeta,
+      session,
+    );
+
+    return SuccessResponse(res, result, "Versiones de la carpeta cargadas.");
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const cargarEjecucionPorCodigo = async (req, res) => {
+  try {
+    const { session } = req.user;
+    const { codigo } = req.params;
+
+    const result = await pronosticoDiarioService.cargarEjecucionPorCodigo(
+      codigo,
+      session,
+    );
+
+    if (!result) {
+      return responseError(200, "No se encontró la ejecución.", 404, res);
+    }
+
+    return SuccessResponse(res, result, "Ejecución cargada.");
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
 export const pronosticar = async (req, res) => {
   try {
     const { session } = req.user;

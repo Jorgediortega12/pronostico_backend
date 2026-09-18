@@ -10,9 +10,14 @@
 // no un archivo con una hoja por mercado.
 
 import ExcelJS from "exceljs";
+import moment from "moment";
+import path from "path";
 import Logger from "../helpers/logger.js";
 import colors from "colors";
 import { createConectionPG } from "../helpers/connections.js";
+import { getOrCreateDiarioMonthFolder, monthNameSpanish } from "../utils/folders.js";
+import { generateXlsxDiarioToFolder } from "../utils/reportGeneratorDiario.js";
+import { insertFileRecord } from "../utils/reportGenerator.js";
 
 // Por ahora solo se importa esta variable — el archivo de ejemplo no trae
 // ninguna otra. Si más adelante llegan más variables (ej. climáticas) por
@@ -365,8 +370,27 @@ async function crearTablaEjecuciones(client) {
       fecha_inicio DATE NOT NULL,
       fecha_fin DATE NOT NULL,
       predicciones JSONB NOT NULL,
+      nombre VARCHAR,
+      version INT DEFAULT 1,
+      usuario VARCHAR,
+      nombrearchivo VARCHAR,
+      observacion TEXT DEFAULT '',
+      codcarpeta INT,
       creado_en TIMESTAMP NOT NULL DEFAULT NOW()
     );
+  `);
+  // Migración idempotente para tablas creadas antes de agregar estas
+  // columnas (equivalente "sesión" del pronóstico diario: nombre/version
+  // para versionar por MC+mes, codcarpeta para enlazar con la carpeta de
+  // mes en `carpetas`/Descargas — ver exportarPronosticoDiario).
+  await client.query(`
+    ALTER TABLE pronostico_diario_ejecuciones
+      ADD COLUMN IF NOT EXISTS nombre VARCHAR,
+      ADD COLUMN IF NOT EXISTS version INT DEFAULT 1,
+      ADD COLUMN IF NOT EXISTS usuario VARCHAR,
+      ADD COLUMN IF NOT EXISTS nombrearchivo VARCHAR,
+      ADD COLUMN IF NOT EXISTS observacion TEXT DEFAULT '',
+      ADD COLUMN IF NOT EXISTS codcarpeta INT;
   `);
 }
 
@@ -405,6 +429,140 @@ export const listarEjecucionesPronostico = async (ucpNombre, session) => {
       [ucpNombre],
     );
     return res.rows;
+  } finally {
+    await client.end();
+  }
+};
+
+// ── 6. Exportar — equivalente diario de exportarBulk (pronosticos.service.js):
+// genera el archivo físico en la misma carpeta de mes/Descargas
+// ("Pronósticos diarios" en vez de "reportes/pronosticos") y versiona la
+// corrida como "sesión" (nombre = UCP+DIARIO+dd+mm, version incremental por
+// nombre) en la misma tabla que ya alimenta "Cargar Pronóstico"
+// (pronostico_diario_ejecuciones) — no usa `sesiones`/`sesiones_periodos`
+// porque esas tablas están moldeadas para P1-P24, no para un total diario.
+export const exportarPronosticoDiario = async (
+  ucpNombre,
+  fechaInicio,
+  fechaFin,
+  predicciones,
+  usuario,
+  observacion,
+  session,
+) => {
+  const client = createConectionPG(session);
+  await client.connect();
+  try {
+    await crearTablaEjecuciones(client);
+
+    const mInicio = moment(fechaInicio, "YYYY-MM-DD");
+    const dd = mInicio.format("DD");
+    const mm = mInicio.format("MM");
+    const yyyy = mInicio.format("YYYY");
+    const monthName = monthNameSpanish(Number(mm));
+    const fileBaseName = `MC${ucpNombre}DIARIO${dd}${mm}`;
+    const nombreSesion = `${ucpNombre}DIARIO${dd}${mm}`;
+
+    const reportDirPhysicalRoot =
+      process.env.REPORT_DIR || path.join(process.cwd(), "reportes");
+
+    const folderInfo = await getOrCreateDiarioMonthFolder(
+      client,
+      ucpNombre,
+      yyyy,
+      monthName,
+      reportDirPhysicalRoot,
+    );
+
+    const xlsxResult = await generateXlsxDiarioToFolder({
+      predicciones,
+      ucp: ucpNombre,
+      folderPhysical: folderInfo.folderPathPhysical,
+      fileBaseName,
+    });
+
+    const rutaBD = `${folderInfo.folderPathLogical}/${xlsxResult.xlsxName}`;
+    await insertFileRecord(client, {
+      nombreArchivo: xlsxResult.xlsxName,
+      rutaArchivo: rutaBD,
+      codcarpeta: folderInfo.codcarpeta,
+    });
+
+    const prevVersion = await client.query(
+      `SELECT MAX(version) AS maxversion FROM pronostico_diario_ejecuciones WHERE nombre = $1`,
+      [nombreSesion],
+    );
+    const version = Number(prevVersion.rows[0]?.maxversion ?? 0) + 1;
+
+    const insertRes = await client.query(
+      `INSERT INTO pronostico_diario_ejecuciones
+         (ucp, fecha_inicio, fecha_fin, predicciones, nombre, version, usuario, nombrearchivo, observacion, codcarpeta)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+       RETURNING codigo`,
+      [
+        ucpNombre,
+        fechaInicio,
+        fechaFin,
+        JSON.stringify(predicciones),
+        nombreSesion,
+        version,
+        usuario,
+        xlsxResult.xlsxName,
+        observacion || "",
+        folderInfo.codcarpeta,
+      ],
+    );
+
+    return {
+      success: true,
+      message: `Pronóstico exportado a Descargas → Pronósticos diarios → ${ucpNombre} → ${yyyy} → ${monthName}`,
+      nombre: nombreSesion,
+      version,
+      archivo: xlsxResult.xlsxName,
+      codigo: insertRes.rows[0]?.codigo ?? null,
+    };
+  } finally {
+    await client.end();
+  }
+};
+
+// ── 7. Listar versiones guardadas dentro de una carpeta de mes — mismo rol
+// que cargarArchivoVrSesiones para el módulo horario, pero leyendo
+// directamente de pronostico_diario_ejecuciones (sin join con `archivos`,
+// ya que acá el nombre de archivo es 1:1 con la ejecución) ─────────────────
+export const listarEjecucionesPorCarpeta = async (codcarpeta, session) => {
+  const client = createConectionPG(session);
+  await client.connect();
+  try {
+    await crearTablaEjecuciones(client);
+    const res = await client.query(
+      `SELECT codigo, ucp, fecha_inicio, fecha_fin, nombre, version, nombrearchivo, observacion, creado_en
+       FROM pronostico_diario_ejecuciones
+       WHERE codcarpeta = $1
+       ORDER BY nombre ASC, version ASC`,
+      [codcarpeta],
+    );
+    return res.rows;
+  } finally {
+    await client.end();
+  }
+};
+
+// ── 8. Cargar una ejecución/versión puntual por código — equivalente diario
+// de cargarSesionXCod, para el paso final de "Cargar Pronóstico" (MC → Año →
+// Mes → Versión) una vez elegida la versión en el árbol de carpetas ───────
+export const cargarEjecucionPorCodigo = async (codigo, session) => {
+  const client = createConectionPG(session);
+  await client.connect();
+  try {
+    await crearTablaEjecuciones(client);
+    const res = await client.query(
+      `SELECT codigo, ucp, fecha_inicio, fecha_fin, predicciones, nombre, version, observacion, creado_en
+       FROM pronostico_diario_ejecuciones
+       WHERE codigo = $1`,
+      [codigo],
+    );
+    return res.rows[0] ?? null;
   } finally {
     await client.end();
   }

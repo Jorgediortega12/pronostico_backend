@@ -44,5 +44,23 @@ export default function () {
 
   router.get("/ejecuciones", controllers.listarEjecuciones);
 
+  router.post(
+    "/exportar",
+    validator(schema.exportar),
+    controllers.exportar,
+  );
+
+  router.get(
+    "/carpeta/:codcarpeta/ejecuciones",
+    validator(schema.listarEjecucionesPorCarpeta, ValidationSource.PARAM),
+    controllers.listarEjecucionesPorCarpeta,
+  );
+
+  router.get(
+    "/ejecucion/:codigo",
+    validator(schema.cargarEjecucionPorCodigo, ValidationSource.PARAM),
+    controllers.cargarEjecucionPorCodigo,
+  );
+
   return router;
 }

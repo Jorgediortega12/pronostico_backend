@@ -49,4 +49,33 @@ export default {
     // nDias <= 90.
     modoReentreno: Joi.boolean().default(false),
   }),
+  exportar: Joi.object().keys({
+    ucp: Joi.string().required(),
+    fechaInicio: Joi.string()
+      .pattern(/^\d{4}-\d{2}-\d{2}$/)
+      .required(),
+    fechaFin: Joi.string()
+      .pattern(/^\d{4}-\d{2}-\d{2}$/)
+      .required(),
+    predicciones: Joi.array()
+      .items(
+        Joi.object().keys({
+          fecha: Joi.string().required(),
+          dia_semana: Joi.string().allow("", null),
+          demanda_total: Joi.number().required(),
+          is_festivo: Joi.boolean().default(false),
+          is_weekend: Joi.boolean().default(false),
+        }),
+      )
+      .min(1)
+      .required(),
+    observacion: Joi.string().allow("", null),
+    usuario: Joi.string().allow("", null),
+  }),
+  listarEjecucionesPorCarpeta: Joi.object().keys({
+    codcarpeta: Joi.number().required(),
+  }),
+  cargarEjecucionPorCodigo: Joi.object().keys({
+    codigo: Joi.number().required(),
+  }),
 };
