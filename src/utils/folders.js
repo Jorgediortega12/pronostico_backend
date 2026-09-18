@@ -186,8 +186,6 @@ export async function getOrCreateDiarioMonthFolder(
     4,
   );
 
-  const folderPathLogical = `~/Pronósticos diarios/${ucpFolder.nombre}/${yearFolder.nombre}/${monthFolder.nombre}`;
-
   const ucpClean = String(ucpName).replace(/\s+/g, "");
   const folderPathPhysical = path.join(
     reportDirPhysicalRoot,
@@ -198,6 +196,20 @@ export async function getOrCreateDiarioMonthFolder(
   );
 
   ensureDirSync(folderPathPhysical);
+
+  // folderPathLogical se guarda en `archivos.path` y luego descargarArchivo/
+  // verArchivo lo expanden como path.join(process.cwd(), ruta.substring(2))
+  // — tiene que ser el mismo path que folderPathPhysical o el archivo
+  // "existe" en la carpeta pero nunca se encuentra en disco al
+  // descargar/previsualizar. Antes se armaba a mano con el nombre de la
+  // carpeta lógica ("Pronósticos diarios", con el nombre de UCP sin
+  // limpiar), que no coincidía con la ruta física real (con espacios
+  // quitados, bajo "pronosticos_diario"). Derivarlo de folderPathPhysical
+  // garantiza que siempre apunten al mismo lugar.
+  const folderPathLogical = `~/${path
+    .relative(process.cwd(), folderPathPhysical)
+    .split(path.sep)
+    .join("/")}`;
 
   return {
     codcarpeta: monthFolder.codigo,
