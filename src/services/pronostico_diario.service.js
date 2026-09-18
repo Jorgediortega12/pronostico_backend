@@ -356,91 +356,50 @@ export const obtenerPronosticoDiario = async (
   return { success: false, statusCode: 0, data: null };
 };
 
-// ── 5. Ejecuciones de pronóstico guardadas (para "Cargar Pronóstico") ──────
-// Cada corrida exitosa de /pronosticar se guarda acá — no es una sesión
-// editable como en el módulo horario (no hay P1-P24, ni versiones/preview),
-// solo un historial simple de "estas fueron las últimas veces que se
-// pronosticó este mercado" para poder volver a cargar una sin tener que
-// pronosticar de nuevo.
-async function crearTablaEjecuciones(client) {
+// ── 5. Sesiones de Pronóstico Diario — mismo patrón que sesiones/
+// sesiones_periodos del módulo horario (configuracion.query.js): una fila
+// "sesión" (una versión de una corrida exportada) y N filas "período" (una
+// por día), marcadas tipo='P' si es pronóstico o tipo='D' si es histórico
+// — el mismo histórico que se veía en el gráfico al momento de exportar,
+// no uno vuelto a consultar después. A diferencia del horario no hay
+// P1-P24: cada período diario es un solo valor (demanda_total).
+async function crearTablasSesionDiaria(client) {
   await client.query(`
-    CREATE TABLE IF NOT EXISTS pronostico_diario_ejecuciones (
+    CREATE TABLE IF NOT EXISTS sesiones_diario (
       codigo SERIAL PRIMARY KEY,
+      fecha TIMESTAMP NOT NULL DEFAULT NOW(),
       ucp VARCHAR NOT NULL,
-      fecha_inicio DATE NOT NULL,
-      fecha_fin DATE NOT NULL,
-      predicciones JSONB NOT NULL,
-      nombre VARCHAR,
-      version INT DEFAULT 1,
+      fechainicio DATE NOT NULL,
+      fechafin DATE NOT NULL,
+      nombre VARCHAR NOT NULL,
+      version INT NOT NULL DEFAULT 1,
       usuario VARCHAR,
       nombrearchivo VARCHAR,
       observacion TEXT DEFAULT '',
-      codcarpeta INT,
-      creado_en TIMESTAMP NOT NULL DEFAULT NOW()
+      codcarpeta INT
     );
   `);
-  // Migración idempotente para tablas creadas antes de agregar estas
-  // columnas (equivalente "sesión" del pronóstico diario: nombre/version
-  // para versionar por MC+mes, codcarpeta para enlazar con la carpeta de
-  // mes en `carpetas`/Descargas — ver exportarPronosticoDiario).
   await client.query(`
-    ALTER TABLE pronostico_diario_ejecuciones
-      ADD COLUMN IF NOT EXISTS nombre VARCHAR,
-      ADD COLUMN IF NOT EXISTS version INT DEFAULT 1,
-      ADD COLUMN IF NOT EXISTS usuario VARCHAR,
-      ADD COLUMN IF NOT EXISTS nombrearchivo VARCHAR,
-      ADD COLUMN IF NOT EXISTS observacion TEXT DEFAULT '',
-      ADD COLUMN IF NOT EXISTS codcarpeta INT;
+    CREATE TABLE IF NOT EXISTS sesiones_diario_periodos (
+      codigo SERIAL PRIMARY KEY,
+      codsesion INT NOT NULL REFERENCES sesiones_diario(codigo) ON DELETE CASCADE,
+      fecha DATE NOT NULL,
+      dia_semana VARCHAR,
+      demanda_total DOUBLE PRECISION,
+      is_festivo BOOLEAN DEFAULT FALSE,
+      is_weekend BOOLEAN DEFAULT FALSE,
+      tipo VARCHAR NOT NULL
+    );
   `);
 }
 
-export const guardarEjecucionPronostico = async (
-  ucpNombre,
-  fechaInicio,
-  fechaFin,
-  predicciones,
-  session,
-) => {
-  const client = createConectionPG(session);
-  await client.connect();
-  try {
-    await crearTablaEjecuciones(client);
-    await client.query(
-      `INSERT INTO pronostico_diario_ejecuciones (ucp, fecha_inicio, fecha_fin, predicciones)
-       VALUES ($1, $2, $3, $4)`,
-      [ucpNombre, fechaInicio, fechaFin, JSON.stringify(predicciones)],
-    );
-  } finally {
-    await client.end();
-  }
-};
-
-export const listarEjecucionesPronostico = async (ucpNombre, session) => {
-  const client = createConectionPG(session);
-  await client.connect();
-  try {
-    await crearTablaEjecuciones(client);
-    const res = await client.query(
-      `SELECT codigo, ucp, fecha_inicio, fecha_fin, predicciones, creado_en
-       FROM pronostico_diario_ejecuciones
-       WHERE ucp = $1
-       ORDER BY creado_en DESC
-       LIMIT 10`,
-      [ucpNombre],
-    );
-    return res.rows;
-  } finally {
-    await client.end();
-  }
-};
-
 // ── 6. Exportar — equivalente diario de exportarBulk (pronosticos.service.js):
-// genera el archivo físico en la misma carpeta de mes/Descargas
-// ("Pronósticos diarios" en vez de "reportes/pronosticos") y versiona la
-// corrida como "sesión" (nombre = UCP+DIARIO+dd+mm, version incremental por
-// nombre) en la misma tabla que ya alimenta "Cargar Pronóstico"
-// (pronostico_diario_ejecuciones) — no usa `sesiones`/`sesiones_periodos`
-// porque esas tablas están moldeadas para P1-P24, no para un total diario.
+// genera el archivo físico en la carpeta de mes/Descargas ("Pronósticos
+// diarios") y guarda la corrida como sesión: una fila en sesiones_diario
+// (versionada por nombre = UCP+DIARIO+dd+mm) más una fila por día en
+// sesiones_diario_periodos — tipo='P' por cada día pronosticado, tipo='D'
+// por cada día del histórico real que ya estaba guardado en
+// actualizaciondatos_diario dentro del mismo rango.
 export const exportarPronosticoDiario = async (
   ucpNombre,
   fechaInicio,
@@ -453,7 +412,8 @@ export const exportarPronosticoDiario = async (
   const client = createConectionPG(session);
   await client.connect();
   try {
-    await crearTablaEjecuciones(client);
+    await crearTablaActualizacionDiaria(client);
+    await crearTablasSesionDiaria(client);
 
     const mInicio = moment(fechaInicio, "YYYY-MM-DD");
     const dd = mInicio.format("DD");
@@ -488,56 +448,96 @@ export const exportarPronosticoDiario = async (
       codcarpeta: folderInfo.codcarpeta,
     });
 
+    const historico = await client.query(
+      `SELECT fecha, total, tipo_dia
+       FROM actualizaciondatos_diario
+       WHERE ucp = $1 AND fecha >= $2 AND fecha <= $3
+       ORDER BY fecha`,
+      [ucpNombre, fechaInicio, fechaFin],
+    );
+
     const prevVersion = await client.query(
-      `SELECT MAX(version) AS maxversion FROM pronostico_diario_ejecuciones WHERE nombre = $1`,
+      `SELECT MAX(version) AS maxversion FROM sesiones_diario WHERE nombre = $1`,
       [nombreSesion],
     );
     const version = Number(prevVersion.rows[0]?.maxversion ?? 0) + 1;
 
-    const insertRes = await client.query(
-      `INSERT INTO pronostico_diario_ejecuciones
-         (ucp, fecha_inicio, fecha_fin, predicciones, nombre, version, usuario, nombrearchivo, observacion, codcarpeta)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-       RETURNING codigo`,
-      [
-        ucpNombre,
-        fechaInicio,
-        fechaFin,
-        JSON.stringify(predicciones),
-        nombreSesion,
-        version,
-        usuario,
-        xlsxResult.xlsxName,
-        observacion || "",
-        folderInfo.codcarpeta,
-      ],
-    );
+    await client.query("BEGIN");
+    try {
+      const insertRes = await client.query(
+        `INSERT INTO sesiones_diario
+           (ucp, fechainicio, fechafin, nombre, version, usuario, nombrearchivo, observacion, codcarpeta)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+         RETURNING codigo`,
+        [
+          ucpNombre,
+          fechaInicio,
+          fechaFin,
+          nombreSesion,
+          version,
+          usuario,
+          xlsxResult.xlsxName,
+          observacion || "",
+          folderInfo.codcarpeta,
+        ],
+      );
+      const codsesion = insertRes.rows[0].codigo;
 
-    return {
-      success: true,
-      message: `Pronóstico exportado a Descargas → Pronósticos diarios → ${ucpNombre} → ${yyyy} → ${monthName}`,
-      nombre: nombreSesion,
-      version,
-      archivo: xlsxResult.xlsxName,
-      codigo: insertRes.rows[0]?.codigo ?? null,
-    };
+      for (const p of predicciones) {
+        await client.query(
+          `INSERT INTO sesiones_diario_periodos
+             (codsesion, fecha, dia_semana, demanda_total, is_festivo, is_weekend, tipo)
+           VALUES ($1,$2,$3,$4,$5,$6,'P')`,
+          [
+            codsesion,
+            p.fecha,
+            p.dia_semana ?? null,
+            p.demanda_total,
+            !!p.is_festivo,
+            !!p.is_weekend,
+          ],
+        );
+      }
+      for (const h of historico.rows) {
+        await client.query(
+          `INSERT INTO sesiones_diario_periodos
+             (codsesion, fecha, dia_semana, demanda_total, is_festivo, is_weekend, tipo)
+           VALUES ($1,$2,$3,$4,false,false,'D')`,
+          [codsesion, h.fecha, h.tipo_dia ?? null, h.total],
+        );
+      }
+      await client.query("COMMIT");
+
+      return {
+        success: true,
+        message: `Pronóstico exportado a Descargas → Pronósticos diarios → ${ucpNombre} → ${yyyy} → ${monthName}`,
+        nombre: nombreSesion,
+        version,
+        archivo: xlsxResult.xlsxName,
+        codigo: codsesion,
+      };
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    }
   } finally {
     await client.end();
   }
 };
 
 // ── 7. Listar versiones guardadas dentro de una carpeta de mes — mismo rol
-// que cargarArchivoVrSesiones para el módulo horario, pero leyendo
-// directamente de pronostico_diario_ejecuciones (sin join con `archivos`,
-// ya que acá el nombre de archivo es 1:1 con la ejecución) ─────────────────
+// que cargarArchivoVrSesiones para el módulo horario: solo el header de
+// sesiones_diario (los períodos se piden aparte al elegir versión, ver
+// cargarEjecucionPorCodigo) ─────────────────────────────────────────────
 export const listarEjecucionesPorCarpeta = async (codcarpeta, session) => {
   const client = createConectionPG(session);
   await client.connect();
   try {
-    await crearTablaEjecuciones(client);
+    await crearTablasSesionDiaria(client);
     const res = await client.query(
-      `SELECT codigo, ucp, fecha_inicio, fecha_fin, nombre, version, nombrearchivo, observacion, creado_en
-       FROM pronostico_diario_ejecuciones
+      `SELECT codigo, ucp, fechainicio AS fecha_inicio, fechafin AS fecha_fin,
+              nombre, version, nombrearchivo, observacion, fecha AS creado_en
+       FROM sesiones_diario
        WHERE codcarpeta = $1
        ORDER BY nombre ASC, version ASC`,
       [codcarpeta],
@@ -549,20 +549,52 @@ export const listarEjecucionesPorCarpeta = async (codcarpeta, session) => {
 };
 
 // ── 8. Cargar una ejecución/versión puntual por código — equivalente diario
-// de cargarSesionXCod, para el paso final de "Cargar Pronóstico" (MC → Año →
-// Mes → Versión) una vez elegida la versión en el árbol de carpetas ───────
+// de cargarSesion (sesion.service.js): trae el header de sesiones_diario
+// más sus períodos, separados en predicciones (tipo='P') e histórico
+// (tipo='D') para que "Cargar Pronóstico" restaure el snapshot completo
+// (gráfico + tabla) tal cual quedó al exportar, sin re-consultar el
+// histórico real actual ────────────────────────────────────────────────
 export const cargarEjecucionPorCodigo = async (codigo, session) => {
   const client = createConectionPG(session);
   await client.connect();
   try {
-    await crearTablaEjecuciones(client);
-    const res = await client.query(
-      `SELECT codigo, ucp, fecha_inicio, fecha_fin, predicciones, nombre, version, observacion, creado_en
-       FROM pronostico_diario_ejecuciones
-       WHERE codigo = $1`,
+    await crearTablasSesionDiaria(client);
+    const header = await client.query(
+      `SELECT codigo, ucp, fechainicio AS fecha_inicio, fechafin AS fecha_fin,
+              nombre, version, nombrearchivo, observacion, fecha AS creado_en
+       FROM sesiones_diario WHERE codigo = $1`,
       [codigo],
     );
-    return res.rows[0] ?? null;
+    if (header.rows.length === 0) return null;
+
+    const periodos = await client.query(
+      `SELECT TO_CHAR(fecha, 'YYYY-MM-DD') AS fecha, dia_semana, demanda_total,
+              is_festivo, is_weekend, tipo
+       FROM sesiones_diario_periodos
+       WHERE codsesion = $1
+       ORDER BY fecha ASC`,
+      [codigo],
+    );
+
+    const predicciones = periodos.rows
+      .filter((p) => p.tipo === "P")
+      .map((p) => ({
+        fecha: p.fecha,
+        dia_semana: p.dia_semana,
+        demanda_total: Number(p.demanda_total),
+        is_festivo: p.is_festivo,
+        is_weekend: p.is_weekend,
+      }));
+
+    const historico = periodos.rows
+      .filter((p) => p.tipo === "D")
+      .map((p) => ({
+        fecha: p.fecha,
+        tipo_dia: p.dia_semana,
+        total: Number(p.demanda_total),
+      }));
+
+    return { ...header.rows[0], predicciones, historico };
   } finally {
     await client.end();
   }

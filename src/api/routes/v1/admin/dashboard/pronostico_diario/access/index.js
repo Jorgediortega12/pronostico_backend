@@ -108,23 +108,6 @@ export const actualizarEstado = async (req, res) => {
   }
 };
 
-export const listarEjecuciones = async (req, res) => {
-  try {
-    const { session } = req.user;
-    const { ucp } = req.query;
-
-    const result = await pronosticoDiarioService.listarEjecucionesPronostico(
-      ucp,
-      session,
-    );
-
-    return SuccessResponse(res, result, "Ejecuciones de pronóstico cargadas.");
-  } catch (err) {
-    Logger.error(err);
-    return InternalError(res);
-  }
-};
-
 // Sin auth (montado también en configuracion-interna) — llamado por el
 // servicio Python (epm) para construir el CSV de histórico diario que
 // alimenta el reentrenamiento de /predict-daily. Resuelve la sesión del
@@ -229,7 +212,6 @@ export const cargarEjecucionPorCodigo = async (req, res) => {
 
 export const pronosticar = async (req, res) => {
   try {
-    const { session } = req.user;
     const { ucp, fechaInicio, nDias, forceRetrain, modoReentreno } = req.body;
 
     const result = await pronosticoDiarioService.obtenerPronosticoDiario(
@@ -247,21 +229,6 @@ export const pronosticar = async (req, res) => {
         400,
         res,
       );
-    }
-
-    // No bloquea la respuesta ni la tumba si falla — es solo historial
-    // para "Cargar Pronóstico", no algo crítico del flujo de pronosticar.
-    const metadata = result.data?.metadata;
-    if (metadata?.fecha_inicio && metadata?.fecha_fin && result.data?.predictions) {
-      pronosticoDiarioService
-        .guardarEjecucionPronostico(
-          ucp,
-          metadata.fecha_inicio,
-          metadata.fecha_fin,
-          result.data.predictions,
-          session,
-        )
-        .catch((err) => Logger.error("No se pudo guardar la ejecución de pronóstico:", err));
     }
 
     return SuccessResponse(res, result.data, "Pronóstico diario generado.");
