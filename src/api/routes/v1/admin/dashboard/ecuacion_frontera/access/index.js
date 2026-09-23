@@ -71,11 +71,13 @@ export const guardarEcuacion = async (req, res) => {
 export const guardarRespaldo = async (req, res) => {
   try {
     const { session } = req.user;
-    const { ucp } = req.body;
+    const { ucp, fechaInicio, fechaFin } = req.body;
 
     const result = await ecuacionFronteraService.guardarSoloRespaldo(
       ucp,
       session,
+      fechaInicio,
+      fechaFin,
     );
 
     if (!result.success) return responseError(200, result.message, 400, res);
