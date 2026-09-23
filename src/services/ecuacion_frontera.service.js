@@ -392,11 +392,34 @@ export const importarConsumoHorario = async (rutaArchivo, session) => {
 // oficial de otras fuentes (Loyal/SCADA/PrimeGrid). Pronóstico la usa como
 // relleno de su histórico donde no haya demanda real (ver
 // obtenerRespaldoGuardado, consumido desde pronosticos.service.js).
-export const calcularYGuardar = async (ucpNombre, session) => {
+// fechaInicio/fechaFin (opcionales, 'YYYY-MM-DD') acotan qué fechas se
+// calculan y guardan — sin ellas se comporta como antes (todo el rango
+// disponible). Sirven para poder excluir a propósito los últimos días
+// cuando llegan con muchos menos circuitos reportando de lo normal (el
+// crudo de esos días sale artificialmente bajo, ver
+// filtrarDiasConCoberturaSuficiente más arriba) sin tener que esperar a que
+// se complete el reporte para no guardar un Respaldo mal escalado.
+export const calcularYGuardar = async (
+  ucpNombre,
+  session,
+  fechaInicio,
+  fechaFin,
+) => {
   const client = createConectionPG(session);
   await client.connect();
   try {
     const codigoUcp = await resolverCodigoUcp(client, ucpNombre);
+
+    const condiciones = ["ef.codigo_ucp = $1", "ef.estado = 1"];
+    const params = [codigoUcp];
+    if (fechaInicio) {
+      params.push(fechaInicio);
+      condiciones.push(`fd.fecha >= $${params.length}`);
+    }
+    if (fechaFin) {
+      params.push(fechaFin);
+      condiciones.push(`fd.fecha <= $${params.length}`);
+    }
 
     const calculo = await client.query(
       `
@@ -405,11 +428,11 @@ export const calcularYGuardar = async (ucpNombre, session) => {
         ${cols.map((c) => `SUM(ef.valor * fd.${c}) / 1000.0 AS ${c}`).join(",\n        ")}
       FROM equivalencia_flujo ef
       JOIN flujo_datos_horarios fd ON fd.id_flujo = ef.id_flujo
-      WHERE ef.codigo_ucp = $1 AND ef.estado = 1
+      WHERE ${condiciones.join(" AND ")}
       GROUP BY fd.fecha
       ORDER BY fd.fecha;
       `,
-      [codigoUcp],
+      params,
     );
 
     const { factor: factorCorreccion, diasUsados: diasUsadosCorreccion } =
@@ -588,9 +611,19 @@ export const guardarSoloEcuacion = async (rutaEcuacion, ucpNombre, session) => {
 // flujo_datos_horarios/equivalencia_flujo) — sin subir ningún archivo. Para
 // re-guardar después de ajustar algo, o simplemente persistir lo que ya se
 // venía viendo en "Traer datos actualizados".
-export const guardarSoloRespaldo = async (ucpNombre, session) => {
+export const guardarSoloRespaldo = async (
+  ucpNombre,
+  session,
+  fechaInicio,
+  fechaFin,
+) => {
   try {
-    const calculo = await calcularYGuardar(ucpNombre, session);
+    const calculo = await calcularYGuardar(
+      ucpNombre,
+      session,
+      fechaInicio,
+      fechaFin,
+    );
     return { success: true, calculo };
   } catch (error) {
     Logger.error(colors.red("Error guardarSoloRespaldo"), error);
