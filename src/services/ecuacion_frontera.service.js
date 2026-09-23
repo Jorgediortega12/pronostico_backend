@@ -85,6 +85,20 @@ function filtrarDiasConCoberturaSuficiente(crudoRows) {
   );
 }
 
+// Número de circuitos activos configurados para el mercado (equivalencia_
+// flujo, estado=1) — referencia fija de "cuántos deberían reportar cada
+// día", a diferencia de la mediana de filtrarDiasConCoberturaSuficiente
+// (que compara contra la propia ventana y no detecta bien una racha corta
+// de días recientes con pocos circuitos, justo el caso típico: los últimos
+// días de un archivo de consumo suelen llegar incompletos).
+async function contarCircuitosActivos(client, codigoUcp) {
+  const res = await client.query(
+    `SELECT COUNT(*) AS total FROM equivalencia_flujo WHERE codigo_ucp = $1 AND estado = 1`,
+    [codigoUcp],
+  );
+  return Number(res.rows[0]?.total ?? 0);
+}
+
 async function obtenerFactorCorreccionRespaldo(client, codigoUcp, ucpNombre, session) {
   const cacheado = cacheFactorCorreccion.get(ucpNombre);
   if (cacheado && Date.now() - cacheado.calculadoEn < VENTANA_CACHE_MS) {
@@ -493,6 +507,7 @@ export const calcularRespaldoSinGuardar = async (
       `
       SELECT
         fd.fecha,
+        COUNT(*) AS filas,
         ${cols.map((c) => `SUM(ef.valor * fd.${c}) AS ${c}`).join(",\n        ")}
       FROM equivalencia_flujo ef
       JOIN flujo_datos_horarios fd ON fd.id_flujo = ef.id_flujo
@@ -503,6 +518,8 @@ export const calcularRespaldoSinGuardar = async (
       `,
       [codigoUcp, fechaInicio],
     );
+
+    const totalCircuitos = await contarCircuitosActivos(client, codigoUcp);
 
     const { factor: factorCorreccion, diasUsados: diasUsadosCorreccion } =
       await obtenerFactorCorreccionRespaldo(client, codigoUcp, ucpNombre, session);
@@ -524,6 +541,14 @@ export const calcularRespaldoSinGuardar = async (
       const periodosCalculados = cols.map(
         (c) => Number(row[c]) * factorCorreccion,
       );
+      // Cobertura informativa (no excluye el día): el frontend decide qué
+      // hacer con esto (p.ej. marcarlo) — un día con pocos circuitos
+      // reportando puede seguir siendo válido para el usuario, que ya tiene
+      // control manual de hasta dónde guardar/aplicar Respaldo (rango en
+      // "Actualizar Respaldo" y "fecha fin" en "Aplicar Respaldo al rango").
+      const coberturaBaja =
+        !!totalCircuitos &&
+        Number(row.filas) < totalCircuitos * UMBRAL_COBERTURA_MINIMA;
 
       if (existente.rowCount > 0) {
         // Ya había fila en actualizaciondatos — el respaldo ya no se guarda
@@ -535,6 +560,7 @@ export const calcularRespaldoSinGuardar = async (
           periodos: cols.map((c) => Number(existente.rows[0][c])),
           esRespaldo: false,
           periodosCalculados,
+          coberturaBaja,
         });
       } else {
         diasRespaldo++;
@@ -543,6 +569,7 @@ export const calcularRespaldoSinGuardar = async (
           periodos: periodosCalculados,
           esRespaldo: true,
           periodosCalculados,
+          coberturaBaja,
         });
       }
     }
