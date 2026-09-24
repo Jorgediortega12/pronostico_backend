@@ -1397,7 +1397,7 @@ export default class FactoresService {
 
       const ucpCap = ucp.charAt(0).toUpperCase() + ucp.slice(1).toLowerCase();
       const codigoMercado = `MC-${ucpCap}`;
-      const nombrearchivo = `${codigoMercado}${dd}${mm}.xlsx`;
+      const nombrearchivo = `${codigoMercado}dna${dd}${mm}.xlsx`;
 
       const reportDirPhysicalRoot =
         process.env.REPORT_DIR || path.join(process.cwd(), "reportes");
@@ -1498,7 +1498,7 @@ export default class FactoresService {
       let codarchivoPotencia = null;
 
       if (Array.isArray(registrosPotencia) && registrosPotencia.length > 0) {
-        const nombrePotencia = `${codigoMercado}dnapt${dd}${mm}.xlsx`;
+        const nombrePotencia = `${codigoMercado}pt${dd}${mm}.xlsx`;
         const rutaCompletaPotencia = path.join(folderPathPhysical, nombrePotencia);
 
         const wbPt = new ExcelJS.Workbook();
