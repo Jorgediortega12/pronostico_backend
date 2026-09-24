@@ -708,6 +708,100 @@ export default class FactoresService {
     return { success: false, statusCode: 0, data: null };
   }
 
+  // Ajuste de FP por generador (Modo 2: ajustar la activa de un generador
+  // puntual, manteniendo la reactiva de la barra constante) — mismo
+  // patrón de proxy hacia fastapi_factores que calculoFda/calculoFdp,
+  // pero solo informativo (no guarda nada).
+  async calculoAjusteFpGenerador(
+    inicioIso,
+    finIso,
+    ucp,
+    tipo_dia,
+    curvas_tipicas,
+    barra,
+    codigoRpmGenerador,
+    fpObjetivo,
+    timeoutMs = 600000,
+  ) {
+    const hostsToTry = ["127.0.0.1", "localhost"];
+    const port = 8003;
+
+    for (const host of hostsToTry) {
+      let timer;
+      try {
+        const url = `http://${host}:${port}/factores/calculos/ajuste-fp-generador`;
+        const controller = new AbortController();
+        const signal = controller.signal;
+
+        timer = setTimeout(() => {
+          controller.abort();
+        }, timeoutMs);
+
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            fecha_inicial: inicioIso,
+            fecha_final: finIso,
+            mc: ucp,
+            tipo_dia,
+            curvas_tipicas,
+            barra,
+            codigo_rpm_generador: codigoRpmGenerador,
+            fp_objetivo: fpObjetivo,
+          }),
+          signal,
+        });
+
+        clearTimeout(timer);
+
+        const statusCode = res.status;
+        const json = await res.json().catch(() => null);
+
+        if (!res.ok) {
+          Logger.warn(
+            colors.yellow(
+              `calculoAjusteFpGenerador: HTTP ${statusCode} desde ${host}:${port}`,
+            ),
+          );
+          return { success: false, statusCode, data: json };
+        }
+
+        return {
+          success: true,
+          statusCode,
+          data: json,
+        };
+      } catch (err) {
+        clearTimeout(timer);
+        if (err?.name === "AbortError") {
+          Logger.warn(
+            colors.yellow(
+              `calculoAjusteFpGenerador: timeout (${timeoutMs}ms) hacia ${host}:${port}`,
+            ),
+          );
+        } else {
+          Logger.warn(
+            colors.yellow(
+              `calculoAjusteFpGenerador: error conectando a ${host}:${port} — ${
+                err?.message || err
+              }`,
+            ),
+          );
+        }
+      }
+    }
+
+    Logger.error(
+      colors.red(`calculoAjusteFpGenerador: Falló en todos los hosts`),
+    );
+
+    return { success: false, statusCode: 0, data: null };
+  }
+
   async calcularMedidas(inicioIso, finIso, e_ar, ucp, timeoutMs = 600000) {
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion

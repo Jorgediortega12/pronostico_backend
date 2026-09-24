@@ -703,6 +703,49 @@ export const calculoFdp = async (req, res) => {
   }
 };
 
+export const calculoAjusteFpGenerador = async (req, res) => {
+  const {
+    fecha_inicio,
+    fecha_fin,
+    ucp,
+    tipo_dia,
+    curvas_tipicas,
+    barra,
+    codigo_rpm_generador,
+    fp_objetivo,
+  } = req.body;
+  try {
+    const result = await service.calculoAjusteFpGenerador(
+      fecha_inicio,
+      fecha_fin,
+      ucp,
+      tipo_dia,
+      curvas_tipicas,
+      barra,
+      codigo_rpm_generador,
+      fp_objetivo,
+    );
+
+    if (!result.success) {
+      return responseError(
+        200,
+        result.data?.detail || "No fue posible calcular el ajuste de FP",
+        404,
+        res,
+      );
+    }
+
+    return SuccessResponse(
+      res,
+      result.data,
+      "Ajuste de FP calculado correctamente",
+    );
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
 export const calcularMedidas = async (req, res) => {
   const { fecha_inicio, fecha_fin, e_ar, ucp } = req.query;
   const { session } = req.user;

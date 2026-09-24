@@ -203,6 +203,23 @@ export default {
       )
       .required(),
   }),
+  calculoAjusteFpGenerador: Joi.object({
+    fecha_inicio: Joi.string().required(),
+    fecha_fin: Joi.string().required(),
+    ucp: Joi.string().required(),
+    tipo_dia: Joi.string().valid("ORDINARIO", "SABADO", "FESTIVO").required(),
+    curvas_tipicas: Joi.array()
+      .items(
+        Joi.object({
+          barra: Joi.string().required(),
+          fecha: Joi.string().required(),
+        }),
+      )
+      .required(),
+    barra: Joi.string().required(),
+    codigo_rpm_generador: Joi.string().required(),
+    fp_objetivo: Joi.number().greater(0).max(1).required(),
+  }),
   calcularMedidas: Joi.object({
     fecha_inicio: Joi.string().isoDate().required(),
     fecha_fin: Joi.string().isoDate().required(),
