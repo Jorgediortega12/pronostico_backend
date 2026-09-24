@@ -545,7 +545,20 @@ export default class FactoresService {
     tipo_dia,
     curvas_tipicas,
     timeoutMs = 600000,
+    session,
   ) {
+    const generateDbUrl = (session) => {
+      const { host, usuario, contrasenia, puerto, basededatos } = session;
+      if (!host || !usuario || !puerto || !basededatos) {
+        throw new Error("Missing required database connection parameters");
+      }
+      return contrasenia
+        ? `postgresql://${usuario}:${contrasenia}@${host}:${puerto}/${basededatos}`
+        : `postgresql://${usuario}@${host}:${puerto}/${basededatos}`;
+    };
+
+    const database_url = generateDbUrl(session);
+
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
     // const port = 8003;
@@ -575,6 +588,7 @@ export default class FactoresService {
             mc: ucp,
             tipo_dia,
             curvas_tipicas,
+            database_url,
           }),
           signal,
         });
@@ -630,7 +644,20 @@ export default class FactoresService {
     tipo_dia,
     curvas_tipicas,
     timeoutMs = 600000,
+    session,
   ) {
+    const generateDbUrl = (session) => {
+      const { host, usuario, contrasenia, puerto, basededatos } = session;
+      if (!host || !usuario || !puerto || !basededatos) {
+        throw new Error("Missing required database connection parameters");
+      }
+      return contrasenia
+        ? `postgresql://${usuario}:${contrasenia}@${host}:${puerto}/${basededatos}`
+        : `postgresql://${usuario}@${host}:${puerto}/${basededatos}`;
+    };
+
+    const database_url = generateDbUrl(session);
+
     const hostsToTry = ["127.0.0.1", "localhost"];
     //puerto produccion
     // const port = 8003;
@@ -660,6 +687,7 @@ export default class FactoresService {
             mc: ucp,
             tipo_dia,
             curvas_tipicas,
+            database_url,
           }),
           signal,
         });
