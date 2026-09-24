@@ -156,3 +156,64 @@ export async function getOrCreatePronosticosMonthFolder(
     folderPathPhysical,
   };
 }
+
+/**
+ * Busca/crea jerarquía para Pronóstico Diario — raíz propia (no anidada
+ * bajo "reportes"/"pronosticos" como el módulo horario) para que aparezca
+ * como una rama separada en Descargas:
+ * "Pronósticos diarios" -> {UCP} -> {YEAR} -> {MONTH}
+ * Retorna { codcarpeta, folderPathLogical, folderPathPhysical }
+ */
+export async function getOrCreateDiarioMonthFolder(
+  client,
+  ucpName,
+  year,
+  monthName,
+  reportDirPhysicalRoot,
+) {
+  const root = await findOrCreateFolder(client, "Pronósticos diarios", 0, 1);
+  const ucpFolder = await findOrCreateFolder(client, ucpName, root.codigo, 2);
+  const yearFolder = await findOrCreateFolder(
+    client,
+    String(year),
+    ucpFolder.codigo,
+    3,
+  );
+  const monthFolder = await findOrCreateFolder(
+    client,
+    monthName,
+    yearFolder.codigo,
+    4,
+  );
+
+  const ucpClean = String(ucpName).replace(/\s+/g, "");
+  const folderPathPhysical = path.join(
+    reportDirPhysicalRoot,
+    "pronosticos_diario",
+    `${ucpClean}`,
+    String(yearFolder.nombre),
+    String(monthFolder.nombre),
+  );
+
+  ensureDirSync(folderPathPhysical);
+
+  // folderPathLogical se guarda en `archivos.path` y luego descargarArchivo/
+  // verArchivo lo expanden como path.join(process.cwd(), ruta.substring(2))
+  // — tiene que ser el mismo path que folderPathPhysical o el archivo
+  // "existe" en la carpeta pero nunca se encuentra en disco al
+  // descargar/previsualizar. Antes se armaba a mano con el nombre de la
+  // carpeta lógica ("Pronósticos diarios", con el nombre de UCP sin
+  // limpiar), que no coincidía con la ruta física real (con espacios
+  // quitados, bajo "pronosticos_diario"). Derivarlo de folderPathPhysical
+  // garantiza que siempre apunten al mismo lugar.
+  const folderPathLogical = `~/${path
+    .relative(process.cwd(), folderPathPhysical)
+    .split(path.sep)
+    .join("/")}`;
+
+  return {
+    codcarpeta: monthFolder.codigo,
+    folderPathLogical,
+    folderPathPhysical,
+  };
+}

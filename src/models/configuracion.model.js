@@ -19,7 +19,7 @@ export default class ConfiguracionModel {
   createClient() {
     return new Client({
       user: process.env.POSTGRES_USER_PROXY,
-      host: process.env.POSTGRES_HOS_PROXYT || "localhost",
+      host: process.env.POSTGRES_HOST_PROXY || "localhost",
       database: process.env.POSTGRES_DB_PROXY,
       password: process.env.POSTGRES_PASSWORD_PROXY,
       port: process.env.POSTGRES_PORT_PROXY || 5432,
