@@ -722,7 +722,20 @@ export default class FactoresService {
     codigoRpmGenerador,
     fpObjetivo,
     timeoutMs = 600000,
+    session,
   ) {
+    const generateDbUrl = (session) => {
+      const { host, usuario, contrasenia, puerto, basededatos } = session;
+      if (!host || !usuario || !puerto || !basededatos) {
+        throw new Error("Missing required database connection parameters");
+      }
+      return contrasenia
+        ? `postgresql://${usuario}:${contrasenia}@${host}:${puerto}/${basededatos}`
+        : `postgresql://${usuario}@${host}:${puerto}/${basededatos}`;
+    };
+
+    const database_url = generateDbUrl(session);
+
     const hostsToTry = ["127.0.0.1", "localhost"];
     const port = 8003;
 
@@ -752,6 +765,7 @@ export default class FactoresService {
             barra,
             codigo_rpm_generador: codigoRpmGenerador,
             fp_objetivo: fpObjetivo,
+            database_url,
           }),
           signal,
         });

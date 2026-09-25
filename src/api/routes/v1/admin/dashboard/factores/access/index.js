@@ -714,6 +714,7 @@ export const calculoAjusteFpGenerador = async (req, res) => {
     codigo_rpm_generador,
     fp_objetivo,
   } = req.body;
+  const { session } = req.user;
   try {
     const result = await service.calculoAjusteFpGenerador(
       fecha_inicio,
@@ -724,6 +725,8 @@ export const calculoAjusteFpGenerador = async (req, res) => {
       barra,
       codigo_rpm_generador,
       fp_objetivo,
+      600000,
+      session,
     );
 
     if (!result.success) {
