@@ -181,6 +181,7 @@ export default {
     flujo_tipo: Joi.string().length(1).valid("A", "R").required(),
     n_max: Joi.number().required(),
     barra: Joi.string().required(),
+    ignorar_negativos: Joi.boolean().optional().default(false),
   }),
   calculosCurvasTipicasUcp: Joi.object({
     fecha_inicio: Joi.string().required(),
@@ -202,6 +203,7 @@ export default {
         }),
       )
       .required(),
+    ignorar_negativos: Joi.boolean().optional().default(false),
   }),
   calculoAjusteFpGenerador: Joi.object({
     fecha_inicio: Joi.string().required(),
@@ -234,6 +236,7 @@ export default {
     tipo_dia: Joi.string().valid("ORDINARIO", "SABADO", "FESTIVO").required(),
     flujo_tipo: Joi.string().valid("A", "R").required(),
     n_max: Joi.number().min(1).required(),
+    ignorar_negativos: Joi.boolean().optional().default(false),
   }),
 
   guardarSesionReporteFactores: Joi.object({

@@ -598,8 +598,16 @@ export const exportarMedidasExcel = async (req, res) => {
 };
 
 export const calculosCurvasTipicas = async (req, res) => {
-  const { fecha_inicio, fecha_fin, ucp, tipo_dia, flujo_tipo, n_max, barra } =
-    req.body;
+  const {
+    fecha_inicio,
+    fecha_fin,
+    ucp,
+    tipo_dia,
+    flujo_tipo,
+    n_max,
+    barra,
+    ignorar_negativos,
+  } = req.body;
   const { session } = req.user;
   try {
     const result = await service.calculosCurvasTipicas(
@@ -612,6 +620,7 @@ export const calculosCurvasTipicas = async (req, res) => {
       barra,
       600000,
       session,
+      ignorar_negativos,
     );
 
     if (!result.success) {
@@ -635,7 +644,8 @@ export const calculosCurvasTipicas = async (req, res) => {
 };
 
 export const calculoFda = async (req, res) => {
-  const { fecha_inicio, fecha_fin, ucp, tipo_dia, curvas_tipicas } = req.body;
+  const { fecha_inicio, fecha_fin, ucp, tipo_dia, curvas_tipicas, ignorar_negativos } =
+    req.body;
   const { session } = req.user;
 
   try {
@@ -647,6 +657,7 @@ export const calculoFda = async (req, res) => {
       curvas_tipicas,
       600000,
       session,
+      ignorar_negativos,
     );
 
     if (!result.success) {
@@ -670,7 +681,8 @@ export const calculoFda = async (req, res) => {
 };
 
 export const calculoFdp = async (req, res) => {
-  const { fecha_inicio, fecha_fin, ucp, tipo_dia, curvas_tipicas } = req.body;
+  const { fecha_inicio, fecha_fin, ucp, tipo_dia, curvas_tipicas, ignorar_negativos } =
+    req.body;
   const { session } = req.user;
   try {
     const result = await service.calculoFdp(
@@ -681,6 +693,7 @@ export const calculoFdp = async (req, res) => {
       curvas_tipicas,
       600000,
       session,
+      ignorar_negativos,
     );
 
     if (!result.success) {
@@ -800,11 +813,21 @@ export const obtenerDatosCompletoBarra = async (req, res) => {
     tipo_dia,
     flujo_tipo,
     n_max,
+    ignorar_negativos,
   } = req.body;
 
   try {
     const result = await service.obtenerDatosCompletoBarra(
-      { barras, fecha_inicial, fecha_final, mc, tipo_dia, flujo_tipo, n_max },
+      {
+        barras,
+        fecha_inicial,
+        fecha_final,
+        mc,
+        tipo_dia,
+        flujo_tipo,
+        n_max,
+        ignorar_negativos,
+      },
       session,
     );
     if (!result.success)
