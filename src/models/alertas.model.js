@@ -1,3 +1,7 @@
+import dotenv from "dotenv";
+dotenv.config();
+import pkg from "pg";
+const { Client } = pkg;
 import { createConectionPG } from "../helpers/connections.js";
 import * as q from "../querys/alertas.query.js";
 
@@ -11,6 +15,17 @@ export default class AlertasModel {
   }
 
   #db = (session) => createConectionPG(session);
+
+  // datos_clima vive en jano_proxy — conexión fija y compartida (no por
+  // sesión/tenant), mismo patrón que ConfigCiudadesClimaModel.
+  #dbProxy = () =>
+    new Client({
+      user: process.env.POSTGRES_USER_PROXY,
+      host: process.env.POSTGRES_HOST_PROXY || "localhost",
+      database: process.env.POSTGRES_DB_PROXY,
+      password: process.env.POSTGRES_PASSWORD_PROXY,
+      port: process.env.POSTGRES_PORT_PROXY || 5432,
+    });
 
   #tablasListas = new Set();
 
@@ -36,6 +51,7 @@ export default class AlertasModel {
     const { rows } = await this.#db(session).query(q.updateAlertasConfigByCategoria, [
       cfg.umbral,
       cfg.ventana_dias ?? null,
+      cfg.activo ?? true,
       cfg.canal_push ?? true,
       cfg.canal_correo ?? false,
       cfg.canal_sms ?? false,
@@ -62,6 +78,44 @@ export default class AlertasModel {
   getRealYPronosticoPorFecha = async (session, ucp, fecha) => {
     const { rows } = await this.#db(session).query(q.getRealYPronosticoPorFecha, [ucp, fecha]);
     return rows[0] || null;
+  };
+
+  getRealYPronosticoRango = async (session, ucp, fechaInicio, fechaFin) => {
+    const { rows } = await this.#db(session).query(q.getRealYPronosticoRango, [
+      ucp,
+      fechaInicio,
+      fechaFin,
+    ]);
+    return rows;
+  };
+
+  getFestivosPorUcpDesde = async (session, ucp, fechaDesde) => {
+    const { rows } = await this.#db(session).query(q.getFestivosPorUcpDesde, [ucp, fechaDesde]);
+    return rows;
+  };
+
+  getTemperaturaPromedioPorFecha = async (ucp, fecha) => {
+    const client = this.#dbProxy();
+    await client.connect();
+    try {
+      const { rows } = await client.query(q.getTemperaturaPromedioPorFecha, [ucp, fecha]);
+      return rows[0]?.temp_promedio != null ? Number(rows[0].temp_promedio) : null;
+    } finally {
+      await client.end();
+    }
+  };
+
+  getTemperaturaPromedioTipico = async (ucp, fecha, ventanaDias) => {
+    const client = this.#dbProxy();
+    await client.connect();
+    try {
+      const { rows } = await client.query(q.getTemperaturaPromedioTipico, [ucp, fecha, ventanaDias]);
+      const fila = rows[0];
+      if (!fila || fila.promedio == null || Number(fila.muestras) === 0) return null;
+      return { promedio: Number(fila.promedio), muestras: Number(fila.muestras) };
+    } finally {
+      await client.end();
+    }
   };
 
   getTotalDiarioReal = async (session, ucp, fecha) => {

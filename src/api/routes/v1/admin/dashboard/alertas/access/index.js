@@ -48,6 +48,17 @@ export const marcarRevisada = async (req, res) => {
   }
 };
 
+export const sugerirReentrenamiento = async (req, res) => {
+  try {
+    const { session } = req.user;
+    const codigo = parseInt(req.params.codigo, 10);
+    const data = await service.sugerirReentrenamiento(session, codigo);
+    return SuccessResponse(res, data, "Reentrenamiento sugerido correctamente");
+  } catch (err) {
+    return handleError(res, err, "sugerirReentrenamiento");
+  }
+};
+
 export const obtenerConfig = async (req, res) => {
   try {
     const { session } = req.user;

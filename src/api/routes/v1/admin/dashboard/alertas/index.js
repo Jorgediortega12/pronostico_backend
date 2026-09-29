@@ -20,6 +20,11 @@ export default function () {
 
   router.get("/:codigo", validatorParamsQuery(schema.codigoParam), controllers.obtenerDetalle);
   router.post("/:codigo/revisar", validatorParamsQuery(schema.codigoParam), controllers.marcarRevisada);
+  router.post(
+    "/:codigo/sugerir-reentrenamiento",
+    validatorParamsQuery(schema.codigoParam),
+    controllers.sugerirReentrenamiento,
+  );
 
   return router;
 }

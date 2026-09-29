@@ -1,4 +1,5 @@
-// Alertas (Gestión de Notificaciones) — MVP: categorías 'mape' y 'demanda'.
+// Alertas (Gestión de Notificaciones) — MVP: categorías 'mape', 'demanda',
+// 'periodo', 'evento' y 'clima'.
 // Autoprovisión perezosa por tenant (ver alertas.model.js#ensureTables),
 // mismo patrón que cubrimiento.query.js#ensureCubrimientoTables.
 
@@ -8,12 +9,15 @@ export const ensureAlertasTables = `
     categoria VARCHAR(20) UNIQUE NOT NULL,
     umbral NUMERIC NOT NULL,
     ventana_dias INT,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
     canal_push BOOLEAN NOT NULL DEFAULT TRUE,
     canal_correo BOOLEAN NOT NULL DEFAULT FALSE,
     canal_sms BOOLEAN NOT NULL DEFAULT FALSE,
     destinatarios JSONB NOT NULL DEFAULT '[]',
     actualizado_en TIMESTAMP NOT NULL DEFAULT NOW()
   );
+
+  ALTER TABLE alertas_config ADD COLUMN IF NOT EXISTS activo BOOLEAN NOT NULL DEFAULT TRUE;
 
   CREATE TABLE IF NOT EXISTS alertas (
     codigo SERIAL PRIMARY KEY,
@@ -45,14 +49,18 @@ export const seedAlertasConfigDefaults = `
   INSERT INTO alertas_config (categoria, umbral, ventana_dias, canal_push)
   VALUES
     ('mape', 2.5, NULL, TRUE),
-    ('demanda', 8, 30, TRUE)
+    ('demanda', 8, 30, TRUE),
+    ('periodo', 3.0, 3, TRUE),
+    ('evento', 0, 3, TRUE),
+    ('clima', 4, 30, TRUE),
+    ('modelo', 4, 7, TRUE)
   ON CONFLICT (categoria) DO NOTHING
 `;
 
 // ─── Configuración ───────────────────────────────────────────────────────────
 
 export const getAlertasConfig = `
-  SELECT codigo, categoria, umbral, ventana_dias, canal_push, canal_correo,
+  SELECT codigo, categoria, umbral, ventana_dias, activo, canal_push, canal_correo,
          canal_sms, destinatarios, actualizado_en
   FROM alertas_config
   ORDER BY categoria
@@ -62,13 +70,14 @@ export const updateAlertasConfigByCategoria = `
   UPDATE alertas_config
   SET umbral = $1,
       ventana_dias = $2,
-      canal_push = $3,
-      canal_correo = $4,
-      canal_sms = $5,
-      destinatarios = $6,
+      activo = $3,
+      canal_push = $4,
+      canal_correo = $5,
+      canal_sms = $6,
+      destinatarios = $7,
       actualizado_en = NOW()
-  WHERE categoria = $7
-  RETURNING codigo, categoria, umbral, ventana_dias, canal_push, canal_correo,
+  WHERE categoria = $8
+  RETURNING codigo, categoria, umbral, ventana_dias, activo, canal_push, canal_correo,
             canal_sms, destinatarios, actualizado_en
 `;
 
@@ -91,6 +100,12 @@ export const getUltimaFechaReal = `
   SELECT fecha FROM actualizaciondatos WHERE ucp = $1 ORDER BY fecha DESC LIMIT 1
 `;
 
+// La tabla "pronosticos" (plana, ucp+fecha+p1..p24) no la llena nada en
+// este backend (la única query que le hace INSERT, crearPronostico, no la
+// usa ningún service) — el pronóstico guardado de verdad vive en
+// sesiones/sesiones_periodos (tipo='P'), que es lo que escribe "Guardar
+// sesión" en Pronósticos. Si el mismo ucp+fecha tiene más de una sesión
+// guardada (varias versiones), se toma la más reciente (mayor codigo).
 export const getRealYPronosticoPorFecha = `
   SELECT
     a.fecha,
@@ -98,14 +113,47 @@ export const getRealYPronosticoPorFecha = `
     a.p7 AS r7, a.p8 AS r8, a.p9 AS r9, a.p10 AS r10, a.p11 AS r11, a.p12 AS r12,
     a.p13 AS r13, a.p14 AS r14, a.p15 AS r15, a.p16 AS r16, a.p17 AS r17, a.p18 AS r18,
     a.p19 AS r19, a.p20 AS r20, a.p21 AS r21, a.p22 AS r22, a.p23 AS r23, a.p24 AS r24,
-    p.p1 AS f1, p.p2 AS f2, p.p3 AS f3, p.p4 AS f4, p.p5 AS f5, p.p6 AS f6,
-    p.p7 AS f7, p.p8 AS f8, p.p9 AS f9, p.p10 AS f10, p.p11 AS f11, p.p12 AS f12,
-    p.p13 AS f13, p.p14 AS f14, p.p15 AS f15, p.p16 AS f16, p.p17 AS f17, p.p18 AS f18,
-    p.p19 AS f19, p.p20 AS f20, p.p21 AS f21, p.p22 AS f22, p.p23 AS f23, p.p24 AS f24
+    sp.p1 AS f1, sp.p2 AS f2, sp.p3 AS f3, sp.p4 AS f4, sp.p5 AS f5, sp.p6 AS f6,
+    sp.p7 AS f7, sp.p8 AS f8, sp.p9 AS f9, sp.p10 AS f10, sp.p11 AS f11, sp.p12 AS f12,
+    sp.p13 AS f13, sp.p14 AS f14, sp.p15 AS f15, sp.p16 AS f16, sp.p17 AS f17, sp.p18 AS f18,
+    sp.p19 AS f19, sp.p20 AS f20, sp.p21 AS f21, sp.p22 AS f22, sp.p23 AS f23, sp.p24 AS f24
   FROM actualizaciondatos a
-  INNER JOIN pronosticos p ON p.ucp = a.ucp AND p.fecha = a.fecha
+  INNER JOIN sesiones s ON s.ucp = a.ucp
+  INNER JOIN sesiones_periodos sp ON sp.codsesion = s.codigo AND sp.fecha = a.fecha AND sp.tipo = 'P'
   WHERE a.ucp = $1 AND a.fecha = $2
+  ORDER BY s.codigo DESC
   LIMIT 1
+`;
+
+// Igual que getRealYPronosticoPorFecha, pero para un rango de fechas — un
+// registro por fecha (DISTINCT ON, la sesión más reciente si hay varias).
+// Usado por 'periodo' para revisar N días consecutivos de una vez.
+export const getRealYPronosticoRango = `
+  SELECT DISTINCT ON (a.fecha)
+    a.fecha,
+    a.p1 AS r1, a.p2 AS r2, a.p3 AS r3, a.p4 AS r4, a.p5 AS r5, a.p6 AS r6,
+    a.p7 AS r7, a.p8 AS r8, a.p9 AS r9, a.p10 AS r10, a.p11 AS r11, a.p12 AS r12,
+    a.p13 AS r13, a.p14 AS r14, a.p15 AS r15, a.p16 AS r16, a.p17 AS r17, a.p18 AS r18,
+    a.p19 AS r19, a.p20 AS r20, a.p21 AS r21, a.p22 AS r22, a.p23 AS r23, a.p24 AS r24,
+    sp.p1 AS f1, sp.p2 AS f2, sp.p3 AS f3, sp.p4 AS f4, sp.p5 AS f5, sp.p6 AS f6,
+    sp.p7 AS f7, sp.p8 AS f8, sp.p9 AS f9, sp.p10 AS f10, sp.p11 AS f11, sp.p12 AS f12,
+    sp.p13 AS f13, sp.p14 AS f14, sp.p15 AS f15, sp.p16 AS f16, sp.p17 AS f17, sp.p18 AS f18,
+    sp.p19 AS f19, sp.p20 AS f20, sp.p21 AS f21, sp.p22 AS f22, sp.p23 AS f23, sp.p24 AS f24
+  FROM actualizaciondatos a
+  INNER JOIN sesiones s ON s.ucp = a.ucp
+  INNER JOIN sesiones_periodos sp ON sp.codsesion = s.codigo AND sp.fecha = a.fecha AND sp.tipo = 'P'
+  WHERE a.ucp = $1 AND a.fecha >= $2 AND a.fecha <= $3
+  ORDER BY a.fecha, s.codigo DESC
+`;
+
+// Festivos configurados para un mercado desde una fecha en adelante (para
+// el recordatorio de festivo próximo y para cruzar contra los nacionales
+// calculados y detectar cuáles faltan).
+export const getFestivosPorUcpDesde = `
+  SELECT codigo, ucp, TO_CHAR(fecha, 'YYYY-MM-DD') AS fecha, nombre
+  FROM festivos
+  WHERE ucp = $1 AND fecha >= $2
+  ORDER BY fecha ASC
 `;
 
 export const getTotalDiarioReal = `
@@ -125,6 +173,31 @@ export const getPromedioTotalDiarioTipico = `
     AND fecha < $2
     AND fecha >= ($2::date - ($3 || ' days')::interval)
     AND EXTRACT(DOW FROM fecha) = EXTRACT(DOW FROM $2::date)
+`;
+
+// ─── Clima (jano_proxy — conexión fija, no por sesión) ──────────────────────
+// La temperatura no depende del día de la semana como la demanda, así que
+// el "típico" acá es un promedio móvil de los últimos N días, sin filtrar
+// por día de semana.
+
+export const getTemperaturaPromedioPorFecha = `
+  SELECT (p1_t+p2_t+p3_t+p4_t+p5_t+p6_t+p7_t+p8_t+p9_t+p10_t+p11_t+p12_t+p13_t
+    +p14_t+p15_t+p16_t+p17_t+p18_t+p19_t+p20_t+p21_t+p22_t+p23_t+p24_t) / 24.0
+    AS temp_promedio
+  FROM datos_clima
+  WHERE ucp = $1 AND fecha = $2
+`;
+
+export const getTemperaturaPromedioTipico = `
+  SELECT
+    AVG((p1_t+p2_t+p3_t+p4_t+p5_t+p6_t+p7_t+p8_t+p9_t+p10_t+p11_t+p12_t+p13_t
+      +p14_t+p15_t+p16_t+p17_t+p18_t+p19_t+p20_t+p21_t+p22_t+p23_t+p24_t) / 24.0)
+      AS promedio,
+    COUNT(*) AS muestras
+  FROM datos_clima
+  WHERE ucp = $1
+    AND fecha < $2
+    AND fecha >= ($2::date - ($3 || ' days')::interval)
 `;
 
 // ─── Alertas ───────────────────────────────────────────────────────────────────
