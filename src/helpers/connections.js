@@ -18,8 +18,16 @@ export const createConectionPG = (credentials) => {
       database: credentials.basededatos,
       port: +credentials.puerto || 5432,
       max: 25,
-      idleTimeoutMillis: 100000,
+      // Conexiones idle más de 30s se reciclan — antes eran 100s, tiempo
+      // suficiente para que un firewall/balanceador intermedio las cierre
+      // del lado del servidor sin que el pool se entere, dejando un cliente
+      // "zombi" que cuelga (y eventualmente da timeout) en el próximo query.
+      idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 15000, // más tiempo para esperar conexión disponible
+      // TCP keepalive: mantiene el socket vivo para que nada intermedio lo
+      // considere inactivo y lo cierre en silencio.
+      keepAlive: true,
+      keepAliveInitialDelayMillis: 10000,
     });
 
     newPool.on("error", (err, client) => {
@@ -38,15 +46,7 @@ export const createConectionPG = (credentials) => {
   return {
     async connect() {
       if (!poolClient) {
-        Logger.info(
-          `[DEBUG POOL] ${poolKey} ANTES de connect() -> total=${pool.totalCount} idle=${pool.idleCount} waiting=${pool.waitingCount}`,
-        );
-        const inicio = Date.now();
         poolClient = await pool.connect();
-        const ms = Date.now() - inicio;
-        Logger.info(
-          `[DEBUG POOL] ${poolKey} connect() tomó ${ms}ms -> total=${pool.totalCount} idle=${pool.idleCount} waiting=${pool.waitingCount}`,
-        );
       }
     },
 
