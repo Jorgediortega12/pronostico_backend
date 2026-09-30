@@ -38,7 +38,15 @@ export const createConectionPG = (credentials) => {
   return {
     async connect() {
       if (!poolClient) {
+        Logger.info(
+          `[DEBUG POOL] ${poolKey} ANTES de connect() -> total=${pool.totalCount} idle=${pool.idleCount} waiting=${pool.waitingCount}`,
+        );
+        const inicio = Date.now();
         poolClient = await pool.connect();
+        const ms = Date.now() - inicio;
+        Logger.info(
+          `[DEBUG POOL] ${poolKey} connect() tomó ${ms}ms -> total=${pool.totalCount} idle=${pool.idleCount} waiting=${pool.waitingCount}`,
+        );
       }
     },
 
