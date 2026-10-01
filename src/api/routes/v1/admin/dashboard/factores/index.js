@@ -156,6 +156,11 @@ export default function () {
     validator(schema.calculoFdaFdp),
     controllers.calculoFdp,
   );
+  router.post(
+    "/calculoAjusteFpGenerador",
+    validator(schema.calculoAjusteFpGenerador),
+    controllers.calculoAjusteFpGenerador,
+  );
   router.get(
     "/calcularMedidas",
     validator(schema.calcularMedidas, "query"),
