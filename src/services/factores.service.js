@@ -351,6 +351,7 @@ export default class FactoresService {
     barra,
     timeoutMs = 600000,
     session,
+    ignorar_negativos = false,
   ) {
     // Helper: genera db_url desde session
     const generateDbUrl = (session) => {
@@ -405,6 +406,7 @@ export default class FactoresService {
             flujo_tipo,
             n_max,
             barra,
+            ignorar_negativos,
             database_url,
           }),
           signal,
@@ -546,6 +548,7 @@ export default class FactoresService {
     curvas_tipicas,
     timeoutMs = 600000,
     session,
+    ignorar_negativos = false,
   ) {
     const generateDbUrl = (session) => {
       const { host, usuario, contrasenia, puerto, basededatos } = session;
@@ -588,6 +591,7 @@ export default class FactoresService {
             mc: ucp,
             tipo_dia,
             curvas_tipicas,
+            ignorar_negativos,
             database_url,
           }),
           signal,
@@ -645,6 +649,7 @@ export default class FactoresService {
     curvas_tipicas,
     timeoutMs = 600000,
     session,
+    ignorar_negativos = false,
   ) {
     const generateDbUrl = (session) => {
       const { host, usuario, contrasenia, puerto, basededatos } = session;
@@ -687,6 +692,7 @@ export default class FactoresService {
             mc: ucp,
             tipo_dia,
             curvas_tipicas,
+            ignorar_negativos,
             database_url,
           }),
           signal,
@@ -732,6 +738,114 @@ export default class FactoresService {
     }
 
     Logger.error(colors.red(`errorFeedback: Falló en todos los hosts`));
+
+    return { success: false, statusCode: 0, data: null };
+  }
+
+  // Ajuste de FP por generador (Modo 2: ajustar la activa de un generador
+  // puntual, manteniendo la reactiva de la barra constante) — mismo
+  // patrón de proxy hacia fastapi_factores que calculoFda/calculoFdp,
+  // pero solo informativo (no guarda nada).
+  async calculoAjusteFpGenerador(
+    inicioIso,
+    finIso,
+    ucp,
+    tipo_dia,
+    curvas_tipicas,
+    barra,
+    codigoRpmGenerador,
+    fpObjetivo,
+    timeoutMs = 600000,
+    session,
+  ) {
+    const generateDbUrl = (session) => {
+      const { host, usuario, contrasenia, puerto, basededatos } = session;
+      if (!host || !usuario || !puerto || !basededatos) {
+        throw new Error("Missing required database connection parameters");
+      }
+      return contrasenia
+        ? `postgresql://${usuario}:${contrasenia}@${host}:${puerto}/${basededatos}`
+        : `postgresql://${usuario}@${host}:${puerto}/${basededatos}`;
+    };
+
+    const database_url = generateDbUrl(session);
+
+    const hostsToTry = ["127.0.0.1", "localhost"];
+    const port = 8003;
+
+    for (const host of hostsToTry) {
+      let timer;
+      try {
+        const url = `http://${host}:${port}/factores/calculos/ajuste-fp-generador`;
+        const controller = new AbortController();
+        const signal = controller.signal;
+
+        timer = setTimeout(() => {
+          controller.abort();
+        }, timeoutMs);
+
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            fecha_inicial: inicioIso,
+            fecha_final: finIso,
+            mc: ucp,
+            tipo_dia,
+            curvas_tipicas,
+            barra,
+            codigo_rpm_generador: codigoRpmGenerador,
+            fp_objetivo: fpObjetivo,
+            database_url,
+          }),
+          signal,
+        });
+
+        clearTimeout(timer);
+
+        const statusCode = res.status;
+        const json = await res.json().catch(() => null);
+
+        if (!res.ok) {
+          Logger.warn(
+            colors.yellow(
+              `calculoAjusteFpGenerador: HTTP ${statusCode} desde ${host}:${port}`,
+            ),
+          );
+          return { success: false, statusCode, data: json };
+        }
+
+        return {
+          success: true,
+          statusCode,
+          data: json,
+        };
+      } catch (err) {
+        clearTimeout(timer);
+        if (err?.name === "AbortError") {
+          Logger.warn(
+            colors.yellow(
+              `calculoAjusteFpGenerador: timeout (${timeoutMs}ms) hacia ${host}:${port}`,
+            ),
+          );
+        } else {
+          Logger.warn(
+            colors.yellow(
+              `calculoAjusteFpGenerador: error conectando a ${host}:${port} — ${
+                err?.message || err
+              }`,
+            ),
+          );
+        }
+      }
+    }
+
+    Logger.error(
+      colors.red(`calculoAjusteFpGenerador: Falló en todos los hosts`),
+    );
 
     return { success: false, statusCode: 0, data: null };
   }
@@ -841,6 +955,7 @@ export default class FactoresService {
       tipo_dia,
       flujo_tipo,
       n_max,
+      ignorar_negativos = false,
     } = params;
 
     try {
@@ -924,6 +1039,7 @@ export default class FactoresService {
           barra,
           600000,
           session,
+          ignorar_negativos,
         );
         return res;
       });
