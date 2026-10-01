@@ -342,7 +342,7 @@ export default {
   guardarFactDna: Joi.object({
     ucp: Joi.string().required(),
     tipo_dia: Joi.string()
-      .valid("ORDINARIO", "SABADO", "DOMINGO", "FESTIVO")
+      .valid("ORDINARIO", "SABADO", "FESTIVO")
       .required(),
     periodos: Joi.array().items(Joi.number().required()).length(24).required(),
   }),
@@ -350,7 +350,7 @@ export default {
   getFactDna: Joi.object({
     ucp: Joi.string().required(),
     tipo_dia: Joi.string()
-      .valid("ORDINARIO", "SABADO", "DOMINGO", "FESTIVO")
+      .valid("ORDINARIO", "SABADO", "FESTIVO")
       .required(),
   }),
 

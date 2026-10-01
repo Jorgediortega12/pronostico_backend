@@ -76,6 +76,12 @@ export default function () {
     controllers.cargarEventosIdoXm,
   );
 
+  router.get(
+    "/historicosGrafica",
+    validator(schema.obtenerHistoricosGrafica, ValidationSource.QUERY),
+    controllers.obtenerHistoricosGrafica,
+  );
+
   router.post(
     "/predictDayScaled",
     validator(schema.predictDay),
