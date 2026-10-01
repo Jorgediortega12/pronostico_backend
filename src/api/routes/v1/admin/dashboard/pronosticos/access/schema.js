@@ -218,4 +218,9 @@ export default {
     fechaInicio: Joi.string().required(), // YYYY-MM-DD
     fechaFin: Joi.string().required(), // YYYY-MM-DD
   }),
+  obtenerHistoricosGrafica: Joi.object().keys({
+    ucp: Joi.string().required(),
+    fechaInicio: Joi.string().required(), // YYYY-MM-DD
+    fechaFin: Joi.string().required(), // YYYY-MM-DD
+  }),
 };
