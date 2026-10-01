@@ -3,6 +3,7 @@ import validator from "../../../../middleware/validator.js";
 import schema from "../dashboard/configuracion/access/schema.js";
 import * as controllers from "../dashboard/configuracion/access/index.js";
 import * as climaMapaControllers from "../dashboard/clima_mapa/access/index.js";
+import * as pronosticoDiarioControllers from "../dashboard/pronostico_diario/access/index.js";
 const router = Router();
 
 export default function () {
@@ -11,6 +12,13 @@ export default function () {
     "/cargarPeriodosxUCPDesdeFecha/:ucp/:fechaInicio",
     validator(schema.cargarPeriodosxUCPDesdeFecha),
     controllers.cargarPeriodosxUCPDesdeFecha,
+  );
+
+  // igual que arriba, pero para el histórico DIARIO (fecha/total, sin
+  // p1..p24) — usado por el módulo Pronóstico Diario (epm/predict-daily)
+  router.get(
+    "/cargarDemandaDiariaPorUCPDesdeFecha/:ucp/:fechaInicio",
+    pronosticoDiarioControllers.cargarHistoricoDesdeFecha,
   );
 
   // traer datos climas desde fechaInicio hasta el más reciente

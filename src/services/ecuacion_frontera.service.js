@@ -85,6 +85,20 @@ function filtrarDiasConCoberturaSuficiente(crudoRows) {
   );
 }
 
+// Número de circuitos activos configurados para el mercado (equivalencia_
+// flujo, estado=1) — referencia fija de "cuántos deberían reportar cada
+// día", a diferencia de la mediana de filtrarDiasConCoberturaSuficiente
+// (que compara contra la propia ventana y no detecta bien una racha corta
+// de días recientes con pocos circuitos, justo el caso típico: los últimos
+// días de un archivo de consumo suelen llegar incompletos).
+async function contarCircuitosActivos(client, codigoUcp) {
+  const res = await client.query(
+    `SELECT COUNT(*) AS total FROM equivalencia_flujo WHERE codigo_ucp = $1 AND estado = 1`,
+    [codigoUcp],
+  );
+  return Number(res.rows[0]?.total ?? 0);
+}
+
 async function obtenerFactorCorreccionRespaldo(client, codigoUcp, ucpNombre, session) {
   const cacheado = cacheFactorCorreccion.get(ucpNombre);
   if (cacheado && Date.now() - cacheado.calculadoEn < VENTANA_CACHE_MS) {
@@ -392,11 +406,34 @@ export const importarConsumoHorario = async (rutaArchivo, session) => {
 // oficial de otras fuentes (Loyal/SCADA/PrimeGrid). Pronóstico la usa como
 // relleno de su histórico donde no haya demanda real (ver
 // obtenerRespaldoGuardado, consumido desde pronosticos.service.js).
-export const calcularYGuardar = async (ucpNombre, session) => {
+// fechaInicio/fechaFin (opcionales, 'YYYY-MM-DD') acotan qué fechas se
+// calculan y guardan — sin ellas se comporta como antes (todo el rango
+// disponible). Sirven para poder excluir a propósito los últimos días
+// cuando llegan con muchos menos circuitos reportando de lo normal (el
+// crudo de esos días sale artificialmente bajo, ver
+// filtrarDiasConCoberturaSuficiente más arriba) sin tener que esperar a que
+// se complete el reporte para no guardar un Respaldo mal escalado.
+export const calcularYGuardar = async (
+  ucpNombre,
+  session,
+  fechaInicio,
+  fechaFin,
+) => {
   const client = createConectionPG(session);
   await client.connect();
   try {
     const codigoUcp = await resolverCodigoUcp(client, ucpNombre);
+
+    const condiciones = ["ef.codigo_ucp = $1", "ef.estado = 1"];
+    const params = [codigoUcp];
+    if (fechaInicio) {
+      params.push(fechaInicio);
+      condiciones.push(`fd.fecha >= $${params.length}`);
+    }
+    if (fechaFin) {
+      params.push(fechaFin);
+      condiciones.push(`fd.fecha <= $${params.length}`);
+    }
 
     const calculo = await client.query(
       `
@@ -405,11 +442,11 @@ export const calcularYGuardar = async (ucpNombre, session) => {
         ${cols.map((c) => `SUM(ef.valor * fd.${c}) / 1000.0 AS ${c}`).join(",\n        ")}
       FROM equivalencia_flujo ef
       JOIN flujo_datos_horarios fd ON fd.id_flujo = ef.id_flujo
-      WHERE ef.codigo_ucp = $1 AND ef.estado = 1
+      WHERE ${condiciones.join(" AND ")}
       GROUP BY fd.fecha
       ORDER BY fd.fecha;
       `,
-      [codigoUcp],
+      params,
     );
 
     const { factor: factorCorreccion, diasUsados: diasUsadosCorreccion } =
@@ -470,6 +507,7 @@ export const calcularRespaldoSinGuardar = async (
       `
       SELECT
         fd.fecha,
+        COUNT(*) AS filas,
         ${cols.map((c) => `SUM(ef.valor * fd.${c}) AS ${c}`).join(",\n        ")}
       FROM equivalencia_flujo ef
       JOIN flujo_datos_horarios fd ON fd.id_flujo = ef.id_flujo
@@ -480,6 +518,8 @@ export const calcularRespaldoSinGuardar = async (
       `,
       [codigoUcp, fechaInicio],
     );
+
+    const totalCircuitos = await contarCircuitosActivos(client, codigoUcp);
 
     const { factor: factorCorreccion, diasUsados: diasUsadosCorreccion } =
       await obtenerFactorCorreccionRespaldo(client, codigoUcp, ucpNombre, session);
@@ -501,6 +541,14 @@ export const calcularRespaldoSinGuardar = async (
       const periodosCalculados = cols.map(
         (c) => Number(row[c]) * factorCorreccion,
       );
+      // Cobertura informativa (no excluye el día): el frontend decide qué
+      // hacer con esto (p.ej. marcarlo) — un día con pocos circuitos
+      // reportando puede seguir siendo válido para el usuario, que ya tiene
+      // control manual de hasta dónde guardar/aplicar Respaldo (rango en
+      // "Actualizar Respaldo" y "fecha fin" en "Aplicar Respaldo al rango").
+      const coberturaBaja =
+        !!totalCircuitos &&
+        Number(row.filas) < totalCircuitos * UMBRAL_COBERTURA_MINIMA;
 
       if (existente.rowCount > 0) {
         // Ya había fila en actualizaciondatos — el respaldo ya no se guarda
@@ -512,6 +560,7 @@ export const calcularRespaldoSinGuardar = async (
           periodos: cols.map((c) => Number(existente.rows[0][c])),
           esRespaldo: false,
           periodosCalculados,
+          coberturaBaja,
         });
       } else {
         diasRespaldo++;
@@ -520,6 +569,7 @@ export const calcularRespaldoSinGuardar = async (
           periodos: periodosCalculados,
           esRespaldo: true,
           periodosCalculados,
+          coberturaBaja,
         });
       }
     }
@@ -588,9 +638,19 @@ export const guardarSoloEcuacion = async (rutaEcuacion, ucpNombre, session) => {
 // flujo_datos_horarios/equivalencia_flujo) — sin subir ningún archivo. Para
 // re-guardar después de ajustar algo, o simplemente persistir lo que ya se
 // venía viendo en "Traer datos actualizados".
-export const guardarSoloRespaldo = async (ucpNombre, session) => {
+export const guardarSoloRespaldo = async (
+  ucpNombre,
+  session,
+  fechaInicio,
+  fechaFin,
+) => {
   try {
-    const calculo = await calcularYGuardar(ucpNombre, session);
+    const calculo = await calcularYGuardar(
+      ucpNombre,
+      session,
+      fechaInicio,
+      fechaFin,
+    );
     return { success: true, calculo };
   } catch (error) {
     Logger.error(colors.red("Error guardarSoloRespaldo"), error);
