@@ -70,6 +70,21 @@ export default class AlertasModel {
 
   // ─── Datos fuente ─────────────────────────────────────────────────────────
 
+  getUltimaFechaMedidasPorMc = async (session, mc) => {
+    const { rows } = await this.#db(session).query(q.getUltimaFechaMedidasPorMc, [mc]);
+    return rows[0]?.fecha || null;
+  };
+
+  getMedidasVentanaPorMc = async (session, mc, fechaInicio, fechaFin) => {
+    const { rows } = await this.#db(session).query(q.getMedidasVentanaPorMc, [mc, fechaInicio, fechaFin]);
+    return rows;
+  };
+
+  existeAlertaMedidaReciente = async (session, ucp, referencia, desde, hasta) => {
+    const { rows } = await this.#db(session).query(q.existeAlertaMedidaReciente, [ucp, referencia, desde, hasta]);
+    return rows.length > 0;
+  };
+
   getUltimaFechaReal = async (session, ucp) => {
     const { rows } = await this.#db(session).query(q.getUltimaFechaReal, [ucp]);
     return rows[0]?.fecha || null;
@@ -149,6 +164,8 @@ export default class AlertasModel {
       alerta.metrica_label,
       alerta.umbral,
       alerta.estado,
+      alerta.referencia ?? null,
+      alerta.detalle ? JSON.stringify(alerta.detalle) : null,
     ]);
     return rows[0] || null; // null si ya existía (ON CONFLICT DO NOTHING)
   };
@@ -208,7 +225,8 @@ export default class AlertasModel {
     const where = condiciones.length ? `WHERE ${condiciones.join(" AND ")}` : "";
     const sql = `
       SELECT codigo, ucp, categoria, fecha, periodo_inicio, periodo_fin, descripcion,
-             metrica_valor, metrica_label, umbral, estado, creado_en, revisado_en
+             metrica_valor, metrica_label, umbral, estado, creado_en, revisado_en,
+             referencia
       FROM alertas
       ${where}
       ORDER BY fecha DESC, creado_en DESC
