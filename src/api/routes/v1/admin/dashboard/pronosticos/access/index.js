@@ -401,6 +401,32 @@ export const cargarEventosIdoXm = async (req, res) => {
   }
 };
 
+// Demanda real confirmada + Respaldo (ecuación de frontera) ya confirmado,
+// para un rango — el mismo cálculo que hace play() internamente, pero sin
+// correr el modelo. Pensado para refrescar "hasta dónde hay dato
+// confirmado" al cargar una sesión guardada, sin recalcular el pronóstico.
+export const obtenerHistoricosGrafica = async (req, res) => {
+  try {
+    const { ucp, fechaInicio, fechaFin } = req.query;
+    const { session } = req.user;
+    const data = await service.obtenerHistoricosGrafica(
+      ucp,
+      fechaInicio,
+      fechaFin,
+      session,
+    );
+
+    return SuccessResponse(
+      res,
+      data,
+      "Históricos de gráfica obtenidos correctamente",
+    );
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
 export const predictDayScaled = async (req, res) => {
   try {
     const { ucp, fecha, fecha_referencia } = req.body;

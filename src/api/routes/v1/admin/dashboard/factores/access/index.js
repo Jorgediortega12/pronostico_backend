@@ -598,8 +598,16 @@ export const exportarMedidasExcel = async (req, res) => {
 };
 
 export const calculosCurvasTipicas = async (req, res) => {
-  const { fecha_inicio, fecha_fin, ucp, tipo_dia, flujo_tipo, n_max, barra } =
-    req.body;
+  const {
+    fecha_inicio,
+    fecha_fin,
+    ucp,
+    tipo_dia,
+    flujo_tipo,
+    n_max,
+    barra,
+    ignorar_negativos,
+  } = req.body;
   const { session } = req.user;
   try {
     const result = await service.calculosCurvasTipicas(
@@ -612,6 +620,7 @@ export const calculosCurvasTipicas = async (req, res) => {
       barra,
       600000,
       session,
+      ignorar_negativos,
     );
 
     if (!result.success) {
@@ -635,7 +644,8 @@ export const calculosCurvasTipicas = async (req, res) => {
 };
 
 export const calculoFda = async (req, res) => {
-  const { fecha_inicio, fecha_fin, ucp, tipo_dia, curvas_tipicas } = req.body;
+  const { fecha_inicio, fecha_fin, ucp, tipo_dia, curvas_tipicas, ignorar_negativos } =
+    req.body;
   const { session } = req.user;
 
   try {
@@ -647,6 +657,7 @@ export const calculoFda = async (req, res) => {
       curvas_tipicas,
       600000,
       session,
+      ignorar_negativos,
     );
 
     if (!result.success) {
@@ -670,7 +681,8 @@ export const calculoFda = async (req, res) => {
 };
 
 export const calculoFdp = async (req, res) => {
-  const { fecha_inicio, fecha_fin, ucp, tipo_dia, curvas_tipicas } = req.body;
+  const { fecha_inicio, fecha_fin, ucp, tipo_dia, curvas_tipicas, ignorar_negativos } =
+    req.body;
   const { session } = req.user;
   try {
     const result = await service.calculoFdp(
@@ -681,6 +693,7 @@ export const calculoFdp = async (req, res) => {
       curvas_tipicas,
       600000,
       session,
+      ignorar_negativos,
     );
 
     if (!result.success) {
@@ -696,6 +709,52 @@ export const calculoFdp = async (req, res) => {
       res,
       result.data,
       "Calculo de FDP obtenido correctamente",
+    );
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const calculoAjusteFpGenerador = async (req, res) => {
+  const {
+    fecha_inicio,
+    fecha_fin,
+    ucp,
+    tipo_dia,
+    curvas_tipicas,
+    barra,
+    codigo_rpm_generador,
+    fp_objetivo,
+  } = req.body;
+  const { session } = req.user;
+  try {
+    const result = await service.calculoAjusteFpGenerador(
+      fecha_inicio,
+      fecha_fin,
+      ucp,
+      tipo_dia,
+      curvas_tipicas,
+      barra,
+      codigo_rpm_generador,
+      fp_objetivo,
+      600000,
+      session,
+    );
+
+    if (!result.success) {
+      return responseError(
+        200,
+        result.data?.detail || "No fue posible calcular el ajuste de FP",
+        404,
+        res,
+      );
+    }
+
+    return SuccessResponse(
+      res,
+      result.data,
+      "Ajuste de FP calculado correctamente",
     );
   } catch (err) {
     Logger.error(err);
@@ -754,11 +813,21 @@ export const obtenerDatosCompletoBarra = async (req, res) => {
     tipo_dia,
     flujo_tipo,
     n_max,
+    ignorar_negativos,
   } = req.body;
 
   try {
     const result = await service.obtenerDatosCompletoBarra(
-      { barras, fecha_inicial, fecha_final, mc, tipo_dia, flujo_tipo, n_max },
+      {
+        barras,
+        fecha_inicial,
+        fecha_final,
+        mc,
+        tipo_dia,
+        flujo_tipo,
+        n_max,
+        ignorar_negativos,
+      },
       session,
     );
     if (!result.success)

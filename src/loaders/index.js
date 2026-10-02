@@ -4,6 +4,7 @@ import Logger from "../helpers/logger.js";
 import client from "./redis.js";
 import moment from "moment";
 import { initCron } from "../services/cron.service.js";
+import { initAlertasCron } from "../services/alertas_cron.service.js";
 
 export default async (app) => {
   try {
@@ -53,6 +54,12 @@ export default async (app) => {
     Logger.info(colors.green("Cron scheduler initialized! ✌️"));
   } catch (error) {
     Logger.error(colors.red("Error initializing cron scheduler"), error);
+  }
+  // Init cron de evaluación de alertas (multi-tenant, ver alertas_cron.service.js)
+  try {
+    initAlertasCron();
+  } catch (error) {
+    Logger.error(colors.red("Error initializing alertas cron scheduler"), error);
   }
   // El cron de ingesta del Mapa Climático se retiró: el módulo es
   // multi-tenant (cada empresa tiene su propia BD) y un cron sin request
