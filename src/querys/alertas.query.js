@@ -1,5 +1,5 @@
-// Alertas (Gestión de Notificaciones) — MVP: categorías 'mape', 'demanda',
-// 'periodo', 'evento' y 'clima'.
+// Alertas (Gestión de Notificaciones) — categorías 'mape', 'demanda',
+// 'periodo', 'evento', 'clima', 'modelo' y 'medida'.
 // Autoprovisión perezosa por tenant (ver alertas.model.js#ensureTables),
 // mismo patrón que cubrimiento.query.js#ensureCubrimientoTables.
 
@@ -36,6 +36,16 @@ export const ensureAlertasTables = `
     UNIQUE (ucp, categoria, fecha)
   );
 
+  -- 'medida' genera una alerta por barra/medida (varias el mismo día en un
+  -- mismo mercado), así que la unicidad pasó a incluir 'referencia'. Para el
+  -- resto de categorías referencia es NULL y la unicidad sigue siendo
+  -- (ucp, categoria, fecha), igual que antes.
+  ALTER TABLE alertas ADD COLUMN IF NOT EXISTS referencia VARCHAR(200);
+  ALTER TABLE alertas ADD COLUMN IF NOT EXISTS detalle JSONB;
+  ALTER TABLE alertas DROP CONSTRAINT IF EXISTS alertas_ucp_categoria_fecha_key;
+  CREATE UNIQUE INDEX IF NOT EXISTS alertas_ucp_categoria_fecha_ref_uq
+    ON alertas (ucp, categoria, fecha, COALESCE(referencia, ''));
+
   CREATE TABLE IF NOT EXISTS alertas_historial (
     codigo SERIAL PRIMARY KEY,
     alerta_id INT NOT NULL REFERENCES alertas(codigo) ON DELETE CASCADE,
@@ -53,7 +63,8 @@ export const seedAlertasConfigDefaults = `
     ('periodo', 3.0, 3, TRUE),
     ('evento', 0, 3, TRUE),
     ('clima', 4, 30, TRUE),
-    ('modelo', 4, 7, TRUE)
+    ('modelo', 4, 7, TRUE),
+    ('medida', 50, 14, TRUE)
   ON CONFLICT (categoria) DO NOTHING
 `;
 
@@ -175,6 +186,44 @@ export const getPromedioTotalDiarioTipico = `
     AND EXTRACT(DOW FROM fecha) = EXTRACT(DOW FROM $2::date)
 `;
 
+// ─── Medidas (tabla medidas ↔ agrupaciones ↔ barras) ─────────────────────────
+// Mismo cruce de medidas_factores.query.js: cada medida (codigo_rpm + flujo)
+// pertenece a una barra a través de una agrupación activa. Se trabaja con el
+// valor crudo de la medida — un cambio de signo en el dato fuente (p. ej.
+// polaridad invertida en el medidor) es justo lo que se quiere detectar.
+
+export const getUltimaFechaMedidasPorMc = `
+  SELECT TO_CHAR(MAX(me.fecha), 'YYYY-MM-DD') AS fecha
+  FROM medidas me
+  INNER JOIN agrupaciones a
+    ON a.codigo_rpm = me.codigo_rpm AND a.flujo = me.flujo AND a.estado = 1
+  INNER JOIN barras b ON b.id = a.barra_id AND b.estado = 1
+  WHERE b.mc = $1
+`;
+
+export const getMedidasVentanaPorMc = `
+  SELECT
+    b.barra, me.codigo_rpm, me.flujo,
+    TO_CHAR(me.fecha, 'YYYY-MM-DD') AS fecha,
+    me.p1, me.p2, me.p3, me.p4, me.p5, me.p6, me.p7, me.p8, me.p9, me.p10, me.p11, me.p12,
+    me.p13, me.p14, me.p15, me.p16, me.p17, me.p18, me.p19, me.p20, me.p21, me.p22, me.p23, me.p24
+  FROM medidas me
+  INNER JOIN agrupaciones a
+    ON a.codigo_rpm = me.codigo_rpm AND a.flujo = me.flujo AND a.estado = 1
+  INNER JOIN barras b ON b.id = a.barra_id AND b.estado = 1
+  WHERE b.mc = $1 AND me.fecha >= $2::date AND me.fecha <= $3::date
+  ORDER BY b.barra, me.codigo_rpm, me.flujo, me.fecha
+`;
+
+// ¿Ya se avisó de esta misma medida dentro de la ventana? Evita repetir la
+// alerta cada día mientras el cambio sigue "reciente" frente al histórico.
+export const existeAlertaMedidaReciente = `
+  SELECT 1 FROM alertas
+  WHERE ucp = $1 AND categoria = 'medida' AND referencia = $2
+    AND fecha >= $3::date AND fecha < $4::date
+  LIMIT 1
+`;
+
 // ─── Clima (jano_proxy — conexión fija, no por sesión) ──────────────────────
 // La temperatura no depende del día de la semana como la demanda, así que
 // el "típico" acá es un promedio móvil de los últimos N días, sin filtrar
@@ -205,9 +254,9 @@ export const getTemperaturaPromedioTipico = `
 export const insertAlerta = `
   INSERT INTO alertas
     (ucp, categoria, fecha, periodo_inicio, periodo_fin, descripcion,
-     metrica_valor, metrica_label, umbral, estado)
-  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-  ON CONFLICT (ucp, categoria, fecha) DO NOTHING
+     metrica_valor, metrica_label, umbral, estado, referencia, detalle)
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+  ON CONFLICT DO NOTHING
   RETURNING *
 `;
 
