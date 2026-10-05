@@ -1075,6 +1075,8 @@ export default class FactoresService {
       resultadosFdaFdp,
       sumasRef, // ← reemplaza comboDataMap
       observacion,
+      formato = 1,
+      barras = [],
     } = params;
 
     try {
@@ -1088,7 +1090,11 @@ export default class FactoresService {
       );
       const ultimaVersion = versionRows?.[0]?.version ?? 0;
       const version = Number(ultimaVersion) + 1;
-      const nombrearchivo = `ReporteFactores_${ucp}_${hoy}_v${version}.xlsx`;
+      // Formato 2 = formato EPM (wdg_Factores); Formato 1 = reporte actual.
+      const nombrearchivo =
+        Number(formato) === 2
+          ? `wdg_Factores_${ucp}_${hoy}_v${version}.xlsx`
+          : `ReporteFactores_${ucp}_${hoy}_v${version}.xlsx`;
 
       // ── 2. Crear sesión ── (igual)
       const clientS = createConectionPG(session);
@@ -1218,6 +1224,8 @@ export default class FactoresService {
         selectedSource: ucp,
         fechaInicio: fecha_inicio,
         fechaFin: fecha_fin,
+        formato: Number(formato),
+        barras,
       });
 
       const rutaBD = `${folderPathLogical}/${nombrearchivo}`;
