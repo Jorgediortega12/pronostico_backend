@@ -18,6 +18,8 @@ export const ensureAlertasTables = `
   );
 
   ALTER TABLE alertas_config ADD COLUMN IF NOT EXISTS activo BOOLEAN NOT NULL DEFAULT TRUE;
+  -- Solo la usa 'historico': días seguidos sobre el umbral (año anterior) a partir de los cuales la alerta es crítica.
+  ALTER TABLE alertas_config ADD COLUMN IF NOT EXISTS dias_consecutivos INT;
 
   CREATE TABLE IF NOT EXISTS alertas (
     codigo SERIAL PRIMARY KEY,
@@ -56,22 +58,23 @@ export const ensureAlertasTables = `
 `;
 
 export const seedAlertasConfigDefaults = `
-  INSERT INTO alertas_config (categoria, umbral, ventana_dias, canal_push)
+  INSERT INTO alertas_config (categoria, umbral, ventana_dias, canal_push, dias_consecutivos)
   VALUES
-    ('mape', 2.5, NULL, TRUE),
-    ('demanda', 8, 30, TRUE),
-    ('periodo', 3.0, 3, TRUE),
-    ('evento', 0, 3, TRUE),
-    ('clima', 4, 30, TRUE),
-    ('modelo', 4, 7, TRUE),
-    ('medida', 50, 14, TRUE)
+    ('mape', 2.5, NULL, TRUE, NULL),
+    ('demanda', 8, 30, TRUE, NULL),
+    ('periodo', 3.0, 3, TRUE, NULL),
+    ('evento', 0, 3, TRUE, NULL),
+    ('clima', 4, 30, TRUE, NULL),
+    ('modelo', 4, 7, TRUE, NULL),
+    ('medida', 50, 14, TRUE, NULL),
+    ('historico', 3.0, 7, TRUE, 2)
   ON CONFLICT (categoria) DO NOTHING
 `;
 
 // ─── Configuración ───────────────────────────────────────────────────────────
 
 export const getAlertasConfig = `
-  SELECT codigo, categoria, umbral, ventana_dias, activo, canal_push, canal_correo,
+  SELECT codigo, categoria, umbral, ventana_dias, dias_consecutivos, activo, canal_push, canal_correo,
          canal_sms, destinatarios, actualizado_en
   FROM alertas_config
   ORDER BY categoria
@@ -86,9 +89,10 @@ export const updateAlertasConfigByCategoria = `
       canal_correo = $5,
       canal_sms = $6,
       destinatarios = $7,
+      dias_consecutivos = COALESCE($8, dias_consecutivos),
       actualizado_en = NOW()
-  WHERE categoria = $8
-  RETURNING codigo, categoria, umbral, ventana_dias, activo, canal_push, canal_correo,
+  WHERE categoria = $9
+  RETURNING codigo, categoria, umbral, ventana_dias, dias_consecutivos, activo, canal_push, canal_correo,
             canal_sms, destinatarios, actualizado_en
 `;
 
@@ -165,6 +169,16 @@ export const getFestivosPorUcpDesde = `
   FROM festivos
   WHERE ucp = $1 AND fecha >= $2
   ORDER BY fecha ASC
+`;
+
+// Festivo de un mercado por nombre dentro de un rango de fechas (p. ej. el
+// mismo festivo del año anterior, que por la Ley Emiliani cambia de fecha).
+export const getFestivoPorNombreEnRango = `
+  SELECT TO_CHAR(fecha, 'YYYY-MM-DD') AS fecha, nombre
+  FROM festivos
+  WHERE ucp = $1 AND lower(nombre) = lower($2) AND fecha >= $3::date AND fecha <= $4::date
+  ORDER BY fecha ASC
+  LIMIT 1
 `;
 
 export const getTotalDiarioReal = `
