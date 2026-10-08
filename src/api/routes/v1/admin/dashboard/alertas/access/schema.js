@@ -18,12 +18,12 @@ export default {
   }),
 
   categoriaParam: Joi.object({
-    categoria: Joi.string().valid("mape", "demanda", "periodo", "evento", "clima", "modelo").required(),
+    categoria: Joi.string().valid("mape", "demanda", "periodo", "evento", "clima", "modelo", "medida").required(),
   }),
 
   // ── Query ─────────────────────────────────────────────────────────────────
   listarAlertas: Joi.object({
-    categoria: Joi.string().valid("todas", "mape", "demanda", "periodo", "evento", "clima", "modelo").optional(),
+    categoria: Joi.string().valid("todas", "mape", "demanda", "periodo", "evento", "clima", "modelo", "medida").optional(),
     ucp: Joi.string().optional(),
     fecha_inicio: Joi.string().optional(),
     fecha_fin: Joi.string().optional(),

@@ -5,6 +5,7 @@ import client from "./redis.js";
 import moment from "moment";
 import { initCron } from "../services/cron.service.js";
 import { initAlertasCron } from "../services/alertas_cron.service.js";
+import { initEpmCron } from "../services/epm_cron.service.js";
 
 export default async (app) => {
   try {
@@ -60,6 +61,12 @@ export default async (app) => {
     initAlertasCron();
   } catch (error) {
     Logger.error(colors.red("Error initializing alertas cron scheduler"), error);
+  }
+  // Carga diaria (1:00 a.m.) de medidas EPM — ver epm_cron.service.js
+  try {
+    initEpmCron();
+  } catch (error) {
+    Logger.error(colors.red("Error initializing EPM cron scheduler"), error);
   }
   // El cron de ingesta del Mapa Climático se retiró: el módulo es
   // multi-tenant (cada empresa tiene su propia BD) y un cron sin request
