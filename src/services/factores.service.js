@@ -191,6 +191,11 @@ export default class FactoresService {
     }
   };
 
+  guardarMedidasPI = async (data, session) => {
+    const client = createConectionPG(session);
+    return model.guardarMedidasPI(data, client);
+  };
+
   eliminarRapido = async (data, session) => {
     try {
       const client = createConectionPG(session);

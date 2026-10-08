@@ -80,7 +80,9 @@ export default function () {
 
   router.post(
     "/cargarDesdeExcel",
-    uploadExcel.single("archivo"),
+    // Hasta 31 archivos: el Formato 3 (CSV por día) necesita subir juntos los
+    // días consecutivos para completar el P24 de cada día.
+    uploadExcel.array("archivo", 31),
     controllers.cargarMedidasDesdeExcel,
   );
 
