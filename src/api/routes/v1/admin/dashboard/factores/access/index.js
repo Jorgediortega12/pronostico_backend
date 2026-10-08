@@ -8,7 +8,9 @@ import {
   responseError,
 } from "../../../../../../../helpers/api.response.js";
 import xlsx from "xlsx";
+import fs from "fs";
 import ExcelJS from "exceljs";
+import { parsearCsvPI, clasificarMedidasPI } from "../../../../../../../helpers/parsearMedidasPI.js";
 
 const service = FactoresService.getInstance();
 const factDnaService = FactDnaService.getInstance();
@@ -300,15 +302,65 @@ const parsearFormato2 = (rows) => {
 export const cargarMedidasDesdeExcel = async (req, res) => {
   try {
     const { session } = req.user;
-    const { ucp, formato } = req.body; // formato: "1" | "2"
+    const { ucp, formato } = req.body; // formato: "1" | "2" | "3"
+    const archivos = req.files ?? [];
 
     if (!ucp) return responseError(200, "UCP no proporcionado", 400, res);
-    if (!req.file)
+    if (!archivos.length)
       return responseError(200, "Archivo no proporcionado", 400, res);
-    if (!["1", "2"].includes(formato))
-      return responseError(200, "Formato inválido. Use '1' o '2'", 400, res);
+    if (!["1", "2", "3"].includes(formato))
+      return responseError(200, "Formato inválido. Use '1', '2' o '3'", 400, res);
 
-    const workbook = xlsx.readFile(req.file.path);
+    // ── Formato 3: CSV SCADA 2 / PI (uno o varios archivos de la misma carga) ──
+    if (formato === "3") {
+      if (!archivos.every((a) => a.originalname.toLowerCase().endsWith(".csv")))
+        return responseError(200, "El Formato 3 solo acepta archivos .csv", 400, res);
+
+      // Se lee como texto (no por xlsx, que interpretaría las fechas D/M/AA como M/D/AA).
+      const acumulado = new Map();
+      for (const archivo of archivos) {
+        const texto = fs.readFileSync(archivo.path, "utf8");
+        try {
+          fs.unlinkSync(archivo.path);
+        } catch {
+          /* el temporal ya no está: no importa */
+        }
+        const r = parsearCsvPI(texto, acumulado);
+        if (!r.ok) return responseError(200, `${archivo.originalname}: ${r.mensaje}`, 400, res);
+      }
+
+      const { completas, borde } = clasificarMedidasPI(acumulado);
+      const { bordeActualizadas } = await service.guardarMedidasPI({ completas, borde }, session);
+
+      // Resumen estructurado para que el frontend lo muestre en un modal (no en un alert genérico).
+      const resumen = {
+        formato: 3,
+        archivos: archivos.length,
+        procesadas: acumulado.size,
+        completas: completas.length,
+        borde: borde.length,
+        borde_actualizadas: bordeActualizadas,
+        fechas_completas: [...new Set(completas.map((m) => m.fecha))].sort(),
+        fechas_borde: [...new Set(borde.map((m) => m.fecha))].sort(),
+      };
+
+      let mensaje = `Medidas procesadas: ${acumulado.size} (${completas.length} completas).`;
+      if (borde.length > 0) {
+        mensaje +=
+          ` ${borde.length} eran de un solo lado (borde del rango subido, sin su día complementario en esta carga):` +
+          ` solo se guardaron si ya existía una fila previa para esa fecha (${bordeActualizadas} actualizadas).` +
+          ` Para que queden completas, sube juntos los días consecutivos (el P24 de un día viene en la columna 0:00 del día siguiente).`;
+      }
+      return SuccessResponse(res, resumen, mensaje);
+    }
+
+    if (archivos.length > 1)
+      return responseError(200, "Los formatos 1 y 2 aceptan un solo archivo.", 400, res);
+    const archivoUnico = archivos[0];
+    if (archivoUnico.originalname.toLowerCase().endsWith(".csv"))
+      return responseError(200, "Los archivos .csv solo se aceptan con el Formato 3.", 400, res);
+
+    const workbook = xlsx.readFile(archivoUnico.path);
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows = xlsx.utils.sheet_to_json(sheet, { header: 1, raw: true });
 
