@@ -181,6 +181,7 @@ export default {
     flujo_tipo: Joi.string().length(1).valid("A", "R").required(),
     n_max: Joi.number().required(),
     barra: Joi.string().required(),
+    ignorar_negativos: Joi.boolean().optional().default(false),
   }),
   calculosCurvasTipicasUcp: Joi.object({
     fecha_inicio: Joi.string().required(),
@@ -202,6 +203,24 @@ export default {
         }),
       )
       .required(),
+    ignorar_negativos: Joi.boolean().optional().default(false),
+  }),
+  calculoAjusteFpGenerador: Joi.object({
+    fecha_inicio: Joi.string().required(),
+    fecha_fin: Joi.string().required(),
+    ucp: Joi.string().required(),
+    tipo_dia: Joi.string().valid("ORDINARIO", "SABADO", "FESTIVO").required(),
+    curvas_tipicas: Joi.array()
+      .items(
+        Joi.object({
+          barra: Joi.string().required(),
+          fecha: Joi.string().required(),
+        }),
+      )
+      .required(),
+    barra: Joi.string().required(),
+    codigo_rpm_generador: Joi.string().required(),
+    fp_objetivo: Joi.number().greater(0).max(1).required(),
   }),
   calcularMedidas: Joi.object({
     fecha_inicio: Joi.string().isoDate().required(),
@@ -217,6 +236,7 @@ export default {
     tipo_dia: Joi.string().valid("ORDINARIO", "SABADO", "FESTIVO").required(),
     flujo_tipo: Joi.string().valid("A", "R").required(),
     n_max: Joi.number().min(1).required(),
+    ignorar_negativos: Joi.boolean().optional().default(false),
   }),
 
   guardarSesionReporteFactores: Joi.object({
@@ -322,7 +342,7 @@ export default {
   guardarFactDna: Joi.object({
     ucp: Joi.string().required(),
     tipo_dia: Joi.string()
-      .valid("ORDINARIO", "SABADO", "DOMINGO", "FESTIVO")
+      .valid("ORDINARIO", "SABADO", "FESTIVO")
       .required(),
     periodos: Joi.array().items(Joi.number().required()).length(24).required(),
   }),
@@ -330,7 +350,7 @@ export default {
   getFactDna: Joi.object({
     ucp: Joi.string().required(),
     tipo_dia: Joi.string()
-      .valid("ORDINARIO", "SABADO", "DOMINGO", "FESTIVO")
+      .valid("ORDINARIO", "SABADO", "FESTIVO")
       .required(),
   }),
 

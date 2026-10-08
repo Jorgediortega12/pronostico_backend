@@ -1261,6 +1261,101 @@ export default class PronosticosService {
     };
   }
 
+  // Demanda real confirmada (actualizaciondatos) para el rango, completada
+  // con Respaldo (ecuación de frontera, fuente "DA API EPM") ya confirmado
+  // (respaldo_frontera, vía obtenerRespaldoGuardado) en los días sin
+  // demanda real — mismo cálculo que hacía play() inline. Extraído a su
+  // propio método para poder refrescarlo sin tener que correr play()
+  // completo (p.ej. al cargar una sesión guardada, donde PeriodosPronosticos
+  // no debe recalcularse pero "hasta dónde hay dato confirmado" sí debe
+  // reflejar el estado actual, no el que había al guardar la sesión).
+  obtenerHistoricosGrafica = async (mc, inicioIso, finIso, session) => {
+    const client8 = createConectionPG(session);
+    const datosDemandaRows = await sesionModel.cargarPeriodosxUCPxFecha(
+      mc,
+      inicioIso,
+      finIso,
+      client8,
+    );
+    const rowsMapByDate = new Map();
+    if (Array.isArray(datosDemandaRows)) {
+      for (const r of datosDemandaRows) {
+        const k = toISODateString(r.fecha);
+        if (!rowsMapByDate.has(k)) rowsMapByDate.set(k, r);
+      }
+    }
+    // Completar con Respaldo (ecuación de frontera, fuente "DA API EPM")
+    // las fechas del rango que no tengan demanda real — indiferentemente
+    // de por qué falta (día futuro, aún no sincronizado, etc.). Para
+    // mercados que no usan esa fuente esta tabla simplemente no tiene
+    // filas para ese ucp, así que este merge no cambia nada.
+    try {
+      const respaldoRows = await obtenerRespaldoGuardado(
+        session,
+        mc,
+        inicioIso,
+        finIso,
+      );
+      for (const r of respaldoRows) {
+        const k = toISODateString(r.fecha);
+        if (!rowsMapByDate.has(k)) {
+          rowsMapByDate.set(k, {
+            ...r,
+            observacion: "Respaldo (ecuación de frontera)",
+            resumen_climatico: null,
+          });
+        }
+      }
+    } catch (e) {
+      Logger.warn(
+        colors.yellow(
+          `No se pudo completar histórico con Respaldo para ${mc}: ${e.message}`,
+        ),
+      );
+    }
+    const PeriodosHistoricosGrafica = [];
+    if (inicioIso && finIso) {
+      const totalDias = daysBetweenISO(inicioIso, finIso);
+      for (let j = 0; j <= totalDias; j++) {
+        const fechaCheck = addDaysISO(inicioIso, j); // 'YYYY-MM-DD'
+        const row = rowsMapByDate.get(fechaCheck);
+        if (row) {
+          // Solo añadimos si existe fila (paridad)
+          PeriodosHistoricosGrafica.push({
+            fecha: toISODateString(row.fecha),
+            p1: toNumberSafe(row.p1),
+            p2: toNumberSafe(row.p2),
+            p3: toNumberSafe(row.p3),
+            p4: toNumberSafe(row.p4),
+            p5: toNumberSafe(row.p5),
+            p6: toNumberSafe(row.p6),
+            p7: toNumberSafe(row.p7),
+            p8: toNumberSafe(row.p8),
+            p9: toNumberSafe(row.p9),
+            p10: toNumberSafe(row.p10),
+            p11: toNumberSafe(row.p11),
+            p12: toNumberSafe(row.p12),
+            p13: toNumberSafe(row.p13),
+            p14: toNumberSafe(row.p14),
+            p15: toNumberSafe(row.p15),
+            p16: toNumberSafe(row.p16),
+            p17: toNumberSafe(row.p17),
+            p18: toNumberSafe(row.p18),
+            p19: toNumberSafe(row.p19),
+            p20: toNumberSafe(row.p20),
+            p21: toNumberSafe(row.p21),
+            p22: toNumberSafe(row.p22),
+            p23: toNumberSafe(row.p23),
+            p24: toNumberSafe(row.p24),
+            observacion: row.observacion || "",
+            resumen_climatico: row.resumen_climatico || null,
+          });
+        }
+      }
+    }
+    return PeriodosHistoricosGrafica;
+  };
+
   play = async (
     mc,
     finicio,
@@ -1556,90 +1651,13 @@ export default class PronosticosService {
           }))
         : [];
 
-      // 6) Construir PeriodosHistoricosGrafica iterando dia a dia entre inicio-fin
-      const client8 = createConectionPG(session);
-      const datosDemandaRows = await sesionModel.cargarPeriodosxUCPxFecha(
+      // 6) Construir PeriodosHistoricosGrafica (real + Respaldo confirmado)
+      const PeriodosHistoricosGrafica = await this.obtenerHistoricosGrafica(
         mc,
         inicioIso,
         finIso,
-        client8,
+        session,
       );
-      const rowsMapByDate = new Map();
-      if (Array.isArray(datosDemandaRows)) {
-        for (const r of datosDemandaRows) {
-          const k = toISODateString(r.fecha);
-          if (!rowsMapByDate.has(k)) rowsMapByDate.set(k, r);
-        }
-      }
-      // Completar con Respaldo (ecuación de frontera, fuente "DA API EPM")
-      // las fechas del rango que no tengan demanda real — indiferentemente
-      // de por qué falta (día futuro, aún no sincronizado, etc.). Para
-      // mercados que no usan esa fuente esta tabla simplemente no tiene
-      // filas para ese ucp, así que este merge no cambia nada.
-      try {
-        const respaldoRows = await obtenerRespaldoGuardado(
-          session,
-          mc,
-          inicioIso,
-          finIso,
-        );
-        for (const r of respaldoRows) {
-          const k = toISODateString(r.fecha);
-          if (!rowsMapByDate.has(k)) {
-            rowsMapByDate.set(k, {
-              ...r,
-              observacion: "Respaldo (ecuación de frontera)",
-              resumen_climatico: null,
-            });
-          }
-        }
-      } catch (e) {
-        Logger.warn(
-          colors.yellow(
-            `No se pudo completar histórico con Respaldo para ${mc}: ${e.message}`,
-          ),
-        );
-      }
-      const PeriodosHistoricosGrafica = [];
-      if (inicioIso && finIso) {
-        const totalDias = daysBetweenISO(inicioIso, finIso);
-        for (let j = 0; j <= totalDias; j++) {
-          const fechaCheck = addDaysISO(inicioIso, j); // 'YYYY-MM-DD'
-          const row = rowsMapByDate.get(fechaCheck);
-          if (row) {
-            // Solo añadimos si existe fila (paridad)
-            PeriodosHistoricosGrafica.push({
-              fecha: toISODateString(row.fecha),
-              p1: toNumberSafe(row.p1),
-              p2: toNumberSafe(row.p2),
-              p3: toNumberSafe(row.p3),
-              p4: toNumberSafe(row.p4),
-              p5: toNumberSafe(row.p5),
-              p6: toNumberSafe(row.p6),
-              p7: toNumberSafe(row.p7),
-              p8: toNumberSafe(row.p8),
-              p9: toNumberSafe(row.p9),
-              p10: toNumberSafe(row.p10),
-              p11: toNumberSafe(row.p11),
-              p12: toNumberSafe(row.p12),
-              p13: toNumberSafe(row.p13),
-              p14: toNumberSafe(row.p14),
-              p15: toNumberSafe(row.p15),
-              p16: toNumberSafe(row.p16),
-              p17: toNumberSafe(row.p17),
-              p18: toNumberSafe(row.p18),
-              p19: toNumberSafe(row.p19),
-              p20: toNumberSafe(row.p20),
-              p21: toNumberSafe(row.p21),
-              p22: toNumberSafe(row.p22),
-              p23: toNumberSafe(row.p23),
-              p24: toNumberSafe(row.p24),
-              observacion: row.observacion || "",
-              resumen_climatico: row.resumen_climatico || null,
-            });
-          }
-        }
-      }
 
       // 7) PeriodosPronosticos desde el resultado de callPredict
 
