@@ -17,7 +17,8 @@ export default {
     desde: fecha.required(),
     hasta: fecha.required(),
     variables: Joi.array().items(Joi.string().valid("temperatura", "sensacion", "humedad", "viento", "lluvia")).default([]),
-    formato: Joi.string().valid("xlsx", "csv").default("xlsx"),
+    formato: Joi.string().valid("xlsx", "csv", "pdf").default("xlsx"),
   }),
+  limite: Joi.object({ limite: Joi.number().integer().min(1).max(200).optional() }),
   idParam: Joi.object({ id: Joi.number().integer().min(1).required() }),
 };

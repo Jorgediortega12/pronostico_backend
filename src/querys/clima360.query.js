@@ -73,6 +73,41 @@ export const listarAlertas = `
   ORDER BY a.inicio DESC
 `;
 
+// Reportes generados y guardados (el archivo vive en Descargas: archivos/carpetas).
+export const asegurarTablaReportes = `
+  CREATE TABLE IF NOT EXISTS clima_reportes (
+    id SERIAL PRIMARY KEY,
+    tipo VARCHAR(20) NOT NULL,
+    titulo VARCHAR(120) NOT NULL,
+    formato VARCHAR(5) NOT NULL,
+    nombre_archivo VARCHAR(255) NOT NULL,
+    codarchivo INT,
+    desde DATE,
+    hasta DATE,
+    ciudades TEXT,
+    tamano_bytes INT,
+    usuario_id INT,
+    creado_en TIMESTAMP NOT NULL DEFAULT NOW()
+  );
+`;
+
+export const insertarReporte = `
+  INSERT INTO clima_reportes
+    (tipo, titulo, formato, nombre_archivo, codarchivo, desde, hasta, ciudades, tamano_bytes, usuario_id, creado_en)
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+  RETURNING id
+`;
+
+export const listarReportes = `
+  SELECT r.id, r.tipo, r.titulo, r.formato, r.nombre_archivo, r.codarchivo,
+         to_char(r.desde, 'YYYY-MM-DD') AS desde, to_char(r.hasta, 'YYYY-MM-DD') AS hasta,
+         r.ciudades, r.tamano_bytes,
+         to_char(r.creado_en, 'YYYY-MM-DD"T"HH24:MI:SS') AS creado_en
+  FROM clima_reportes r
+  ORDER BY r.creado_en DESC
+  LIMIT $1
+`;
+
 // ─── jano_proxy ──────────────────────────────────────────────────────────────
 
 const col = (pref, suf) => Array.from({ length: 24 }, (_, i) => `dc.p${i + 1}_${suf}`).join(", ");

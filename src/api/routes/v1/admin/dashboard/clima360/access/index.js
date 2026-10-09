@@ -24,14 +24,17 @@ export const alertas = manejar("alertas", (req) => service.alertas(req.user.sess
 
 export const reporte = async (req, res) => {
   try {
-    const out = await service.reporte(req.user.session, req.body);
+    const out = await service.reporte(req.user.session, req.body, req.user.userId ?? null);
     if (!out) return responseError(200, "Tipo de reporte no soportado", 400, res);
     res.setHeader("Content-Type", out.contentType);
     res.setHeader("Content-Disposition", `attachment; filename="${out.filename}"`);
-    res.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
+    res.setHeader("X-Reporte-Guardado", out.guardado ? "1" : "0");
+    res.setHeader("Access-Control-Expose-Headers", "Content-Disposition, X-Reporte-Guardado");
     return res.status(200).send(out.buffer);
   } catch (err) {
     Logger.error("Error clima360 reporte", err);
     return InternalError(res);
   }
 };
+
+export const reportes = manejar("reportes", (req) => service.reportes(req.user.session, Number(req.query.limite) || 30));

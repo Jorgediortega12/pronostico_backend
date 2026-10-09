@@ -18,6 +18,7 @@ export default function () {
     controllers.pronostico,
   );
   router.get("/alertas", validator(schema.ids, ValidationSource.QUERY), controllers.alertas);
+  router.get("/reportes", validator(schema.limite, ValidationSource.QUERY), controllers.reportes);
   router.post("/reporte", validator(schema.reporte), controllers.reporte);
   return router;
 }

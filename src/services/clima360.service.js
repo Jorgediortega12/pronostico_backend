@@ -12,7 +12,10 @@
 
 import Clima360Model from "../models/clima360.model.js";
 import Logger from "../helpers/logger.js";
-import { tablasAXlsx, tablasACsv } from "../utils/generarReporteClima360.js";
+import fs from "fs";
+import path from "path";
+import { tablasAXlsx, tablasACsv, tablasAPdf } from "../utils/generarReporteClima360.js";
+import { monthNameSpanish } from "../utils/folders.js";
 import colors from "colors";
 
 const model = Clima360Model.getInstance();
@@ -590,7 +593,7 @@ export default class Clima360Service {
   // ── Reportes (descarga directa, sin guardar) ──────────────────────────────
   // tipo: resumen | comparativo | pronostico | alertas
   // variables: temperatura | sensacion | humedad | viento | lluvia
-  reporte = async (session, { tipo, ids, desde, hasta, variables, formato }) => {
+  reporte = async (session, { tipo, ids, desde, hasta, variables, formato }, usuarioId = null) => {
     const idsTxt = (ids ?? []).join(",");
     const vars = new Set(variables?.length ? variables : ["temperatura", "humedad", "viento", "lluvia"]);
     const tablas = [];
@@ -654,12 +657,59 @@ export default class Clima360Service {
 
     const titulos = { resumen: "Resumen climatológico", comparativo: "Comparativo de ciudades", pronostico: "Pronóstico", alertas: "Reporte de alertas" };
     // nombre de archivo ASCII (un acento en Content-Disposition rompe el header)
-    const base = `Clima360_${titulos[tipo].normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, "")}_${hoyIso()}`;
-    if (formato === "csv") return { buffer: tablasACsv(tablas), filename: `${base}.csv`, contentType: "text/csv; charset=utf-8" };
-    return {
-      buffer: await tablasAXlsx(tablas, { titulo: titulos[tipo], subtitulo }),
-      filename: `${base}.xlsx`,
-      contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    };
+    const ahora = new Date();
+    const hora = `${pad(ahora.getHours())}${pad(ahora.getMinutes())}${pad(ahora.getSeconds())}`;
+    const base = `Clima360_${titulos[tipo].normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, "")}_${hoyIso()}_${hora}`;
+
+    let out;
+    if (formato === "csv") out = { buffer: tablasACsv(tablas), filename: `${base}.csv`, contentType: "text/csv; charset=utf-8" };
+    else if (formato === "pdf") out = { buffer: await tablasAPdf(tablas, { titulo: titulos[tipo], subtitulo }), filename: `${base}.pdf`, contentType: "application/pdf" };
+    else
+      out = {
+        buffer: await tablasAXlsx(tablas, { titulo: titulos[tipo], subtitulo }),
+        filename: `${base}.xlsx`,
+        contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      };
+
+    // Se guarda en Descargas (Reportes › Clima › año › mes) y en el listado de reportes.
+    // Si guardar falla, igual se entrega el archivo (solo se registra el error).
+    const usaPeriodo = tipo === "resumen" || tipo === "comparativo";
+    let nombres = "";
+    try {
+      nombres = (await model.puntosConActual(session, ids ?? [])).map((p) => p.nombre).join(", ");
+    } catch {
+      /* el nombre de las ciudades es solo informativo */
+    }
+    try {
+      const anio = ahora.getFullYear();
+      const mes = monthNameSpanish(ahora.getMonth() + 1);
+      const raiz = process.env.REPORT_DIR || path.join(process.cwd(), "reportes");
+      const dir = path.join(raiz, "clima", String(anio), mes);
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, out.filename), out.buffer);
+      out.guardado = await model.registrarReporte(session, {
+        nombreArchivo: out.filename,
+        rutaArchivo: `~/reportes/clima/${anio}/${mes}/${out.filename}`,
+        anio,
+        mes,
+        tamano: out.buffer.length,
+        usuarioId,
+        meta: {
+          tipo,
+          titulo: titulos[tipo],
+          formato: formato === "csv" || formato === "pdf" ? formato : "xlsx",
+          desde: usaPeriodo ? desde : null,
+          hasta: usaPeriodo ? hasta : null,
+          ciudades: nombres,
+        },
+      });
+    } catch (e) {
+      Logger.error(colors.red(`[CLIMA360] no se pudo guardar el reporte ${out.filename}: ${e.message}`));
+      out.guardado = null;
+    }
+    return out;
   };
+
+  // Listado de reportes generados (más recientes primero).
+  reportes = async (session, limite = 30) => model.listarReportes(session, limite);
 }
