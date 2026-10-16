@@ -923,4 +923,60 @@ export default class FactoresModel {
       await client.end();
     }
   };
+
+  // ── FP mínimo (general por mercado y por barra) ──
+  #leerFpMinimo = async (mc, client) => {
+    const { rows } = await client.query(querys.consultarFpMinimo, [mc]);
+    let general = null;
+    const barras = {};
+    for (const r of rows) {
+      const v = Number(r.minimo);
+      if (r.barra === "") general = v;
+      else barras[r.barra] = v;
+    }
+    return { general, barras };
+  };
+
+  consultarFpMinimo = async (mc, client) => {
+    try {
+      await client.connect();
+      await client.query(querys.asegurarTablaFpMinimo);
+      return await this.#leerFpMinimo(mc, client);
+    } catch (error) {
+      Logger.error(colors.red("Error FactoresModel consultarFpMinimo"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  // general: número, null (quitarlo) o undefined (no tocarlo).
+  // barras: { BARRA: número | null }; null quita el mínimo propio de esa barra.
+  guardarFpMinimo = async (mc, general, barras, client) => {
+    try {
+      await client.connect();
+      await client.query(querys.asegurarTablaFpMinimo);
+      await client.query("BEGIN");
+      const fijar = async (barra, valor) => {
+        if (valor === null) await client.query(querys.eliminarFpMinimo, [mc, barra]);
+        else await client.query(querys.upsertFpMinimo, [mc, barra, valor]);
+      };
+      try {
+        if (general !== undefined) await fijar("", general);
+        for (const [barra, valor] of Object.entries(barras ?? {})) {
+          await fijar(barra, valor);
+        }
+        await client.query("COMMIT");
+      } catch (e) {
+        await client.query("ROLLBACK");
+        throw e;
+      }
+      return await this.#leerFpMinimo(mc, client);
+    } catch (error) {
+      Logger.error(colors.red("Error FactoresModel guardarFpMinimo"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
 }

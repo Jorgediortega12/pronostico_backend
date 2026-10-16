@@ -367,4 +367,14 @@ export default {
     mc: Joi.string().required(),
     fecha: Joi.string().isoDate().required(),
   }),
+  consultarFpMinimo: Joi.object({
+    mc: Joi.string().required(),
+  }),
+  // general: número 0–1, null para quitarlo, o ausente para no tocarlo.
+  // barras: { NOMBRE_BARRA: número 0–1 | null } (null quita el mínimo propio de la barra).
+  guardarFpMinimo: Joi.object({
+    mc: Joi.string().required(),
+    general: Joi.number().min(0).max(1).allow(null),
+    barras: Joi.object().pattern(Joi.string().max(100), Joi.number().min(0).max(1).allow(null)),
+  }),
 };
