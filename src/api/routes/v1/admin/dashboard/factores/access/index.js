@@ -1192,3 +1192,29 @@ export const consultarDemandaPorBarra_xMCyFecha = async (req, res) => {
     return InternalError(res);
   }
 };
+
+export const consultarFpMinimo = async (req, res) => {
+  const { mc } = req.params;
+  const { session } = req.user;
+  try {
+    const result = await service.consultarFpMinimo(mc, session);
+    if (!result.success) return responseError(200, result.message, 500, res);
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};
+
+export const guardarFpMinimo = async (req, res) => {
+  const { mc, general, barras } = req.body;
+  const { session } = req.user;
+  try {
+    const result = await service.guardarFpMinimo(mc, general, barras, session);
+    if (!result.success) return responseError(200, result.message, 500, res);
+    return SuccessResponse(res, result.data, result.message);
+  } catch (err) {
+    Logger.error(err);
+    return InternalError(res);
+  }
+};

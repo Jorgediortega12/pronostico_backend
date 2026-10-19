@@ -1853,4 +1853,26 @@ export default class FactoresService {
       };
     }
   }
+
+  async consultarFpMinimo(mc, session) {
+    try {
+      const client = createConectionPG(session);
+      const data = await model.consultarFpMinimo(mc, client);
+      return { success: true, data, message: "FP mínimo obtenido correctamente." };
+    } catch (err) {
+      Logger.error(colors.red("Error FactoresService consultarFpMinimo"), err);
+      return { success: false, data: null, message: "Error al obtener el FP mínimo." };
+    }
+  }
+
+  async guardarFpMinimo(mc, general, barras, session) {
+    try {
+      const client = createConectionPG(session);
+      const data = await model.guardarFpMinimo(mc, general, barras, client);
+      return { success: true, data, message: "FP mínimo guardado correctamente." };
+    } catch (err) {
+      Logger.error(colors.red("Error FactoresService guardarFpMinimo"), err);
+      return { success: false, data: null, message: "Error al guardar el FP mínimo." };
+    }
+  }
 }

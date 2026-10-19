@@ -236,5 +236,16 @@ export default function () {
     controllers.consultarDemandaPorBarra_xMCyFecha,
   );
 
+  router.get(
+    "/fpMinimo/:mc",
+    validator(schema.consultarFpMinimo, ValidationSource.PARAM),
+    controllers.consultarFpMinimo,
+  );
+  router.put(
+    "/fpMinimo",
+    validator(schema.guardarFpMinimo),
+    controllers.guardarFpMinimo,
+  );
+
   return router;
 }
