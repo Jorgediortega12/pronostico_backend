@@ -1,4 +1,6 @@
 // utils/reportGenerator.js
+import { asegurarColumnasArchivos, nombreDeUsuario } from "./archivosMeta.js";
+import { userIdActual } from "./contextoUsuario.js";
 import fs from "fs";
 import path from "path";
 import moment from "moment";
@@ -615,12 +617,21 @@ export async function insertFileRecord(client, params = {}) {
     else inferred = null;
   }
 
+  // Fecha y usuario del registro (Descargas muestra la primera como generación y la última como modificación)
+  await asegurarColumnasArchivos(client);
+  let creadoPor = null;
+  try {
+    creadoPor = await nombreDeUsuario(client, userIdActual());
+  } catch (_) {
+    // el nombre es informativo: no se bloquea el guardado del reporte
+  }
+
   const q = `
-    INSERT INTO archivos (codcarpeta, nombrearchivo, path)
-    VALUES ($1, $2, $3)
+    INSERT INTO archivos (codcarpeta, nombrearchivo, path, creado_en, creado_por)
+    VALUES ($1, $2, $3, $4, $5)
     RETURNING codigo;
   `;
-  const vals = [codcarpeta, nombreArchivo, rutaArchivo];
+  const vals = [codcarpeta, nombreArchivo, rutaArchivo, new Date(), creadoPor];
 
   const r = await client.query(q, vals);
   return r.rows && r.rows[0] ? r.rows[0] : null;
