@@ -905,6 +905,8 @@ export const guardarSesionReporteFactores = async (req, res) => {
     sumasRef,
     resultadosFdaFdp,
     observacion,
+    formato,
+    barras,
   } = req.body;
 
   try {
@@ -917,6 +919,8 @@ export const guardarSesionReporteFactores = async (req, res) => {
         resultadosFdaFdp,
         sumasRef,
         observacion,
+        formato,
+        barras,
       },
       session,
     );
