@@ -25,6 +25,20 @@ const toFechaStr = (fecha) => {
 
 const round = (n, dec = 2) => Math.round(n * 10 ** dec) / 10 ** dec;
 
+// 'modelo' cuenta desviaciones críticas del pronóstico; ni la propia
+// recomendación ni 'medida' (un problema del dato fuente, no del modelo)
+// deben contar como una desviación más.
+const CATEGORIAS_FUERA_DE_MODELO = new Set(["modelo", "medida"]);
+
+// Alertas de 'medida': tolerancias del detector (el umbral y la ventana sí
+// son configurables desde Configuración de alertas; estos no).
+const MEDIDA_MIN_DIAS_HISTORIA = 3; // menos que esto no es un "histórico" confiable
+const MEDIDA_MIN_PERIODOS_HISTORIA = 12; // un día histórico con menos periodos con dato no cuenta
+const MEDIDA_MIN_PERIODOS_HOY = 20; // el día evaluado debe venir (casi) completo: las cargas parciales dejan los últimos periodos en 0
+const MEDIDA_FRACCION_SIGNO_CONSISTENTE = 0.8; // historia "de un solo signo" si ≥80% de sus periodos lo son
+const MEDIDA_MIN_PERIODOS_INVERTIDOS = 6; // ≥ 6 de 24 periodos (¼ del día) con el signo opuesto = cambio de signo
+const MEDIDA_EPS = 1e-9; // valores ~0 no cuentan como signo ni como dato
+
 // ─── Festivos nacionales de Colombia (Ley 51 de 1983 / Ley Emiliani) ────────
 // Cálculo determinístico, sin API externa — validado contra los festivos ya
 // configurados en la tabla `festivos` (coincide exacto con los 18
@@ -114,7 +128,7 @@ export default class AlertasService {
   };
 
   updateConfig = async (session, categoria, cfg) => {
-    if (!["mape", "demanda", "periodo", "evento", "clima", "modelo"].includes(categoria)) {
+    if (!["mape", "demanda", "periodo", "evento", "clima", "modelo", "medida"].includes(categoria)) {
       throw new ServiceError(`Categoría de alerta no soportada: ${categoria}`, 400);
     }
     const actualizado = await this.#model.updateConfig(session, categoria, cfg);
@@ -141,6 +155,7 @@ export default class AlertasService {
       evento: base.filter((a) => a.categoria === "evento").length,
       clima: base.filter((a) => a.categoria === "clima").length,
       modelo: base.filter((a) => a.categoria === "modelo").length,
+      medida: base.filter((a) => a.categoria === "medida").length,
     };
 
     const mapeUltimos7 = base.filter((a) => {
@@ -254,6 +269,32 @@ export default class AlertasService {
     } else if (alerta.categoria === "clima") {
       const signo = Number(alerta.metrica_valor) >= 0 ? "+" : "";
       causa = `La temperatura observada se desvió ${signo}${Number(alerta.metrica_valor).toFixed(1)}°C respecto al comportamiento típico reciente, por encima del umbral configurado (±${Number(alerta.umbral).toFixed(1)}°C) — condiciones distintas a las habituales pueden afectar la demanda proyectada.`;
+    } else if (alerta.categoria === "medida") {
+      const det = alerta.detalle || {};
+      // Serie horaria: valores del último día vs. promedio por hora de los
+      // días previos de la ventana (misma forma que usa el drawer: real /
+      // pronostico -> acá "hoy" / "histórico").
+      if (det.codigo_rpm) {
+        const fechaStr = toFechaStr(alerta.fecha);
+        const inicio = toFechaStr(new Date(new Date(`${fechaStr}T00:00:00Z`).getTime() - (det.ventana_dias || 14) * 86400000));
+        const filas = (await this.#model.getMedidasVentanaPorMc(session, alerta.ucp, inicio, fechaStr)).filter(
+          (f) => f.barra === det.barra && f.codigo_rpm === det.codigo_rpm && f.flujo === det.flujo,
+        );
+        const hoy = filas.find((f) => f.fecha === fechaStr);
+        const previas = filas.filter((f) => f.fecha < fechaStr);
+        if (hoy) {
+          serieHoraria = [];
+          for (let h = 1; h <= 24; h++) {
+            const valor = hoy[`p${h}`] != null ? Number(hoy[`p${h}`]) : null;
+            const hist = previas.map((f) => (f[`p${h}`] != null ? Number(f[`p${h}`]) : null)).filter((v) => v != null);
+            const historico = hist.length ? round(hist.reduce((a, b) => a + b, 0) / hist.length) : null;
+            serieHoraria.push({ hora: horaLabel(h), real: valor, pronostico: historico, error_pct: null });
+          }
+        }
+      }
+      causa = det.cambio_signo
+        ? `La medida ${det.codigo_rpm} (${det.flujo}) de la barra ${det.barra} venía con un signo estable (promedio ${det.media_historia} en los ${det.dias_historia} días previos) y en esta fecha una parte importante de sus periodos aparece con el signo opuesto (promedio ${det.media_hoy}). Suele indicar un cambio en la medición (polaridad, topología o reasignación del medidor) y afecta las curvas, FDA/FDP y el factor de potencia de la barra — revisa la medida en Medidas factores.`
+        : `El promedio diario de la medida ${det.codigo_rpm} (${det.flujo}) de la barra ${det.barra} (${det.media_hoy}) se alejó ${Number(alerta.metrica_valor) >= 0 ? "+" : ""}${Number(alerta.metrica_valor).toFixed(1)}% de su promedio de los ${det.dias_historia} días previos (${det.media_historia}), por encima del umbral configurado (±${Number(alerta.umbral).toFixed(0)}%) — revisa que no sea un dato atípico o un cambio en la configuración de la barra.`;
     } else if (alerta.categoria === "modelo") {
       causa = `Se acumularon ${Number(alerta.metrica_valor)} desviaciones críticas en los últimos días para ${alerta.ucp}, por encima del máximo configurado (${Number(alerta.umbral)}) — un patrón sostenido, no un evento puntual, sugiere que el modelo perdió ajuste con el comportamiento reciente del mercado.`;
     }
@@ -275,7 +316,7 @@ export default class AlertasService {
     });
     // La propia categoría "modelo" no cuenta como una desviación crítica más
     // (evita que la recomendación se retroalimente a sí misma).
-    const criticasUltimosNDias = criticasUltimosNDiasRaw.filter((a) => a.categoria !== "modelo");
+    const criticasUltimosNDias = criticasUltimosNDiasRaw.filter((a) => !CATEGORIAS_FUERA_DE_MODELO.has(a.categoria));
 
     return {
       alerta,
@@ -327,6 +368,7 @@ export default class AlertasService {
     const cfgEvento = config.find((c) => c.categoria === "evento");
     const cfgClima = config.find((c) => c.categoria === "clima");
     const cfgModelo = config.find((c) => c.categoria === "modelo");
+    const cfgMedida = config.find((c) => c.categoria === "medida");
 
     const ucps = await this.#model.listarUcpActivos(session);
     let creadas = 0;
@@ -338,6 +380,12 @@ export default class AlertasService {
         // abajo, para que corra siempre.
         if (cfgEvento?.activo) {
           creadas += await this.#evaluarEvento(session, ucp, cfgEvento);
+        }
+
+        // 'medida' tampoco depende de actualizaciondatos: mira la tabla
+        // medidas (de las barras del mercado) por su propia última fecha.
+        if (cfgMedida?.activo) {
+          creadas += await this.#evaluarMedidas(session, ucp, cfgMedida);
         }
 
         const fecha = await this.#model.getUltimaFechaReal(session, ucp);
@@ -500,7 +548,7 @@ export default class AlertasService {
       fecha_inicio: haceNDias,
       fecha_fin: fechaStr,
     });
-    const criticas = criticasRaw.filter((a) => a.categoria !== "modelo");
+    const criticas = criticasRaw.filter((a) => !CATEGORIAS_FUERA_DE_MODELO.has(a.categoria));
     if (criticas.length <= umbralDesviaciones) return false;
 
     const descripcion = `Recomendación de reentrenamiento: ${criticas.length} desviación${criticas.length === 1 ? "" : "es"} crítica${criticas.length === 1 ? "" : "s"} acumulada${criticas.length === 1 ? "" : "s"} en ${ventanaDias} días`;
@@ -525,6 +573,128 @@ export default class AlertasService {
       "Alerta generada automáticamente por acumulación de desviaciones críticas del modelo",
     );
     return true;
+  };
+
+  // Medidas: por cada medida (codigo_rpm + flujo) de las barras de un mercado
+  // compara el último día con medidas contra los N días previos
+  // (cfgMedida.ventana_dias, 14 por defecto):
+  //   - Cambio de signo: la historia es de un solo signo y hoy ≥ ¼ de los
+  //     periodos vienen con el signo opuesto (p. ej. GIRARDT1 pasó de
+  //     -17…-25 a +23…+27). Siempre crítico.
+  //   - Salto abrupto: el promedio del día se aleja del promedio histórico
+  //     más de cfgMedida.umbral (%), sin cambiar de signo.
+  // Un periodo en 0 se toma como "sin dato" (las cargas parciales del día
+  // dejan los últimos periodos en 0) y cada medida se evalúa en su último día
+  // completo. Se avisa una vez por medida mientras el cambio siga dentro de
+  // la ventana, para no repetir la misma alerta cada día.
+  #evaluarMedidas = async (session, mc, cfgMedida) => {
+    const ultima = await this.#model.getUltimaFechaMedidasPorMc(session, mc);
+    if (!ultima) return 0;
+    const ultimaStr = toFechaStr(ultima);
+    const ventana = cfgMedida.ventana_dias || 14;
+    const restarDias = (fechaStr, dias) =>
+      toFechaStr(new Date(new Date(`${fechaStr}T00:00:00Z`).getTime() - dias * 86400000));
+    // Margen de unos días extra por si el último día de alguna medida está incompleto.
+    const filas = await this.#model.getMedidasVentanaPorMc(session, mc, restarDias(ultimaStr, ventana + 3), ultimaStr);
+    if (!filas.length) return 0;
+
+    // Agrupa por medida -> { fecha -> [p1..p24, null si no hay dato] }
+    const series = new Map();
+    for (const fila of filas) {
+      const clave = `${fila.barra}|${fila.codigo_rpm}|${fila.flujo}`;
+      let serie = series.get(clave);
+      if (!serie) {
+        serie = { barra: fila.barra, codigo_rpm: fila.codigo_rpm, flujo: fila.flujo, dias: new Map() };
+        series.set(clave, serie);
+      }
+      const valores = [];
+      for (let h = 1; h <= 24; h++) {
+        const v = fila[`p${h}`] != null ? Number(fila[`p${h}`]) : null;
+        valores.push(v != null && Number.isFinite(v) && Math.abs(v) > MEDIDA_EPS ? v : null);
+      }
+      serie.dias.set(fila.fecha, valores);
+    }
+
+    const promedio = (arr) => arr.reduce((a, b) => a + b, 0) / arr.length;
+    const signo = (v) => (v > MEDIDA_EPS ? 1 : v < -MEDIDA_EPS ? -1 : 0);
+    let creadas = 0;
+
+    for (const serie of series.values()) {
+      // Último día (dentro de lo traído) con datos suficientes para esta medida.
+      const fechasCompletas = [...serie.dias.keys()]
+        .filter((f) => serie.dias.get(f).filter((v) => v != null).length >= MEDIDA_MIN_PERIODOS_HOY)
+        .sort();
+      const fechaStr = fechasCompletas[fechasCompletas.length - 1];
+      if (!fechaStr) continue;
+      const inicioStr = restarDias(fechaStr, ventana);
+      const hoyValidos = serie.dias.get(fechaStr).filter((v) => v != null);
+
+      const mediasHistoria = [];
+      const signosHistoria = [];
+      for (const [f, valores] of serie.dias) {
+        if (f >= fechaStr || f < inicioStr) continue;
+        const validos = valores.filter((v) => v != null);
+        if (validos.length < MEDIDA_MIN_PERIODOS_HISTORIA) continue;
+        mediasHistoria.push(promedio(validos));
+        for (const v of validos) signosHistoria.push(signo(v));
+      }
+      if (mediasHistoria.length < MEDIDA_MIN_DIAS_HISTORIA) continue;
+
+      const mediaHistoria = promedio(mediasHistoria);
+      if (Math.abs(mediaHistoria) <= MEDIDA_EPS) continue;
+      const signoHistoria = mediaHistoria > 0 ? 1 : -1;
+      const conSigno = signosHistoria.filter((x) => x !== 0);
+      if (!conSigno.length) continue;
+      const fraccionConsistente = conSigno.filter((x) => x === signoHistoria).length / conSigno.length;
+      if (fraccionConsistente < MEDIDA_FRACCION_SIGNO_CONSISTENTE) continue; // historia sin signo estable: no hay referencia
+
+      const mediaHoy = promedio(hoyValidos);
+      const desviacionPct = ((mediaHoy - mediaHistoria) / Math.abs(mediaHistoria)) * 100;
+      const invertidos = hoyValidos.filter((v) => signo(v) === -signoHistoria).length;
+      const cambioSigno = invertidos >= MEDIDA_MIN_PERIODOS_INVERTIDOS;
+      if (!cambioSigno && Math.abs(desviacionPct) <= cfgMedida.umbral) continue;
+
+      const referencia = `${serie.barra} · ${serie.codigo_rpm} (${serie.flujo})`;
+      if (await this.#model.existeAlertaMedidaReciente(session, mc, referencia, inicioStr, fechaStr)) continue;
+
+      const descripcion = cambioSigno
+        ? `La medida ${serie.codigo_rpm} (${serie.flujo}) de la barra ${serie.barra} cambió de signo: ${invertidos} de ${hoyValidos.length} periodos con signo ${signoHistoria > 0 ? "negativo" : "positivo"}, frente a un histórico ${signoHistoria > 0 ? "positivo" : "negativo"} (promedio ${round(mediaHistoria)} en los ${mediasHistoria.length} días previos, hoy ${round(mediaHoy)}).`
+        : `La medida ${serie.codigo_rpm} (${serie.flujo}) de la barra ${serie.barra} se alejó ${desviacionPct >= 0 ? "+" : ""}${round(desviacionPct, 1)}% de su promedio histórico (${round(mediaHistoria)} en los ${mediasHistoria.length} días previos, hoy ${round(mediaHoy)}).`;
+      const estado = cambioSigno || Math.abs(desviacionPct) >= cfgMedida.umbral * 1.5 ? "critico" : "por_revisar";
+
+      const alerta = await this.#model.insertAlerta(session, {
+        ucp: mc,
+        categoria: "medida",
+        fecha: fechaStr,
+        periodo_inicio: null,
+        periodo_fin: null,
+        descripcion,
+        metrica_valor: round(desviacionPct, 1),
+        metrica_label: cambioSigno ? "Cambio de signo" : "Desviación",
+        umbral: cfgMedida.umbral,
+        estado,
+        referencia,
+        detalle: {
+          barra: serie.barra,
+          codigo_rpm: serie.codigo_rpm,
+          flujo: serie.flujo,
+          cambio_signo: cambioSigno,
+          media_historia: round(mediaHistoria, 3),
+          media_hoy: round(mediaHoy, 3),
+          dias_historia: mediasHistoria.length,
+          ventana_dias: ventana,
+        },
+      });
+      if (!alerta) continue;
+      await this.#model.insertHistorial(
+        session,
+        alerta.codigo,
+        "generada",
+        "Alerta generada automáticamente por el motor de monitoreo de medidas",
+      );
+      creadas++;
+    }
+    return creadas;
   };
 
   // Desviación por periodo: mismo bloque horario con error por encima del
