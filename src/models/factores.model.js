@@ -7,6 +7,7 @@ dotenv.config();
 
 export default class FactoresModel {
   static instance;
+  static columnaAjusteAsegurada = new Set();
 
   static getInstance() {
     if (!FactoresModel.instance) {
@@ -924,9 +925,24 @@ export default class FactoresModel {
     }
   };
 
+  // La tabla se crea si falta; la columna nueva se agrega una sola vez por proceso (el ALTER pide un lock
+  // exclusivo, así que no se repite en cada petición).
+  #asegurarTablaFpMetodo = async (client) => {
+    await client.query(querys.asegurarTablaFpMetodo);
+    // una vez por proceso y por base de datos (cada empresa tiene la suya)
+    const bd = client.database ?? "";
+    if (!FactoresModel.columnaAjusteAsegurada.has(bd)) {
+      await client.query(querys.asegurarColumnaAjusteCurvas);
+      FactoresModel.columnaAjusteAsegurada.add(bd);
+    }
+  };
+
   // ── FP mínimo (general por mercado y por barra) ──
   #leerFpMinimo = async (mc, client) => {
     const { rows } = await client.query(querys.consultarFpMinimo, [mc]);
+    const { rows: m } = await client.query(querys.consultarFpMetodo, [mc]);
+    const metodo = m[0]?.metodo ?? "piso";
+    const ajustarCurvas = m[0]?.ajustar_curvas ?? false;
     let general = null;
     const barras = {};
     for (const r of rows) {
@@ -934,13 +950,14 @@ export default class FactoresModel {
       if (r.barra === "") general = v;
       else barras[r.barra] = v;
     }
-    return { general, barras };
+    return { general, barras, metodo, ajustarCurvas };
   };
 
   consultarFpMinimo = async (mc, client) => {
     try {
       await client.connect();
       await client.query(querys.asegurarTablaFpMinimo);
+      await this.#asegurarTablaFpMetodo(client);
       return await this.#leerFpMinimo(mc, client);
     } catch (error) {
       Logger.error(colors.red("Error FactoresModel consultarFpMinimo"), error);
@@ -952,10 +969,13 @@ export default class FactoresModel {
 
   // general: número, null (quitarlo) o undefined (no tocarlo).
   // barras: { BARRA: número | null }; null quita el mínimo propio de esa barra.
-  guardarFpMinimo = async (mc, general, barras, client) => {
+  // metodo: 'piso' | 'vecinos' | 'copiar' (undefined = no tocarlo).
+  // ajustarCurvas: boolean (undefined = no tocarlo).
+  guardarFpMinimo = async (mc, general, barras, client, metodo, ajustarCurvas) => {
     try {
       await client.connect();
       await client.query(querys.asegurarTablaFpMinimo);
+      await this.#asegurarTablaFpMetodo(client);
       await client.query("BEGIN");
       const fijar = async (barra, valor) => {
         if (valor === null) await client.query(querys.eliminarFpMinimo, [mc, barra]);
@@ -963,6 +983,8 @@ export default class FactoresModel {
       };
       try {
         if (general !== undefined) await fijar("", general);
+        if (metodo !== undefined) await client.query(querys.upsertFpMetodo, [mc, metodo]);
+        if (ajustarCurvas !== undefined) await client.query(querys.upsertFpAjusteCurvas, [mc, ajustarCurvas]);
         for (const [barra, valor] of Object.entries(barras ?? {})) {
           await fijar(barra, valor);
         }

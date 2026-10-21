@@ -380,5 +380,9 @@ export default {
     mc: Joi.string().required(),
     general: Joi.number().min(0).max(1).allow(null),
     barras: Joi.object().pattern(Joi.string().max(100), Joi.number().min(0).max(1).allow(null)),
+    // cómo se corrigen los periodos bajo el mínimo; ausente = no tocarlo
+    metodo: Joi.string().valid("piso", "vecinos", "copiar"),
+    // ajuste automático de curvas típicas para acercar el FP al mínimo (solo aplica con el método "piso")
+    ajustarCurvas: Joi.boolean(),
   }),
 };

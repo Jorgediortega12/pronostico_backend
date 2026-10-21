@@ -539,3 +539,39 @@ ON CONFLICT (mc, barra) DO UPDATE SET minimo = EXCLUDED.minimo, actualizado_en =
 export const eliminarFpMinimo = `
 DELETE FROM factores_fp_minimo WHERE mc = $1 AND barra = $2
 `;
+
+// Cómo se corrigen los periodos de FP que quedan por debajo del mínimo (uno por mercado):
+//   piso    -> se sube al mínimo (comportamiento original)
+//   vecinos -> promedio de los 2 periodos sanos más cercanos del mismo día
+//   copiar  -> se copia de otro tipo de día de la misma barra donde ese periodo sí está sano
+//              (si no hay, vecinos)
+export const asegurarTablaFpMetodo = `
+CREATE TABLE IF NOT EXISTS factores_fp_metodo (
+  mc VARCHAR(100) PRIMARY KEY,
+  metodo VARCHAR(20) NOT NULL DEFAULT 'piso',
+  ajustar_curvas BOOLEAN NOT NULL DEFAULT FALSE,
+  actualizado_en TIMESTAMP NOT NULL DEFAULT NOW()
+)
+`;
+
+// Tablas creadas antes del ajuste automático de curvas: se agrega la columna (una sola vez por proceso).
+export const asegurarColumnaAjusteCurvas = `
+ALTER TABLE factores_fp_metodo ADD COLUMN IF NOT EXISTS ajustar_curvas BOOLEAN NOT NULL DEFAULT FALSE
+`;
+
+export const consultarFpMetodo = `
+SELECT metodo, ajustar_curvas FROM factores_fp_metodo WHERE mc = $1
+`;
+
+// Ajuste automático de curvas típicas para acercar el FP al mínimo (solo con el método 'piso').
+export const upsertFpAjusteCurvas = `
+INSERT INTO factores_fp_metodo (mc, ajustar_curvas, actualizado_en)
+VALUES ($1, $2, NOW())
+ON CONFLICT (mc) DO UPDATE SET ajustar_curvas = EXCLUDED.ajustar_curvas, actualizado_en = NOW()
+`;
+
+export const upsertFpMetodo = `
+INSERT INTO factores_fp_metodo (mc, metodo, actualizado_en)
+VALUES ($1, $2, NOW())
+ON CONFLICT (mc) DO UPDATE SET metodo = EXCLUDED.metodo, actualizado_en = NOW()
+`;
