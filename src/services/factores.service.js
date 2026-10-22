@@ -191,6 +191,11 @@ export default class FactoresService {
     }
   };
 
+  guardarMedidasPI = async (data, session) => {
+    const client = createConectionPG(session);
+    return model.guardarMedidasPI(data, client);
+  };
+
   eliminarRapido = async (data, session) => {
     try {
       const client = createConectionPG(session);
@@ -1075,6 +1080,8 @@ export default class FactoresService {
       resultadosFdaFdp,
       sumasRef, // ← reemplaza comboDataMap
       observacion,
+      formato = 1,
+      barras = [],
     } = params;
 
     try {
@@ -1088,7 +1095,11 @@ export default class FactoresService {
       );
       const ultimaVersion = versionRows?.[0]?.version ?? 0;
       const version = Number(ultimaVersion) + 1;
-      const nombrearchivo = `ReporteFactores_${ucp}_${hoy}_v${version}.xlsx`;
+      // Formato 2 = formato EPM (wdg_Factores); Formato 1 = reporte actual.
+      const nombrearchivo =
+        Number(formato) === 2
+          ? `wdg_Factores_${ucp}_${hoy}_v${version}.xlsx`
+          : `ReporteFactores_${ucp}_${hoy}_v${version}.xlsx`;
 
       // ── 2. Crear sesión ── (igual)
       const clientS = createConectionPG(session);
@@ -1218,6 +1229,8 @@ export default class FactoresService {
         selectedSource: ucp,
         fechaInicio: fecha_inicio,
         fechaFin: fecha_fin,
+        formato: Number(formato),
+        barras,
       });
 
       const rutaBD = `${folderPathLogical}/${nombrearchivo}`;
@@ -1838,6 +1851,28 @@ export default class FactoresService {
         data: null,
         message: "Error al obtener la demanda por barra.",
       };
+    }
+  }
+
+  async consultarFpMinimo(mc, session) {
+    try {
+      const client = createConectionPG(session);
+      const data = await model.consultarFpMinimo(mc, client);
+      return { success: true, data, message: "FP mínimo obtenido correctamente." };
+    } catch (err) {
+      Logger.error(colors.red("Error FactoresService consultarFpMinimo"), err);
+      return { success: false, data: null, message: "Error al obtener el FP mínimo." };
+    }
+  }
+
+  async guardarFpMinimo(mc, general, barras, session) {
+    try {
+      const client = createConectionPG(session);
+      const data = await model.guardarFpMinimo(mc, general, barras, client);
+      return { success: true, data, message: "FP mínimo guardado correctamente." };
+    } catch (err) {
+      Logger.error(colors.red("Error FactoresService guardarFpMinimo"), err);
+      return { success: false, data: null, message: "Error al guardar el FP mínimo." };
     }
   }
 }

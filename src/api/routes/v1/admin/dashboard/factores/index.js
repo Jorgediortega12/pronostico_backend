@@ -80,7 +80,9 @@ export default function () {
 
   router.post(
     "/cargarDesdeExcel",
-    uploadExcel.single("archivo"),
+    // Hasta 31 archivos: el Formato 3 (CSV por día) necesita subir juntos los
+    // días consecutivos para completar el P24 de cada día.
+    uploadExcel.array("archivo", 31),
     controllers.cargarMedidasDesdeExcel,
   );
 
@@ -232,6 +234,17 @@ export default function () {
     "/consultarDemandaPorBarra_xMCyFecha",
     validator(schema.consultarDemandaPorBarra_xMCyFecha, "query"),
     controllers.consultarDemandaPorBarra_xMCyFecha,
+  );
+
+  router.get(
+    "/fpMinimo/:mc",
+    validator(schema.consultarFpMinimo, ValidationSource.PARAM),
+    controllers.consultarFpMinimo,
+  );
+  router.put(
+    "/fpMinimo",
+    validator(schema.guardarFpMinimo),
+    controllers.guardarFpMinimo,
   );
 
   return router;

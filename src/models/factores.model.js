@@ -267,6 +267,43 @@ export default class FactoresModel {
     }
   };
 
+  // Formato 3 (CSV SCADA 2 / PI): guarda con COALESCE por periodo para no pisar
+  // un valor real con NULL.
+  //  - completas: INSERT ... ON CONFLICT DO UPDATE.
+  //  - borde: solo UPDATE si la fila ya existe (no crea filas con periodos en NULL).
+  guardarMedidasPI = async ({ completas, borde }, client) => {
+    const cols = Array.from({ length: 24 }, (_, i) => `p${i + 1}`);
+    const sqlCompleta = `
+      INSERT INTO medidas (flujo, fecha, codigo_rpm, ${cols.join(", ")}, marcado)
+      VALUES ($1, $2, $3, ${cols.map((_, i) => `$${i + 4}`).join(", ")}, 0)
+      ON CONFLICT (codigo_rpm, fecha, flujo) DO UPDATE SET
+        ${cols.map((c) => `${c} = COALESCE(EXCLUDED.${c}, medidas.${c})`).join(", ")}`;
+    const sqlBorde = `
+      UPDATE medidas SET ${cols.map((c, i) => `${c} = COALESCE($${i + 4}, ${c})`).join(", ")}
+      WHERE flujo = $1 AND fecha = $2 AND codigo_rpm = $3`;
+
+    const valores = (m) => [m.flujo, m.fecha, m.codigo_rpm, ...cols.map((_, i) => m.p[i + 1])];
+
+    try {
+      await client.connect();
+      await client.query("BEGIN");
+      let bordeActualizadas = 0;
+      for (const m of completas) await client.query(sqlCompleta, valores(m));
+      for (const m of borde) {
+        const r = await client.query(sqlBorde, valores(m));
+        if (r.rowCount > 0) bordeActualizadas++;
+      }
+      await client.query("COMMIT");
+      return { bordeActualizadas };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      Logger.error(colors.red("Error MedidasModel guardarMedidasPI"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
   insertarMedidasRapido = async (medidas, client) => {
     try {
       await client.connect();
@@ -881,6 +918,62 @@ export default class FactoresModel {
         colors.red("Error FactoresModel consultarDemandaPorBarra_xMCyFecha"),
         error,
       );
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  // ── FP mínimo (general por mercado y por barra) ──
+  #leerFpMinimo = async (mc, client) => {
+    const { rows } = await client.query(querys.consultarFpMinimo, [mc]);
+    let general = null;
+    const barras = {};
+    for (const r of rows) {
+      const v = Number(r.minimo);
+      if (r.barra === "") general = v;
+      else barras[r.barra] = v;
+    }
+    return { general, barras };
+  };
+
+  consultarFpMinimo = async (mc, client) => {
+    try {
+      await client.connect();
+      await client.query(querys.asegurarTablaFpMinimo);
+      return await this.#leerFpMinimo(mc, client);
+    } catch (error) {
+      Logger.error(colors.red("Error FactoresModel consultarFpMinimo"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
+  // general: número, null (quitarlo) o undefined (no tocarlo).
+  // barras: { BARRA: número | null }; null quita el mínimo propio de esa barra.
+  guardarFpMinimo = async (mc, general, barras, client) => {
+    try {
+      await client.connect();
+      await client.query(querys.asegurarTablaFpMinimo);
+      await client.query("BEGIN");
+      const fijar = async (barra, valor) => {
+        if (valor === null) await client.query(querys.eliminarFpMinimo, [mc, barra]);
+        else await client.query(querys.upsertFpMinimo, [mc, barra, valor]);
+      };
+      try {
+        if (general !== undefined) await fijar("", general);
+        for (const [barra, valor] of Object.entries(barras ?? {})) {
+          await fijar(barra, valor);
+        }
+        await client.query("COMMIT");
+      } catch (e) {
+        await client.query("ROLLBACK");
+        throw e;
+      }
+      return await this.#leerFpMinimo(mc, client);
+    } catch (error) {
+      Logger.error(colors.red("Error FactoresModel guardarFpMinimo"), error);
       throw error;
     } finally {
       await client.end();

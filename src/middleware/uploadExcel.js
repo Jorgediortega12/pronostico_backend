@@ -21,10 +21,11 @@ const storage = multer.diskStorage({
 
 const fileFilter = (req, file, cb) => {
   const ext = path.extname(file.originalname).toLowerCase();
-  if (ext === ".xls" || ext === ".xlsx") {
+  // .csv solo lo usa el Formato 3 de medidas (CSV horizontal SCADA 2 / PI, ver helpers/parsearMedidasPI.js)
+  if (ext === ".xls" || ext === ".xlsx" || ext === ".csv") {
     cb(null, true);
   } else {
-    cb(new Error("Extensión no válida"), false);
+    cb(new Error("Extensión no válida. Solo se permiten archivos .xls, .xlsx o .csv"), false);
   }
 };
 

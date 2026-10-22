@@ -62,9 +62,22 @@ export const puntosActivos = `
 // "Key API Pronóstico") — se reutiliza en vez de pedir una nueva.
 export const buscarKeyOpenWeather = `SELECT aux FROM ucp WHERE codigo = 12`;
 
+// Campos extra del /weather de OpenWeatherMap que usa la UI "Clima 360°"
+// (presión, ráfaga, dirección del viento y lluvia de la última hora).
+// Idempotente — se llama antes de la ingesta y al leer desde clima360.
+export const agregarColumnasClimaActual = `
+  ALTER TABLE clima_mapa_actual
+    ADD COLUMN IF NOT EXISTS presion NUMERIC,
+    ADD COLUMN IF NOT EXISTS rafaga NUMERIC,
+    ADD COLUMN IF NOT EXISTS viento_dir INT,
+    ADD COLUMN IF NOT EXISTS lluvia_1h NUMERIC;
+`;
+
 export const upsertActual = `
-  INSERT INTO clima_mapa_actual (id_punto, fecha, stemp, sensacion, vel_viento, icon, icon_des, humedad)
-  VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+  INSERT INTO clima_mapa_actual
+    (id_punto, fecha, stemp, sensacion, vel_viento, icon, icon_des, humedad,
+     presion, rafaga, viento_dir, lluvia_1h)
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
   ON CONFLICT (id_punto) DO UPDATE SET
     fecha = EXCLUDED.fecha,
     stemp = EXCLUDED.stemp,
@@ -73,6 +86,10 @@ export const upsertActual = `
     icon = EXCLUDED.icon,
     icon_des = EXCLUDED.icon_des,
     humedad = EXCLUDED.humedad,
+    presion = EXCLUDED.presion,
+    rafaga = EXCLUDED.rafaga,
+    viento_dir = EXCLUDED.viento_dir,
+    lluvia_1h = EXCLUDED.lluvia_1h,
     actualizado_en = NOW()
 `;
 
