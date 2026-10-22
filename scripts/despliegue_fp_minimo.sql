@@ -36,3 +36,9 @@ ALTER TABLE factores_fp_metodo ADD COLUMN IF NOT EXISTS ajustar_curvas BOOLEAN N
 -- Opcional: activarlo para Antioquia.
 -- INSERT INTO factores_fp_metodo (mc, ajustar_curvas) VALUES ('Antioquia', true)
 -- ON CONFLICT (mc) DO UPDATE SET ajustar_curvas = EXCLUDED.ajustar_curvas, actualizado_en = NOW();
+
+-- Escalera de pasos para acercar el FP al mínimo (cada paso se activa por separado, en este orden):
+--   factores -> curvas -> vecinos -> otroDia -> vecinosFinal (ninguno fuerza el valor al mínimo). Guardado como JSON:
+--   {"factores": true, "curvas": true, "vecinos": true, "otroDia": true, "vecinosFinal": true}
+-- Si es NULL se usa lo anterior (método y casilla de ajuste de curvas).
+ALTER TABLE factores_fp_metodo ADD COLUMN IF NOT EXISTS pasos JSONB;

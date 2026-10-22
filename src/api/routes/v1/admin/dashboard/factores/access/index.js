@@ -1207,10 +1207,10 @@ export const consultarFpMinimo = async (req, res) => {
 };
 
 export const guardarFpMinimo = async (req, res) => {
-  const { mc, general, barras, metodo, ajustarCurvas } = req.body;
+  const { mc, general, barras, metodo, ajustarCurvas, pasos } = req.body;
   const { session } = req.user;
   try {
-    const result = await service.guardarFpMinimo(mc, general, barras, session, metodo, ajustarCurvas);
+    const result = await service.guardarFpMinimo(mc, general, barras, session, metodo, ajustarCurvas, pasos);
     if (!result.success) return responseError(200, result.message, 500, res);
     return SuccessResponse(res, result.data, result.message);
   } catch (err) {

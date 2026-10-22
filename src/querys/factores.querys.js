@@ -550,17 +550,31 @@ CREATE TABLE IF NOT EXISTS factores_fp_metodo (
   mc VARCHAR(100) PRIMARY KEY,
   metodo VARCHAR(20) NOT NULL DEFAULT 'piso',
   ajustar_curvas BOOLEAN NOT NULL DEFAULT FALSE,
+  pasos JSONB,
   actualizado_en TIMESTAMP NOT NULL DEFAULT NOW()
 )
 `;
 
-// Tablas creadas antes del ajuste automático de curvas: se agrega la columna (una sola vez por proceso).
+// Tablas creadas antes del ajuste automático de curvas y de la escalera de pasos: se agregan las columnas
+// (una sola vez por proceso).
 export const asegurarColumnaAjusteCurvas = `
-ALTER TABLE factores_fp_metodo ADD COLUMN IF NOT EXISTS ajustar_curvas BOOLEAN NOT NULL DEFAULT FALSE
+ALTER TABLE factores_fp_metodo
+  ADD COLUMN IF NOT EXISTS ajustar_curvas BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS pasos JSONB
 `;
 
 export const consultarFpMetodo = `
-SELECT metodo, ajustar_curvas FROM factores_fp_metodo WHERE mc = $1
+SELECT metodo, ajustar_curvas, pasos FROM factores_fp_metodo WHERE mc = $1
+`;
+
+// Escalera de pasos para acercar el FP al mínimo, en este orden (cada uno se activa por separado):
+//   factores (sugerir factores en barras que comparten generador) -> curvas (ajustar curvas típicas) ->
+//   vecinos (promedio de periodos vecinos) -> otroDia (promedio de periodos sanos de otros tipos de día) ->
+//   vecinosFinal (vecinos otra vez con los periodos ya corregidos). Ningún paso fuerza el valor.
+export const upsertFpPasos = `
+INSERT INTO factores_fp_metodo (mc, pasos, actualizado_en)
+VALUES ($1, $2::jsonb, NOW())
+ON CONFLICT (mc) DO UPDATE SET pasos = EXCLUDED.pasos, actualizado_en = NOW()
 `;
 
 // Ajuste automático de curvas típicas para acercar el FP al mínimo (solo con el método 'piso').

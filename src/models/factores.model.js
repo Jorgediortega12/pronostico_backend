@@ -943,6 +943,7 @@ export default class FactoresModel {
     const { rows: m } = await client.query(querys.consultarFpMetodo, [mc]);
     const metodo = m[0]?.metodo ?? "piso";
     const ajustarCurvas = m[0]?.ajustar_curvas ?? false;
+    const pasos = m[0]?.pasos ?? null;
     let general = null;
     const barras = {};
     for (const r of rows) {
@@ -950,7 +951,7 @@ export default class FactoresModel {
       if (r.barra === "") general = v;
       else barras[r.barra] = v;
     }
-    return { general, barras, metodo, ajustarCurvas };
+    return { general, barras, metodo, ajustarCurvas, pasos };
   };
 
   consultarFpMinimo = async (mc, client) => {
@@ -970,8 +971,8 @@ export default class FactoresModel {
   // general: número, null (quitarlo) o undefined (no tocarlo).
   // barras: { BARRA: número | null }; null quita el mínimo propio de esa barra.
   // metodo: 'piso' | 'vecinos' | 'copiar' (undefined = no tocarlo).
-  // ajustarCurvas: boolean (undefined = no tocarlo).
-  guardarFpMinimo = async (mc, general, barras, client, metodo, ajustarCurvas) => {
+  // ajustarCurvas: boolean y pasos: objeto { factores, curvas, vecinos, otroDia, piso } (undefined = no tocarlo).
+  guardarFpMinimo = async (mc, general, barras, client, metodo, ajustarCurvas, pasos) => {
     try {
       await client.connect();
       await client.query(querys.asegurarTablaFpMinimo);
@@ -985,6 +986,7 @@ export default class FactoresModel {
         if (general !== undefined) await fijar("", general);
         if (metodo !== undefined) await client.query(querys.upsertFpMetodo, [mc, metodo]);
         if (ajustarCurvas !== undefined) await client.query(querys.upsertFpAjusteCurvas, [mc, ajustarCurvas]);
+        if (pasos !== undefined) await client.query(querys.upsertFpPasos, [mc, JSON.stringify(pasos)]);
         for (const [barra, valor] of Object.entries(barras ?? {})) {
           await fijar(barra, valor);
         }

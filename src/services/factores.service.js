@@ -1865,10 +1865,10 @@ export default class FactoresService {
     }
   }
 
-  async guardarFpMinimo(mc, general, barras, session, metodo, ajustarCurvas) {
+  async guardarFpMinimo(mc, general, barras, session, metodo, ajustarCurvas, pasos) {
     try {
       const client = createConectionPG(session);
-      const data = await model.guardarFpMinimo(mc, general, barras, client, metodo, ajustarCurvas);
+      const data = await model.guardarFpMinimo(mc, general, barras, client, metodo, ajustarCurvas, pasos);
       return { success: true, data, message: "FP mínimo guardado correctamente." };
     } catch (err) {
       Logger.error(colors.red("Error FactoresService guardarFpMinimo"), err);
