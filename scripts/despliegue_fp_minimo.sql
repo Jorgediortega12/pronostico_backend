@@ -16,8 +16,8 @@ CREATE TABLE IF NOT EXISTS factores_fp_minimo (
 
 -- Método de corrección de los periodos de FP que quedan bajo el mínimo (feat/factores-fp-correccion). Uno por mercado.
 --   piso    -> se sube al mínimo (por defecto, comportamiento original)
---   vecinos -> promedio de los 2 periodos sanos más cercanos del mismo día
---   copiar  -> se copia de otro tipo de día de la misma barra donde el periodo está sano (si no hay, vecinos)
+--   vecinos -> promedio de los 2 periodos conformes más cercanos del mismo día
+--   copiar  -> se copia de otro tipo de día de la misma barra donde el periodo está conforme (si no hay, vecinos)
 -- Si el mercado no tiene fila se usa 'piso'. También se puede elegir desde el botón "FP mínimo" de Factores.
 CREATE TABLE IF NOT EXISTS factores_fp_metodo (
   mc VARCHAR(100) PRIMARY KEY,

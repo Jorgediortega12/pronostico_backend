@@ -542,8 +542,8 @@ DELETE FROM factores_fp_minimo WHERE mc = $1 AND barra = $2
 
 // Cómo se corrigen los periodos de FP que quedan por debajo del mínimo (uno por mercado):
 //   piso    -> se sube al mínimo (comportamiento original)
-//   vecinos -> promedio de los 2 periodos sanos más cercanos del mismo día
-//   copiar  -> se copia de otro tipo de día de la misma barra donde ese periodo sí está sano
+//   vecinos -> promedio de los 2 periodos conformes más cercanos del mismo día
+//   copiar  -> se copia de otro tipo de día de la misma barra donde ese periodo sí está conforme
 //              (si no hay, vecinos)
 export const asegurarTablaFpMetodo = `
 CREATE TABLE IF NOT EXISTS factores_fp_metodo (
@@ -569,7 +569,7 @@ SELECT metodo, ajustar_curvas, pasos FROM factores_fp_metodo WHERE mc = $1
 
 // Escalera de pasos para acercar el FP al mínimo, en este orden (cada uno se activa por separado):
 //   factores (sugerir factores en barras que comparten generador) -> curvas (ajustar curvas típicas) ->
-//   vecinos (promedio de periodos vecinos) -> otroDia (promedio de periodos sanos de otros tipos de día) ->
+//   vecinos (promedio de periodos vecinos) -> otroDia (promedio de periodos conformes de otros tipos de día) ->
 //   vecinosFinal (vecinos otra vez con los periodos ya corregidos). Ningún paso fuerza el valor.
 export const upsertFpPasos = `
 INSERT INTO factores_fp_metodo (mc, pasos, actualizado_en)
