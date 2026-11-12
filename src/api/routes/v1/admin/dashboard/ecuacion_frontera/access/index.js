@@ -71,13 +71,14 @@ export const guardarEcuacion = async (req, res) => {
 export const guardarRespaldo = async (req, res) => {
   try {
     const { session } = req.user;
-    const { ucp, fechaInicio, fechaFin } = req.body;
+    const { ucp, fechaInicio, fechaFin, ajusteError, ajusteDias } = req.body;
 
     const result = await ecuacionFronteraService.guardarSoloRespaldo(
       ucp,
       session,
       fechaInicio,
       fechaFin,
+      { ajusteError, ajusteDias },
     );
 
     if (!result.success) return responseError(200, result.message, 400, res);
@@ -91,11 +92,12 @@ export const guardarRespaldo = async (req, res) => {
 export const calcularRespaldo = async (req, res) => {
   try {
     const { session } = req.user;
-    const { ucp, fechaInicio } = req.query;
+    const { ucp, fechaInicio, ajusteError, ajusteDias } = req.query;
     const result = await ecuacionFronteraService.calcularRespaldoSinGuardar(
       ucp,
       fechaInicio,
       session,
+      { ajusteError, ajusteDias },
     );
     if (!result.success) return responseError(200, result.message, 400, res);
     return SuccessResponse(res, result, "Cálculo completado.");
