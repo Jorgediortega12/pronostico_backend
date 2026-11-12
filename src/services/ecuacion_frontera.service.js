@@ -15,7 +15,7 @@ import Logger from "../helpers/logger.js";
 import colors from "colors";
 import { createConectionPG } from "../helpers/connections.js";
 import PronosticosService from "./pronosticos.service.js";
-import { guardarRespaldoFrontera } from "../helpers/respaldoFronteraData.js";
+import { crearTablaRespaldoFrontera, guardarRespaldoFrontera } from "../helpers/respaldoFronteraData.js";
 import {
   VENTANA_HISTORIA_DIAS,
   aplicarErrorPct,
@@ -612,6 +612,17 @@ export const calcularRespaldoSinGuardar = async (
         )
       : new Map();
 
+    // Respaldo ya GUARDADO (respaldo_frontera, en MWh, con el ajuste por error si se guardó con él): Pronósticos
+    // dibuja su línea de Respaldo con esto para que muestre exactamente lo confirmado con "Actualizar Respaldo".
+    await crearTablaRespaldoFrontera(client);
+    const guardadosRes = await client.query(
+      `SELECT fecha, ${cols.join(", ")} FROM respaldo_frontera WHERE ucp = $1 AND fecha >= $2`,
+      [ucpNombre, fechaInicio],
+    );
+    const guardadoPorFecha = new Map(
+      guardadosRes.rows.map((r) => [r.fecha.toISOString().slice(0, 10), cols.map((c) => Number(r[c]))]),
+    );
+
     const dias = [];
     let diasReales = 0;
     let diasRespaldo = 0;
@@ -639,6 +650,13 @@ export const calcularRespaldoSinGuardar = async (
         Number(row.filas) < totalCircuitos * UMBRAL_COBERTURA_MINIMA;
 
       const infoAjuste = ajustePorFecha.get(fechaISO);
+      const guardado = guardadoPorFecha.get(fechaISO);
+      // Con el ajuste activo, el respaldo que se ofrece para rellenar (`periodos` de los días sin dato real) ya
+      // sale ajustado; `periodosCalculados` queda sin ajustar y el % viaja aparte para la línea de comparación.
+      const periodosRespaldo =
+        infoAjuste && !infoAjuste.sinReferencia
+          ? aplicarErrorPct(periodosCalculados, infoAjuste.errorPct)
+          : periodosCalculados;
       const extraAjuste = infoAjuste
         ? {
             ajusteErrorPct: infoAjuste.errorPct,
@@ -648,6 +666,7 @@ export const calcularRespaldoSinGuardar = async (
             ajusteSinReferencia: infoAjuste.sinReferencia,
           }
         : {};
+      if (guardado) extraAjuste.periodosGuardados = guardado;
 
       if (existente.rowCount > 0) {
         // Ya había fila en actualizaciondatos — el respaldo ya no se guarda
@@ -666,7 +685,7 @@ export const calcularRespaldoSinGuardar = async (
         diasRespaldo++;
         dias.push({
           fecha: fechaISO,
-          periodos: periodosCalculados,
+          periodos: periodosRespaldo,
           esRespaldo: true,
           periodosCalculados,
           coberturaBaja,
