@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import menuController from "./access/index.js";
+import * as areas from "./access/areas.js";
 import {
   asignarModuloSchema,
   editarPerfilSchema,
@@ -43,6 +44,17 @@ export default function () {
   router.put("/modulos/:cod/orden", menuController.actualizarOrdenModulo);
   //eliminar modulo
   router.delete("/modulos/:cod", menuController.eliminarModulo);
+
+  // ── Áreas del menú y accesos frecuentes (agrupación de módulos) ──
+  const { validar, areaSchema, areaUpdateSchema, moduloAreaSchema, frecuentesSchema, copiarSchema } = areas.validaciones;
+  router.get("/estructura/:codperfil", areas.estructura);
+  router.get("/areas/configuracion/:codperfil", areas.configuracion);
+  router.post("/areas/copiar", validar(copiarSchema), areas.copiarConfiguracion);
+  router.post("/areas", validar(areaSchema), areas.crearArea);
+  router.put("/areas/:cod", validar(areaUpdateSchema), areas.actualizarArea);
+  router.delete("/areas/:cod", areas.eliminarArea);
+  router.put("/modulos/:cod/area", validar(moduloAreaSchema), areas.asignarModuloAArea);
+  router.put("/frecuentes", validar(frecuentesSchema), areas.guardarFrecuentes);
 
   return router;
 }

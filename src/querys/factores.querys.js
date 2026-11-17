@@ -514,3 +514,28 @@ WHERE b.mc = $1
 GROUP BY b.barra
 ORDER BY b.barra ASC
 `;
+
+// FP mínimo por mercado: una fila por (mc, barra); barra = '' es el mínimo general del mercado.
+export const asegurarTablaFpMinimo = `
+CREATE TABLE IF NOT EXISTS factores_fp_minimo (
+  mc VARCHAR(100) NOT NULL,
+  barra VARCHAR(100) NOT NULL DEFAULT '',
+  minimo NUMERIC(6,5) NOT NULL,
+  actualizado_en TIMESTAMP NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (mc, barra)
+)
+`;
+
+export const consultarFpMinimo = `
+SELECT barra, minimo FROM factores_fp_minimo WHERE mc = $1
+`;
+
+export const upsertFpMinimo = `
+INSERT INTO factores_fp_minimo (mc, barra, minimo, actualizado_en)
+VALUES ($1, $2, $3, NOW())
+ON CONFLICT (mc, barra) DO UPDATE SET minimo = EXCLUDED.minimo, actualizado_en = NOW()
+`;
+
+export const eliminarFpMinimo = `
+DELETE FROM factores_fp_minimo WHERE mc = $1 AND barra = $2
+`;

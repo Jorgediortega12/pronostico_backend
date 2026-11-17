@@ -28,7 +28,7 @@ const round = (n, dec = 2) => Math.round(n * 10 ** dec) / 10 ** dec;
 // 'modelo' cuenta desviaciones críticas del pronóstico; ni la propia
 // recomendación ni 'medida' (un problema del dato fuente, no del modelo)
 // deben contar como una desviación más.
-const CATEGORIAS_FUERA_DE_MODELO = new Set(["modelo", "medida"]);
+const CATEGORIAS_FUERA_DE_MODELO = new Set(["modelo", "medida", "historico"]);
 
 // Alertas de 'medida': tolerancias del detector (el umbral y la ventana sí
 // son configurables desde Configuración de alertas; estos no).
@@ -128,7 +128,7 @@ export default class AlertasService {
   };
 
   updateConfig = async (session, categoria, cfg) => {
-    if (!["mape", "demanda", "periodo", "evento", "clima", "modelo", "medida"].includes(categoria)) {
+    if (!["mape", "demanda", "periodo", "evento", "clima", "modelo", "medida", "historico"].includes(categoria)) {
       throw new ServiceError(`Categoría de alerta no soportada: ${categoria}`, 400);
     }
     const actualizado = await this.#model.updateConfig(session, categoria, cfg);
@@ -156,6 +156,7 @@ export default class AlertasService {
       clima: base.filter((a) => a.categoria === "clima").length,
       modelo: base.filter((a) => a.categoria === "modelo").length,
       medida: base.filter((a) => a.categoria === "medida").length,
+      historico: base.filter((a) => a.categoria === "historico").length,
     };
 
     const mapeUltimos7 = base.filter((a) => {
@@ -295,6 +296,24 @@ export default class AlertasService {
       causa = det.cambio_signo
         ? `La medida ${det.codigo_rpm} (${det.flujo}) de la barra ${det.barra} venía con un signo estable (promedio ${det.media_historia} en los ${det.dias_historia} días previos) y en esta fecha una parte importante de sus periodos aparece con el signo opuesto (promedio ${det.media_hoy}). Suele indicar un cambio en la medición (polaridad, topología o reasignación del medidor) y afecta las curvas, FDA/FDP y el factor de potencia de la barra — revisa la medida en Medidas factores.`
         : `El promedio diario de la medida ${det.codigo_rpm} (${det.flujo}) de la barra ${det.barra} (${det.media_hoy}) se alejó ${Number(alerta.metrica_valor) >= 0 ? "+" : ""}${Number(alerta.metrica_valor).toFixed(1)}% de su promedio de los ${det.dias_historia} días previos (${det.media_historia}), por encima del umbral configurado (±${Number(alerta.umbral).toFixed(0)}%) — revisa que no sea un dato atípico o un cambio en la configuración de la barra.`;
+    } else if (alerta.categoria === "historico") {
+      const det = alerta.detalle || {};
+      const refPico = det.ref_pico;
+      if (refPico) {
+        const sumarDias = (f, n) => toFechaStr(new Date(new Date(`${f}T00:00:00Z`).getTime() + n * 86400000));
+        const filas = await this.#model.getRealYPronosticoRango(session, alerta.ucp, sumarDias(refPico, -7), sumarDias(refPico, 7));
+        serieHoraria = filas
+          .map((fila) => ({ fecha: toFechaStr(fila.fecha), mape: this.#mapeDeFila(fila) }))
+          .filter((x) => x.mape != null)
+          .map((x) => ({
+            hora: `${x.fecha.slice(8, 10)}/${x.fecha.slice(5, 7)}${x.fecha === refPico ? " ★" : ""}`,
+            real: null,
+            pronostico: null,
+            error_pct: round(x.mape),
+          }));
+      }
+      const fechas = (det.fechas || []).map((f) => `${f.fecha} ← ${f.festivo ? `"${f.festivo}" ` : ""}${f.ref} (${f.mape}%)`).join("; ");
+      causa = `En el año anterior, las fechas equivalentes a las próximas superaron el umbral de MAPE configurado (${Number(alerta.umbral).toFixed(1)}%): ${fechas}. El gráfico muestra el MAPE diario de los días alrededor de la fecha de referencia (★). Conviene revisar que el pronóstico de estas fechas incorpore lo que pasó entonces (eventos, clima, cortes, datos atípicos).`;
     } else if (alerta.categoria === "modelo") {
       causa = `Se acumularon ${Number(alerta.metrica_valor)} desviaciones críticas en los últimos días para ${alerta.ucp}, por encima del máximo configurado (${Number(alerta.umbral)}) — un patrón sostenido, no un evento puntual, sugiere que el modelo perdió ajuste con el comportamiento reciente del mercado.`;
     }
@@ -359,7 +378,8 @@ export default class AlertasService {
   // tenant identificado por `session`, usando el último día con dato real
   // disponible en cada mercado. Se puede invocar manualmente (endpoint
   // /alertas/evaluar-ahora) o desde el cron multi-tenant (alertas_cron.service.js).
-  evaluarTenant = async (session) => {
+  // `hoy` (YYYY-MM-DD) solo se pasa en pruebas para simular otra fecha.
+  evaluarTenant = async (session, { hoy = toFechaStr(new Date()) } = {}) => {
     await this.#model.ensureTables(session);
     const config = await this.#model.getConfig(session);
     const cfgMape = config.find((c) => c.categoria === "mape");
@@ -369,6 +389,7 @@ export default class AlertasService {
     const cfgClima = config.find((c) => c.categoria === "clima");
     const cfgModelo = config.find((c) => c.categoria === "modelo");
     const cfgMedida = config.find((c) => c.categoria === "medida");
+    const cfgHistorico = config.find((c) => c.categoria === "historico");
 
     const ucps = await this.#model.listarUcpActivos(session);
     let creadas = 0;
@@ -379,7 +400,12 @@ export default class AlertasService {
         // dato real cargado — se evalúa aparte, antes del "continue" de
         // abajo, para que corra siempre.
         if (cfgEvento?.activo) {
-          creadas += await this.#evaluarEvento(session, ucp, cfgEvento);
+          creadas += await this.#evaluarEvento(session, ucp, cfgEvento, hoy);
+        }
+        // 'historico' también es por calendario (próximos N días vs. el año
+        // anterior), no depende del último dato real.
+        if (cfgHistorico?.activo) {
+          creadas += await this.#evaluarHistorico(session, ucp, cfgHistorico, hoy);
         }
 
         // 'medida' tampoco depende de actualizaciondatos: mira la tabla
@@ -775,25 +801,35 @@ export default class AlertasService {
   //      configuración, no una desviación del modelo). Nunca marca como
   //      "falta" un festivo local que no sea nacional — solo compara en un
   //      sentido (nacional -> ¿configurado?).
-  #evaluarEvento = async (session, ucp, cfgEvento) => {
+  #evaluarEvento = async (session, ucp, cfgEvento, hoy = toFechaStr(new Date())) => {
     const anticipacionDias = cfgEvento.ventana_dias || 3;
-    const hoy = toFechaStr(new Date());
-    const limite = toFechaStr(new Date(Date.now() + anticipacionDias * 86400000));
+    const baseMs = new Date(`${hoy}T00:00:00Z`).getTime();
+    const limite = toFechaStr(new Date(baseMs + anticipacionDias * 86400000));
     // El chequeo de "festivo nacional faltante" mira más adelante que el
     // recordatorio de "próximo" (que sí usa la anticipación configurada) —
     // si no, apenas cambie de año esto volcaría de una las 18 fechas del
     // año siguiente completo. 90 días da margen real para configurarlo sin
     // saturar el panel con algo que todavía no es urgente.
     const FALTANTE_LOOKAHEAD_DIAS = 90;
-    const limiteFaltante = toFechaStr(new Date(Date.now() + FALTANTE_LOOKAHEAD_DIAS * 86400000));
+    const limiteFaltante = toFechaStr(new Date(baseMs + FALTANTE_LOOKAHEAD_DIAS * 86400000));
 
-    const anio = new Date().getUTCFullYear();
+    const anio = Number(hoy.slice(0, 4));
     const festivosConfigurados = await this.#model.getFestivosPorUcpDesde(session, ucp, hoy);
+    const cfgMapeRef = (await this.#model.getConfig(session)).find((c) => c.categoria === "mape");
     let creadas = 0;
 
     for (const f of festivosConfigurados) {
       if (f.fecha > limite) continue;
-      const descripcion = `Festivo próximo: "${f.nombre}" el ${f.fecha} — revisa que el pronóstico de ese día lo esté tratando como festivo/atípico.`;
+      // Antecedente: cómo le fue al pronóstico en este mismo festivo el año pasado.
+      let antecedente = "";
+      try {
+        const ref = await this.#fechaAnioAnterior(session, ucp, f.fecha, f.nombre);
+        const info = await this.#mapeReferencia(session, ucp, ref, Number(cfgMapeRef?.umbral ?? 2.5));
+        if (info) antecedente = ` El año pasado (${ref}) el MAPE de este festivo fue ${round(info.mape)}%.`;
+      } catch (err) {
+        Logger.warn(`[ALERTAS] No se pudo calcular el antecedente del festivo ${f.nombre}: ${err.message}`);
+      }
+      const descripcion = `Festivo próximo: "${f.nombre}" el ${f.fecha} — revisa que el pronóstico de ese día lo esté tratando como festivo/atípico.${antecedente}`;
       const alerta = await this.#model.insertAlerta(session, {
         ucp,
         categoria: "evento",
@@ -836,6 +872,142 @@ export default class AlertasService {
       creadas++;
     }
 
+    return creadas;
+  };
+
+  // ─── Antecedentes (año anterior) ───────────────────────────────────────────
+  // MAPE diario de una fecha (o de una fila real/pronóstico ya leída).
+  #mapeDeFila = (fila) => {
+    const errores = [];
+    for (let h = 1; h <= 24; h++) {
+      const real = fila[`r${h}`] != null ? Number(fila[`r${h}`]) : null;
+      const pronostico = fila[`f${h}`] != null ? Number(fila[`f${h}`]) : null;
+      if (!real || pronostico == null) continue;
+      errores.push((Math.abs(real - pronostico) / Math.abs(real)) * 100);
+    }
+    return errores.length ? errores.reduce((a, b) => a + b, 0) / errores.length : null;
+  };
+
+  // Fecha equivalente del año anterior: para un festivo, el mismo festivo
+  // (por nombre — la Ley Emiliani lo mueve de fecha cada año); para una
+  // fecha normal, el mismo día del calendario.
+  #fechaAnioAnterior = async (session, ucp, fechaStr, nombreFestivo) => {
+    const [y, m, d] = fechaStr.split("-").map(Number);
+    if (nombreFestivo) {
+      const f = await this.#model.getFestivoPorNombreEnRango(session, ucp, nombreFestivo, `${y - 1}-01-01`, `${y - 1}-12-31`);
+      if (f) return f.fecha;
+    }
+    let ref = new Date(Date.UTC(y - 1, m - 1, d));
+    if (ref.getUTCMonth() !== m - 1) ref = new Date(Date.UTC(y - 1, m, 0)); // 29/feb -> 28/feb
+    return toFechaStr(ref);
+  };
+
+  // MAPE de una fecha de referencia y racha de días seguidos sobre el umbral
+  // que la incluye. null si ese día no tiene real + pronóstico guardados.
+  #mapeReferencia = async (session, ucp, refStr, umbral) => {
+    const sumarDias = (f, n) => toFechaStr(new Date(new Date(`${f}T00:00:00Z`).getTime() + n * 86400000));
+    const filas = await this.#model.getRealYPronosticoRango(session, ucp, sumarDias(refStr, -7), sumarDias(refStr, 7));
+    const porFecha = new Map();
+    for (const fila of filas) {
+      const mape = this.#mapeDeFila(fila);
+      if (mape != null) porFecha.set(toFechaStr(fila.fecha), mape);
+    }
+    if (!porFecha.has(refStr)) return null;
+    const sobre = (f) => porFecha.has(f) && porFecha.get(f) > umbral;
+    let racha = 0;
+    if (sobre(refStr)) {
+      racha = 1;
+      for (let i = 1; sobre(sumarDias(refStr, -i)); i++) racha++;
+      for (let i = 1; sobre(sumarDias(refStr, i)); i++) racha++;
+    }
+    return { mape: porFecha.get(refStr), racha };
+  };
+
+  // Recordatorio con antecedentes: para cada fecha de los próximos N días
+  // (cfgHistorico.ventana_dias, "anticipación") mira cómo le fue al pronóstico
+  // en la misma fecha del año anterior (mismo festivo si es festivo). Si el
+  // MAPE de esa fecha superó el umbral, avisa — crítico si fueron
+  // cfgHistorico.dias_consecutivos días seguidos o más sobre el umbral, o el
+  // MAPE llegó a 1,5× el umbral. Fechas contiguas se agrupan en una sola alerta.
+  // Solo avisa si el año anterior tiene real + pronóstico guardados.
+  #evaluarHistorico = async (session, ucp, cfgHistorico, hoy) => {
+    const anticipacion = cfgHistorico.ventana_dias || 7;
+    const minRacha = cfgHistorico.dias_consecutivos || 2;
+    const umbral = Number(cfgHistorico.umbral);
+    const sumarDias = (f, n) => toFechaStr(new Date(new Date(`${f}T00:00:00Z`).getTime() + n * 86400000));
+
+    const festivos = await this.#model.getFestivosPorUcpDesde(session, ucp, hoy);
+    const nombrePorFecha = new Map(festivos.map((f) => [f.fecha, f.nombre]));
+
+    const items = [];
+    for (let i = 1; i <= anticipacion; i++) {
+      const fecha = sumarDias(hoy, i);
+      const festivo = nombrePorFecha.get(fecha) || null;
+      const ref = await this.#fechaAnioAnterior(session, ucp, fecha, festivo);
+      const info = await this.#mapeReferencia(session, ucp, ref, umbral);
+      if (!info || info.mape <= umbral) continue;
+      items.push({ fecha, ref, festivo, mape: info.mape, racha: info.racha });
+    }
+    if (!items.length) return 0;
+
+    // Agrupar fechas consecutivas en rangos.
+    const rangos = [];
+    for (const it of items) {
+      const ultimo = rangos[rangos.length - 1];
+      if (ultimo && sumarDias(ultimo[ultimo.length - 1].fecha, 1) === it.fecha) ultimo.push(it);
+      else rangos.push([it]);
+    }
+
+    let creadas = 0;
+    for (const rango of rangos) {
+      const pico = rango.reduce((a, b) => (b.mape > a.mape ? b : a));
+      const maxRacha = Math.max(...rango.map((r) => r.racha));
+      const estado = maxRacha >= minRacha || pico.mape >= umbral * 1.5 ? "critico" : "por_revisar";
+      const festivosRango = [...new Set(rango.map((r) => r.festivo).filter(Boolean))];
+      const referencia = festivosRango.length ? festivosRango.join(", ").slice(0, 200) : null;
+
+      const cuando = rango.length === 1
+        ? rango[0].fecha
+        : `${rango[0].fecha} al ${rango[rango.length - 1].fecha}`;
+      const sujeto = pico.festivo
+        ? `El festivo "${pico.festivo}" del año pasado (${pico.ref})`
+        : `La misma fecha del año pasado (${pico.ref})`;
+      const rachaTxt = maxRacha >= 2 ? `, dentro de una racha de ${maxRacha} días seguidos sobre el umbral` : "";
+      const descripcion = `Fecha cercana con antecedentes (${cuando}): ${sujeto.charAt(0).toLowerCase() + sujeto.slice(1)} tuvo un MAPE de ${round(pico.mape)}% (umbral ${round(umbral)}%)${rachaTxt}. Revisa el pronóstico con más cuidado.`;
+
+      const alerta = await this.#model.insertAlerta(session, {
+        ucp,
+        categoria: "historico",
+        fecha: rango[0].fecha,
+        periodo_inicio: null,
+        periodo_fin: null,
+        descripcion,
+        metrica_valor: round(pico.mape),
+        metrica_label: "MAPE año anterior",
+        umbral,
+        estado,
+        referencia,
+        detalle: {
+          dias_consecutivos: minRacha,
+          ref_pico: pico.ref,
+          fechas: rango.map((r) => ({
+            fecha: r.fecha,
+            ref: r.ref,
+            festivo: r.festivo,
+            mape: round(r.mape),
+            racha: r.racha,
+          })),
+        },
+      });
+      if (!alerta) continue;
+      await this.#model.insertHistorial(
+        session,
+        alerta.codigo,
+        "generada",
+        "Alerta generada automáticamente por antecedentes del año anterior (MAPE de fechas equivalentes)",
+      );
+      creadas++;
+    }
     return creadas;
   };
 

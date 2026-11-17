@@ -245,6 +245,10 @@ export default {
     fecha_fin: Joi.string().required(),
     usuario: Joi.string().required(),
     observacion: Joi.string().allow("", null),
+    // Formato del Excel que se guarda en Descargas: 1 = reporte actual,
+    // 2 = formato EPM (wdg_Factores). `barras` = orden de barras habilitadas.
+    formato: Joi.number().valid(1, 2).default(1),
+    barras: Joi.array().items(Joi.string()).default([]),
     resultadosFdaFdp: Joi.array()
       .items(
         Joi.object({
@@ -366,5 +370,15 @@ export default {
   consultarDemandaPorBarra_xMCyFecha: Joi.object({
     mc: Joi.string().required(),
     fecha: Joi.string().isoDate().required(),
+  }),
+  consultarFpMinimo: Joi.object({
+    mc: Joi.string().required(),
+  }),
+  // general: número 0–1, null para quitarlo, o ausente para no tocarlo.
+  // barras: { NOMBRE_BARRA: número 0–1 | null } (null quita el mínimo propio de la barra).
+  guardarFpMinimo: Joi.object({
+    mc: Joi.string().required(),
+    general: Joi.number().min(0).max(1).allow(null),
+    barras: Joi.object().pattern(Joi.string().max(100), Joi.number().min(0).max(1).allow(null)),
   }),
 };

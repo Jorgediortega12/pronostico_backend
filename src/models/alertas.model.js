@@ -56,6 +56,7 @@ export default class AlertasModel {
       cfg.canal_correo ?? false,
       cfg.canal_sms ?? false,
       JSON.stringify(cfg.destinatarios ?? []),
+      cfg.dias_consecutivos ?? null,
       categoria,
     ]);
     return rows[0] || null;
@@ -102,6 +103,11 @@ export default class AlertasModel {
       fechaFin,
     ]);
     return rows;
+  };
+
+  getFestivoPorNombreEnRango = async (session, ucp, nombre, desde, hasta) => {
+    const { rows } = await this.#db(session).query(q.getFestivoPorNombreEnRango, [ucp, nombre, desde, hasta]);
+    return rows[0] || null;
   };
 
   getFestivosPorUcpDesde = async (session, ucp, fechaDesde) => {

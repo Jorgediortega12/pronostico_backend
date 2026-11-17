@@ -10,9 +10,21 @@ export async function generateXlsxFactores({
   selectedSource,
   fechaInicio,
   fechaFin,
+  formato = 1,
+  barras = [],
 }) {
   if (!fs.existsSync(folderPhysical))
     fs.mkdirSync(folderPhysical, { recursive: true });
+
+  if (Number(formato) === 2) {
+    return generateXlsxFormato2({
+      resultadosFdaFdp,
+      folderPhysical,
+      nombrearchivo,
+      selectedSource,
+      barras,
+    });
+  }
 
   const xlsxPath = path.join(folderPhysical, nombrearchivo);
   const wb = new ExcelJS.Workbook();
@@ -205,4 +217,90 @@ export async function generateXlsxFactores({
 
   await wb.xlsx.writeFile(xlsxPath);
   return { xlsxPath, xlsxName: nombrearchivo };
+}
+
+// ─── Formato 2 — EPM (wdg_Factores) ──────────────────────────────────────────
+// Una fila por (tipo de día, barra, factor): FDA y FP intercaladas por barra.
+//   FINI | FFIN | CODABREVMC | IDTIPODIA | IDVARIABLE | CONCEPTO | IDBARRA | NOMBREBARRA | P1..P24
+// IDBARRA (código EPM, ej. CrgAma11) no existe en la BD del aplicativo: sale vacío.
+// Mantener sincronizado con construirFilasFormato2 del frontend
+// (generarReporteFactores.ts).
+async function generateXlsxFormato2({
+  resultadosFdaFdp,
+  folderPhysical,
+  nombrearchivo,
+  selectedSource,
+  barras = [],
+}) {
+  const xlsxPath = path.join(folderPhysical, nombrearchivo);
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("Sheet1");
+
+  const PERIODOS = Array.from({ length: 24 }, (_, i) => `p${i + 1}`);
+  const r5 = (v) => Math.round((v ?? 0) * 100000) / 100000;
+  const ORDEN_TD = [
+    ["FESTIVO", "FEST"],
+    ["ORDINARIO", "ORD"],
+    ["SABADO", "SAB"],
+  ];
+
+  ws.addRow([
+    "FINI",
+    "FFIN",
+    "CODABREVMC",
+    "IDTIPODIA",
+    "IDVARIABLE",
+    "CONCEPTO",
+    "IDBARRA",
+    "NOMBREBARRA",
+    ...PERIODOS.map((_, i) => `P${i + 1}`),
+  ]);
+
+  // Fechas a medianoche UTC para que Excel muestre el día exacto.
+  const hoy = new Date();
+  const fini = new Date(Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()));
+  const ffin = new Date(Date.UTC(2999, 11, 31));
+
+  for (const [td, lbl] of ORDEN_TD) {
+    const fda = resultadosFdaFdp.filter((r) => r.tipo === "FDA" && r.tipoDia === td);
+    const fdp = resultadosFdaFdp.filter((r) => r.tipo === "FDP" && r.tipoDia === td);
+
+    const orden = [];
+    barras.forEach((b) => {
+      if ((fda.some((f) => f.barra === b) || fdp.some((f) => f.barra === b)) && !orden.includes(b)) orden.push(b);
+    });
+    [...fda, ...fdp].forEach((f) => {
+      if (!orden.includes(f.barra)) orden.push(f.barra);
+    });
+
+    for (const barra of orden) {
+      // Factor faltante: valor neutro de EPM para barras sin dato (FDA 0, FP 1).
+      const filaFda = fda.find((f) => f.barra === barra);
+      const filaFp = fdp.find((f) => f.barra === barra);
+      const base = [fini, ffin, `MC-${selectedSource}`, lbl];
+      ws.addRow([
+        ...base,
+        "FDA",
+        "Factor de Distribución",
+        "",
+        barra,
+        ...PERIODOS.map((p) => r5(filaFda?.periodos?.[p] ?? 0)),
+      ]);
+      ws.addRow([
+        ...base,
+        "FP",
+        "Factor de Potencia",
+        "",
+        barra,
+        ...PERIODOS.map((p) => r5(filaFp?.periodos?.[p] ?? 1)),
+      ]);
+    }
+  }
+
+  ws.getColumn(1).numFmt = "mm-dd-yy";
+  ws.getColumn(2).numFmt = "mm-dd-yy";
+  [12, 12, 14, 10, 11, 22, 12, 14].forEach((w, i) => (ws.getColumn(i + 1).width = w));
+  for (let c = 9; c <= 32; c++) ws.getColumn(c).width = 9;
+
+  await wb.xlsx.writeFile(xlsxPath);
 }

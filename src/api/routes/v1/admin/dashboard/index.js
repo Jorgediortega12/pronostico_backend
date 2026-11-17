@@ -17,6 +17,7 @@ import convocatoriaRoutes from "./convocatoria/index.js";
 import valoracionRoutes from "./valoracion/index.js";
 import auditoriaRoutes from "./auditoria/index.js";
 import climaMapaRoutes from "./clima_mapa/index.js";
+import clima360Routes from "./clima360/index.js";
 import medidasFactoresRoutes from "./medidas_factores/index.js";
 import dnaIdoConfigRoutes from "./dna_ido_config/index.js";
 import noticiasIdeamRoutes from "./noticias_ideam/index.js";
@@ -48,6 +49,7 @@ export default function () {
   router.use("/valoracion", valoracionRoutes());
   router.use("/auditoria", auditoriaRoutes());
   router.use("/clima_mapa", climaMapaRoutes());
+  router.use("/clima360", clima360Routes());
   router.use("/medidas_factores", medidasFactoresRoutes());
   router.use("/dna_ido_config", dnaIdoConfigRoutes());
   router.use("/noticias_ideam", noticiasIdeamRoutes());

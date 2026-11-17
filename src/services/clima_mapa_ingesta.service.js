@@ -93,13 +93,10 @@ function bloqueDelMediodia(bloques) {
   }, bloques[0]);
 }
 
-// client = conexión ya abierta (createConectionPG(session).connect()) a la
-// BD de la empresa dueña del punto — ingerirPunto sólo lee/escribe ahí.
-async function ingerirPunto(punto, client, key) {
-  const { id, lat, lng } = punto;
-
-  const actual = await traerClimaActual(lat, lng, key);
-  await client.query(querys.upsertActual, [
+// Traducciones puras (sin red ni BD) de las respuestas de OpenWeatherMap a lo
+// que se guarda — exportadas para poder probarlas con una respuesta de ejemplo.
+export function valoresClimaActual(id, actual) {
+  return [
     id,
     new Date((actual.dt ?? Date.now() / 1000) * 1000),
     actual.main?.temp ?? null,
@@ -108,21 +105,43 @@ async function ingerirPunto(punto, client, key) {
     actual.weather?.[0]?.icon ?? null,
     actual.weather?.[0]?.description ?? null,
     actual.main?.humidity ?? null,
-  ]);
+    actual.main?.pressure ?? null,
+    actual.wind?.gust ?? null,
+    actual.wind?.deg ?? null,
+    actual.rain?.["1h"] ?? 0,
+  ];
+}
+
+export function bloqueDePronostico(b) {
+  return {
+    hora: String(b.dt_txt).slice(11, 16),
+    temp: b.main?.temp ?? null,
+    sensacion: b.main?.feels_like ?? null,
+    humedad: b.main?.humidity ?? null,
+    presion: b.main?.pressure ?? null,
+    pop: b.pop ?? null,
+    icon: b.weather?.[0]?.icon ?? null,
+    icon_des: b.weather?.[0]?.description ?? null,
+    rain: b.rain?.["3h"] ?? 0,
+    viento: b.wind?.speed ?? null,
+    rafaga: b.wind?.gust ?? null,
+    viento_dir: b.wind?.deg ?? null,
+  };
+}
+
+// client = conexión ya abierta (createConectionPG(session).connect()) a la
+// BD de la empresa dueña del punto — ingerirPunto sólo lee/escribe ahí.
+async function ingerirPunto(punto, client, key) {
+  const { id, lat, lng } = punto;
+
+  const actual = await traerClimaActual(lat, lng, key);
+  await client.query(querys.upsertActual, valoresClimaActual(id, actual));
 
   const pronostico = await traerPronostico(lat, lng, key);
   const grupos = agruparPorFecha(pronostico.list);
 
   for (const [fecha, bloques] of grupos) {
-    const bloquesJson = bloques.map((b) => ({
-      hora: String(b.dt_txt).slice(11, 16),
-      temp: b.main?.temp ?? null,
-      pop: b.pop ?? null,
-      icon: b.weather?.[0]?.icon ?? null,
-      icon_des: b.weather?.[0]?.description ?? null,
-      rain: b.rain?.["3h"] ?? 0,
-      viento: b.wind?.speed ?? null,
-    }));
+    const bloquesJson = bloques.map(bloqueDePronostico);
 
     await client.query(querys.upsertHora, [id, fecha, JSON.stringify(bloquesJson)]);
 
@@ -151,6 +170,7 @@ export async function ejecutarIngestaClimaMapa(session) {
   const client = createConectionPG(session);
   await client.connect();
   try {
+    await client.query(querys.agregarColumnasClimaActual);
     const keyResult = await client.query(querys.buscarKeyOpenWeather);
     const key =
       keyResult.rows[0]?.aux || process.env.OPENWEATHER_API_KEY || "";

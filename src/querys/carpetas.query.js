@@ -1,6 +1,8 @@
 /**
  * Clase para manejar las consultas relacionadas con carpetas
  */
+import { asegurarColumnasArchivos } from "../utils/archivosMeta.js";
+
 class CarpetasQuery {
   /**
    * Obtener información de un archivo por su código
@@ -130,10 +132,19 @@ class CarpetasQuery {
     `;
       const resultCarpetas = await client.query(consultaCarpetas);
 
-      // Consultar archivos, obteniendo solo el de mayor código cuando hay duplicados
+      // Consultar archivos, obteniendo solo el de mayor código cuando hay duplicados.
+      // Un reporte regenerado inserta otra fila: la primera es la generación y la última la modificación.
+      await asegurarColumnasArchivos(client);
       const consultaArchivos = `
-      SELECT DISTINCT ON (codcarpeta, nombrearchivo) 
-        codigo, codcarpeta, nombrearchivo, path, "contentType"
+      SELECT DISTINCT ON (codcarpeta, nombrearchivo)
+        codigo, codcarpeta, nombrearchivo, path, "contentType",
+        creado_en AS fecha_modificacion,
+        creado_por AS modificado_por,
+        FIRST_VALUE(creado_en) OVER (PARTITION BY codcarpeta, nombrearchivo ORDER BY codigo ASC
+          ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS fecha_generacion,
+        FIRST_VALUE(creado_por) OVER (PARTITION BY codcarpeta, nombrearchivo ORDER BY codigo ASC
+          ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS generado_por,
+        COUNT(*) OVER (PARTITION BY codcarpeta, nombrearchivo) AS versiones
       FROM archivos
       ORDER BY codcarpeta, nombrearchivo, codigo DESC
     `;
@@ -150,6 +161,11 @@ class CarpetasQuery {
           nombrearchivo: archivo.nombrearchivo,
           path: archivo.path,
           contentType: archivo.contentType,
+          fecha_generacion: archivo.fecha_generacion,
+          generado_por: archivo.generado_por,
+          fecha_modificacion: archivo.fecha_modificacion,
+          modificado_por: archivo.modificado_por,
+          versiones: Number(archivo.versiones),
         });
       });
 

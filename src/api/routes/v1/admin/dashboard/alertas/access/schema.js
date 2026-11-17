@@ -5,6 +5,7 @@ export default {
   actualizarConfig: Joi.object({
     umbral: Joi.number().min(0).required(),
     ventana_dias: Joi.number().integer().min(1).allow(null).optional(),
+    dias_consecutivos: Joi.number().integer().min(1).allow(null).optional(),
     activo: Joi.boolean().default(true),
     canal_push: Joi.boolean().default(true),
     canal_correo: Joi.boolean().default(false),
@@ -18,12 +19,12 @@ export default {
   }),
 
   categoriaParam: Joi.object({
-    categoria: Joi.string().valid("mape", "demanda", "periodo", "evento", "clima", "modelo", "medida").required(),
+    categoria: Joi.string().valid("mape", "demanda", "periodo", "evento", "clima", "modelo", "medida", "historico").required(),
   }),
 
   // ── Query ─────────────────────────────────────────────────────────────────
   listarAlertas: Joi.object({
-    categoria: Joi.string().valid("todas", "mape", "demanda", "periodo", "evento", "clima", "modelo", "medida").optional(),
+    categoria: Joi.string().valid("todas", "mape", "demanda", "periodo", "evento", "clima", "modelo", "medida", "historico").optional(),
     ucp: Joi.string().optional(),
     fecha_inicio: Joi.string().optional(),
     fecha_fin: Joi.string().optional(),
