@@ -331,10 +331,14 @@ async function upsertDemandRecords(records, session) {
       hora_13=$13,hora_14=$14,hora_15=$15,hora_16=$16,hora_17=$17,hora_18=$18,
       hora_19=$19,hora_20=$20,hora_21=$21,hora_22=$22,hora_23=$23,hora_24=$24,
       total=$25,tipo_fecha=$27,file_type=$28
-    WHERE fecha=$26`;
+    WHERE fecha=$26
+      -- No se baja la calidad de un dato ya cargado: un TxR (preliminar) no reemplaza a un TxF (final) del mismo día.
+      AND (CASE lower(COALESCE(file_type, 'txf')) WHEN 'txf' THEN 1 WHEN 'txr' THEN 2 WHEN 'tx2' THEN 3 WHEN 'tx3' THEN 4 ELSE 99 END)
+        >= (CASE lower($28::varchar) WHEN 'txf' THEN 1 WHEN 'txr' THEN 2 WHEN 'tx2' THEN 3 WHEN 'tx3' THEN 4 ELSE 99 END)`;
 
   let inserted = 0;
   let updated  = 0;
+  let skipped  = 0; // ya existía un archivo de mayor prioridad (p. ej. TxF) y no se reemplazó
   let errors   = 0;
 
   try {
@@ -353,8 +357,9 @@ async function upsertDemandRecords(records, session) {
         ];
         const { rows: existing } = await client.query(checkSQL, [rec.fecha]);
         if (existing.length > 0) {
-          await client.query(updateSQL, vals);
-          updated++;
+          const r = await client.query(updateSQL, vals);
+          if (r.rowCount > 0) updated++;
+          else skipped++;
         } else {
           await client.query(insertSQL, vals);
           inserted++;
@@ -374,7 +379,7 @@ async function upsertDemandRecords(records, session) {
     await client.end();
   }
 
-  return { inserted, updated, errors };
+  return { inserted, updated, skipped, errors };
 }
 
 export default class AdemService {
@@ -438,7 +443,7 @@ export default class AdemService {
         );
       }
 
-      const { inserted, updated, errors } = await upsertDemandRecords(records, session);
+      const { inserted, updated, skipped, errors } = await upsertDemandRecords(records, session);
 
       return {
         success: true,
@@ -450,8 +455,9 @@ export default class AdemService {
         inserted,
         updated,
         errors,
+        skipped,
         base_de_datos: session.basededatos, // para poder comprobar en qué base se guardó
-        message: `Año ${year}: ${inserted} insertados, ${updated} actualizados, ${errors} errores.`,
+        message: `Año ${year}: ${inserted} insertados, ${updated} actualizados${skipped ? `, ${skipped} omitidos (ya había un archivo de mayor prioridad)` : ""}, ${errors} errores.`,
       };
     } finally {
       // Limpiar archivos temporales
