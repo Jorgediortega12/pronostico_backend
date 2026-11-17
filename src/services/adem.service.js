@@ -8,20 +8,22 @@ import { parse } from "csv-parse/sync";
 import pkg from "pg";
 import dotenv from "dotenv";
 import Logger from "../helpers/logger.js";
+import { createConectionPG } from "../helpers/connections.js";
 import colors from "colors";
 
 dotenv.config();
 
 const { Client } = pkg;
 
-function createClient() {
-  return new Client({
-    user: process.env.POSTGRES_USER,
-    host: process.env.POSTGRES_HOST || "localhost",
-    database: process.env.POSTGRES_DB,
-    password: process.env.POSTGRES_PASSWORD,
-    port: Number(process.env.POSTGRES_PORT) || 5433,
-  });
+// El guardado se hace SIEMPRE en la base del mercado con el que inició sesión el usuario (session.basededatos), nunca en
+// la base por defecto del servidor: antes usaba POSTGRES_DB del .env, que en producción no es la de cada empresa.
+function createClient(session) {
+  if (!session || !session.basededatos) {
+    throw new Error(
+      "No se pudo determinar la base de datos del mercado (sesión sin credenciales). Cierra sesión, vuelve a entrar e intenta de nuevo.",
+    );
+  }
+  return createConectionPG(session);
 }
 
 const VALID_EXTENSIONS = [".txf", ".txr", ".tx2"];
@@ -307,8 +309,8 @@ function discoverAdemFiles(extractDir) {
   );
 }
 
-async function upsertDemandRecords(records) {
-  const client = createClient();
+async function upsertDemandRecords(records, session) {
+  const client = createClient(session);
   await client.connect();
 
   const checkSQL  = `SELECT id FROM "PRONOSTICO_demands" WHERE fecha = $1 LIMIT 1`;
@@ -329,15 +331,20 @@ async function upsertDemandRecords(records) {
       hora_13=$13,hora_14=$14,hora_15=$15,hora_16=$16,hora_17=$17,hora_18=$18,
       hora_19=$19,hora_20=$20,hora_21=$21,hora_22=$22,hora_23=$23,hora_24=$24,
       total=$25,tipo_fecha=$27,file_type=$28
-    WHERE fecha=$26`;
+    WHERE fecha=$26
+      -- No se baja la calidad de un dato ya cargado: un TxR (preliminar) no reemplaza a un TxF (final) del mismo día.
+      AND (CASE lower(COALESCE(file_type, 'txf')) WHEN 'txf' THEN 1 WHEN 'txr' THEN 2 WHEN 'tx2' THEN 3 WHEN 'tx3' THEN 4 ELSE 99 END)
+        >= (CASE lower($28::varchar) WHEN 'txf' THEN 1 WHEN 'txr' THEN 2 WHEN 'tx2' THEN 3 WHEN 'tx3' THEN 4 ELSE 99 END)`;
 
   let inserted = 0;
   let updated  = 0;
+  let skipped  = 0; // ya existía un archivo de mayor prioridad (p. ej. TxF) y no se reemplazó
   let errors   = 0;
 
   try {
     await client.query("BEGIN");
     for (const rec of records) {
+      await client.query("SAVEPOINT rec");
       try {
         const vals = [
           rec.hora_1,  rec.hora_2,  rec.hora_3,  rec.hora_4,
@@ -350,14 +357,17 @@ async function upsertDemandRecords(records) {
         ];
         const { rows: existing } = await client.query(checkSQL, [rec.fecha]);
         if (existing.length > 0) {
-          await client.query(updateSQL, vals);
-          updated++;
+          const r = await client.query(updateSQL, vals);
+          if (r.rowCount > 0) updated++;
+          else skipped++;
         } else {
           await client.query(insertSQL, vals);
           inserted++;
         }
+        await client.query("RELEASE SAVEPOINT rec");
       } catch (err) {
         errors++;
+        await client.query("ROLLBACK TO SAVEPOINT rec");
         Logger.error(colors.red(`Error en fecha ${rec.fecha}: ${err.message}`));
       }
     }
@@ -369,7 +379,7 @@ async function upsertDemandRecords(records) {
     await client.end();
   }
 
-  return { inserted, updated, errors };
+  return { inserted, updated, skipped, errors };
 }
 
 export default class AdemService {
@@ -382,7 +392,7 @@ export default class AdemService {
     return AdemService.instance;
   }
 
-  async cargarAdemZip(zipPath, zipName) {
+  async cargarAdemZip(zipPath, zipName, session) {
     const AdmZip = (await import("adm-zip")).default;
 
     // Extraer en directorio temporal
@@ -433,7 +443,7 @@ export default class AdemService {
         );
       }
 
-      const { inserted, updated, errors } = await upsertDemandRecords(records);
+      const { inserted, updated, skipped, errors } = await upsertDemandRecords(records, session);
 
       return {
         success: true,
@@ -445,7 +455,9 @@ export default class AdemService {
         inserted,
         updated,
         errors,
-        message: `Año ${year}: ${inserted} insertados, ${updated} actualizados, ${errors} errores.`,
+        skipped,
+        base_de_datos: session.basededatos, // para poder comprobar en qué base se guardó
+        message: `Año ${year}: ${inserted} insertados, ${updated} actualizados${skipped ? `, ${skipped} omitidos (ya había un archivo de mayor prioridad)` : ""}, ${errors} errores.`,
       };
     } finally {
       // Limpiar archivos temporales
