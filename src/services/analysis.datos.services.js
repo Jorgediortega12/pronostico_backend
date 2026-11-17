@@ -1,4 +1,6 @@
 import { createConectionPG } from "../helpers/connections.js";
+import Logger from "../helpers/logger.js";
+import colors from "colors";
 
 // Conexión dinámica según la sesión del usuario (credenciales del mercado).
 function getGmrDb(session) {
@@ -96,6 +98,15 @@ const CLIMA_SELECT = (() => {
   for (let i = 1; i <= 24; i++) cols.push(`t${i}`);
   for (let i = 1; i <= 24; i++) cols.push(`h${i}`);
   for (let i = 1; i <= 24; i++) cols.push(`v${i}`);
+  return cols.join(", ");
+})();
+
+// datos_clima (clima que ya alimenta Pronósticos) guarda p1_t..p24_t, p1_h.., p1_v.. por UCP. Se le dan los mismos alias que a
+// PRONOSTICO_climates; si hay varias UCP en la base de la empresa, se promedia por día y hora.
+const DATOS_CLIMA_SELECT = (() => {
+  const cols = ["fecha"];
+  for (const tipo of ["t", "h", "v"])
+    for (let i = 1; i <= 24; i++) cols.push(`AVG(p${i}_${tipo}) AS ${tipo}${i}`);
   return cols.join(", ");
 })();
 
@@ -447,6 +458,25 @@ export class ClimateService {
     const db = getGmrDb(this.session);
     const sql = `SELECT ${CLIMA_SELECT} FROM "PRONOSTICO_climates" WHERE fecha >= $1 AND fecha <= $2 ORDER BY fecha`;
     const { rows } = await db.query(sql, [fecha_inicio, fecha_fin]);
+
+    // PRONOSTICO_climates es el histórico de GMR y suele terminar años atrás (en Atenea, 2020). Los días siguientes, hasta
+    // HOY (hora de Colombia; los días futuros de datos_clima son pronóstico, no clima observado), se completan con
+    // datos_clima. Donde PRONOSTICO_climates ya tiene el día, manda ese. Si la base no tiene datos_clima, se sigue como antes.
+    try {
+      const { rows: extra } = await db.query(
+        `SELECT ${DATOS_CLIMA_SELECT} FROM datos_clima
+          WHERE fecha >= $1 AND fecha <= LEAST($2::date, (NOW() AT TIME ZONE 'America/Bogota')::date)
+          GROUP BY fecha ORDER BY fecha`,
+        [fecha_inicio, fecha_fin],
+      );
+      if (extra.length) {
+        const yaEstan = new Set(rows.map((r) => _ymd(new Date(r.fecha))));
+        for (const r of extra) if (!yaEstan.has(_ymd(new Date(r.fecha)))) rows.push(r);
+        rows.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+      }
+    } catch (err) {
+      Logger.warn(colors.yellow(`[ANALISIS] No se pudo completar el clima con datos_clima: ${err.message}`));
+    }
     return rows;
   }
 
