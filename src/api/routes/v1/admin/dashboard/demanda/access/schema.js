@@ -3,11 +3,18 @@ import Joi from "joi";
 export default {
   // POST /demanda/predict
   predict: Joi.object({
-    id: Joi.number().integer().valid(1, 2, 3).required(), // 1=RF, 2=XGB, 3=SARIMAX
+    id: Joi.number().integer().valid(1, 2, 3, 4).required(), // 1=RF, 2=XGB, 3=SARIMAX, 4=Climático + ONI
     user_id: Joi.number().integer().required(),
     session_id: Joi.number().integer().required(),
     start_date: Joi.string().required(),
     end_date: Joi.string().required(),
+    // Sensibilidad opcional: variación % del IPC por año (año -> %), solo RF y XGBoost
+    ipc_growth_by_year: Joi.object().pattern(/^\d{4}$/, Joi.number().min(-15).max(25)),
+    // Escenario ENSO opcional mes a mes ("YYYY-MM" -> fase), solo modelo climático
+    enso_phase_by_month: Joi.object().pattern(
+      /^\d{4}-(0[1-9]|1[0-2])$/,
+      Joi.string().valid("NORMAL", "NIÑO", "NIÑA"),
+    ),
   }),
 
   // POST /demanda/day/behavior

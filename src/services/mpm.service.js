@@ -1,4 +1,5 @@
 import Logger from "../helpers/logger.js";
+import { redactSecrets } from "../helpers/redactSecrets.js";
 import MpmModel from "../models/mpm.model.js";
 import dotenv from "dotenv";
 dotenv.config();
@@ -43,7 +44,7 @@ export default class MpmService {
           },
         );
         if (!res.ok) {
-          const detail = await res.text();
+          const detail = redactSecrets(await res.text());
           errors.push(
             `${host}:${ML_PORT} respondio ${res.status}${detail ? ` - ${detail}` : ""}`,
           );
@@ -104,7 +105,7 @@ export default class MpmService {
         clearTimeout(timer);
         if (!res.ok) {
           const text = await res.text();
-          return { success: false, message: text, statusCode: res.status };
+          return { success: false, message: redactSecrets(text), statusCode: res.status };
         }
         const data = await res.json();
         return { success: true, data };
@@ -153,7 +154,7 @@ export default class MpmService {
         if (!res.ok)
           return {
             success: false,
-            message: await res.text(),
+            message: redactSecrets(await res.text()),
             statusCode: res.status,
           };
         const buffer = await res.arrayBuffer();
