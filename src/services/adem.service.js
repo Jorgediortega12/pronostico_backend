@@ -8,20 +8,22 @@ import { parse } from "csv-parse/sync";
 import pkg from "pg";
 import dotenv from "dotenv";
 import Logger from "../helpers/logger.js";
+import { createConectionPG } from "../helpers/connections.js";
 import colors from "colors";
 
 dotenv.config();
 
 const { Client } = pkg;
 
-function createClient() {
-  return new Client({
-    user: process.env.POSTGRES_USER,
-    host: process.env.POSTGRES_HOST || "localhost",
-    database: process.env.POSTGRES_DB,
-    password: process.env.POSTGRES_PASSWORD,
-    port: Number(process.env.POSTGRES_PORT) || 5433,
-  });
+// El guardado se hace SIEMPRE en la base del mercado con el que inició sesión el usuario (session.basededatos), nunca en
+// la base por defecto del servidor: antes usaba POSTGRES_DB del .env, que en producción no es la de cada empresa.
+function createClient(session) {
+  if (!session || !session.basededatos) {
+    throw new Error(
+      "No se pudo determinar la base de datos del mercado (sesión sin credenciales). Cierra sesión, vuelve a entrar e intenta de nuevo.",
+    );
+  }
+  return createConectionPG(session);
 }
 
 const VALID_EXTENSIONS = [".txf", ".txr", ".tx2"];
@@ -307,8 +309,8 @@ function discoverAdemFiles(extractDir) {
   );
 }
 
-async function upsertDemandRecords(records) {
-  const client = createClient();
+async function upsertDemandRecords(records, session) {
+  const client = createClient(session);
   await client.connect();
 
   const checkSQL  = `SELECT id FROM "PRONOSTICO_demands" WHERE fecha = $1 LIMIT 1`;
@@ -338,6 +340,7 @@ async function upsertDemandRecords(records) {
   try {
     await client.query("BEGIN");
     for (const rec of records) {
+      await client.query("SAVEPOINT rec");
       try {
         const vals = [
           rec.hora_1,  rec.hora_2,  rec.hora_3,  rec.hora_4,
@@ -356,8 +359,10 @@ async function upsertDemandRecords(records) {
           await client.query(insertSQL, vals);
           inserted++;
         }
+        await client.query("RELEASE SAVEPOINT rec");
       } catch (err) {
         errors++;
+        await client.query("ROLLBACK TO SAVEPOINT rec");
         Logger.error(colors.red(`Error en fecha ${rec.fecha}: ${err.message}`));
       }
     }
@@ -382,7 +387,7 @@ export default class AdemService {
     return AdemService.instance;
   }
 
-  async cargarAdemZip(zipPath, zipName) {
+  async cargarAdemZip(zipPath, zipName, session) {
     const AdmZip = (await import("adm-zip")).default;
 
     // Extraer en directorio temporal
@@ -433,7 +438,7 @@ export default class AdemService {
         );
       }
 
-      const { inserted, updated, errors } = await upsertDemandRecords(records);
+      const { inserted, updated, errors } = await upsertDemandRecords(records, session);
 
       return {
         success: true,
@@ -445,6 +450,7 @@ export default class AdemService {
         inserted,
         updated,
         errors,
+        base_de_datos: session.basededatos, // para poder comprobar en qué base se guardó
         message: `Año ${year}: ${inserted} insertados, ${updated} actualizados, ${errors} errores.`,
       };
     } finally {
