@@ -15,7 +15,14 @@ import Logger from "../helpers/logger.js";
 import colors from "colors";
 import { createConectionPG } from "../helpers/connections.js";
 import PronosticosService from "./pronosticos.service.js";
-import { guardarRespaldoFrontera } from "../helpers/respaldoFronteraData.js";
+import { crearTablaRespaldoFrontera, guardarRespaldoFrontera } from "../helpers/respaldoFronteraData.js";
+import {
+  VENTANA_HISTORIA_DIAS,
+  aplicarErrorPct,
+  calcularAjustePorTipoDia,
+  normalizarAjusteError,
+  restarDiasISO,
+} from "../helpers/ajusteErrorRespaldo.js";
 
 const pronosticosService = PronosticosService.getInstance();
 
@@ -178,6 +185,40 @@ async function obtenerFactorCorreccionRespaldo(client, codigoUcp, ucpNombre, ses
     cacheFactorCorreccion.set(ucpNombre, resultado);
   }
   return resultado;
+}
+
+// Carga lo necesario para el "Ajuste por error de los últimos N días del mismo tipo": el respaldo ya corregido
+// (MWh) y el dato real de actualizaciondatos (MWh) de los días ANTERIORES a las fechas objetivo, más los
+// festivos del mercado. Devuelve el mapa fecha -> { errorPct[24], diasUsados, usoGeneral, sinReferencia }.
+async function calcularAjusteError(client, codigoUcp, ucpNombre, fechasObjetivo, dias, factorCorreccion) {
+  if (!fechasObjetivo.length) return new Map();
+  const ordenadas = [...fechasObjetivo].sort();
+  const desde = restarDiasISO(ordenadas[0], VENTANA_HISTORIA_DIAS);
+  const hasta = ordenadas[ordenadas.length - 1];
+
+  const [crudo, real, fest] = await Promise.all([
+    calcularRawPromedioPorFecha(client, codigoUcp, desde, hasta),
+    client.query(
+      `SELECT TO_CHAR(fecha::date, 'YYYY-MM-DD') AS fecha, ${cols.join(", ")}
+       FROM actualizaciondatos WHERE ucp = $1 AND fecha >= $2 AND fecha <= $3`,
+      [ucpNombre, desde, hasta],
+    ),
+    client.query(
+      `SELECT TO_CHAR(fecha::date, 'YYYY-MM-DD') AS fecha FROM festivos WHERE ucp = $1 AND fecha >= $2 AND fecha <= $3`,
+      [ucpNombre, desde, hasta],
+    ),
+  ]);
+
+  const respaldoPorFecha = new Map(
+    crudo.map((r) => [
+      r.fecha.toISOString().slice(0, 10),
+      cols.map((c) => Number(r[c]) * factorCorreccion),
+    ]),
+  );
+  const realPorFecha = new Map(real.rows.map((r) => [r.fecha, cols.map((c) => Number(r[c]))]));
+  const festivos = new Set(fest.rows.map((r) => r.fecha));
+
+  return calcularAjustePorTipoDia({ respaldoPorFecha, realPorFecha, festivos, fechasObjetivo, dias });
 }
 
 async function resolverCodigoUcp(client, ucpNombre) {
@@ -418,7 +459,9 @@ export const calcularYGuardar = async (
   session,
   fechaInicio,
   fechaFin,
+  ajusteOpts,
 ) => {
+  const ajuste = normalizarAjusteError(ajusteOpts);
   const client = createConectionPG(session);
   await client.connect();
   try {
@@ -457,6 +500,35 @@ export const calcularYGuardar = async (
       valores: cols.map((c) => Number(row[c]) * factorCorreccion),
     }));
 
+    // Ajuste opcional encima del factor de corrección: error promedio (real vs respaldo) de los últimos N
+    // días del mismo tipo de día, aplicado hora a hora antes de guardar.
+    let resumenAjuste = { activo: false, dias: ajuste.dias };
+    if (ajuste.activo) {
+      const porFecha = await calcularAjusteError(
+        client,
+        codigoUcp,
+        ucpNombre,
+        filas.map((f) => f.fecha),
+        ajuste.dias,
+        factorCorreccion,
+      );
+      let sinReferencia = 0;
+      let usoGeneral = 0;
+      for (const f of filas) {
+        const a = porFecha.get(f.fecha);
+        if (!a) continue;
+        f.valores = aplicarErrorPct(f.valores, a.errorPct);
+        if (a.sinReferencia) sinReferencia++;
+        else if (a.usoGeneral) usoGeneral++;
+      }
+      resumenAjuste = {
+        activo: true,
+        dias: ajuste.dias,
+        diasSinReferencia: sinReferencia,
+        diasConPromedioGeneral: usoGeneral,
+      };
+    }
+
     await client.query("BEGIN");
     await guardarRespaldoFrontera(client, ucpNombre, filas, factorCorreccion);
     await client.query("COMMIT");
@@ -466,6 +538,7 @@ export const calcularYGuardar = async (
       diasGuardados: filas.length,
       factorCorreccion,
       diasUsadosCorreccion,
+      ajusteError: resumenAjuste,
     };
   } catch (err) {
     await client.query("ROLLBACK").catch(() => {});
@@ -490,7 +563,9 @@ export const calcularRespaldoSinGuardar = async (
   ucpNombre,
   fechaInicio,
   session,
+  ajusteOpts,
 ) => {
+  const ajuste = normalizarAjusteError(ajusteOpts);
   const client = createConectionPG(session);
   await client.connect();
   try {
@@ -524,6 +599,30 @@ export const calcularRespaldoSinGuardar = async (
     const { factor: factorCorreccion, diasUsados: diasUsadosCorreccion } =
       await obtenerFactorCorreccionRespaldo(client, codigoUcp, ucpNombre, session);
 
+    // Con el ajuste activo, cada día trae además `ajusteErrorPct` (24 valores, en %): el frontend lo aplica
+    // sobre su propia escala para mostrar la línea ajustada antes de guardar — el % no depende de la escala.
+    const ajustePorFecha = ajuste.activo
+      ? await calcularAjusteError(
+          client,
+          codigoUcp,
+          ucpNombre,
+          calculo.rows.map((r) => r.fecha.toISOString().slice(0, 10)),
+          ajuste.dias,
+          factorCorreccion,
+        )
+      : new Map();
+
+    // Respaldo ya GUARDADO (respaldo_frontera, en MWh, con el ajuste por error si se guardó con él): Pronósticos
+    // dibuja su línea de Respaldo con esto para que muestre exactamente lo confirmado con "Actualizar Respaldo".
+    await crearTablaRespaldoFrontera(client);
+    const guardadosRes = await client.query(
+      `SELECT fecha, ${cols.join(", ")} FROM respaldo_frontera WHERE ucp = $1 AND fecha >= $2`,
+      [ucpNombre, fechaInicio],
+    );
+    const guardadoPorFecha = new Map(
+      guardadosRes.rows.map((r) => [r.fecha.toISOString().slice(0, 10), cols.map((c) => Number(r[c]))]),
+    );
+
     const dias = [];
     let diasReales = 0;
     let diasRespaldo = 0;
@@ -550,6 +649,25 @@ export const calcularRespaldoSinGuardar = async (
         !!totalCircuitos &&
         Number(row.filas) < totalCircuitos * UMBRAL_COBERTURA_MINIMA;
 
+      const infoAjuste = ajustePorFecha.get(fechaISO);
+      const guardado = guardadoPorFecha.get(fechaISO);
+      // Con el ajuste activo, el respaldo que se ofrece para rellenar (`periodos` de los días sin dato real) ya
+      // sale ajustado; `periodosCalculados` queda sin ajustar y el % viaja aparte para la línea de comparación.
+      const periodosRespaldo =
+        infoAjuste && !infoAjuste.sinReferencia
+          ? aplicarErrorPct(periodosCalculados, infoAjuste.errorPct)
+          : periodosCalculados;
+      const extraAjuste = infoAjuste
+        ? {
+            ajusteErrorPct: infoAjuste.errorPct,
+            ajusteDiasUsados: infoAjuste.diasUsados,
+            ajusteTipoDia: infoAjuste.tipo,
+            ajusteUsoGeneral: infoAjuste.usoGeneral,
+            ajusteSinReferencia: infoAjuste.sinReferencia,
+          }
+        : {};
+      if (guardado) extraAjuste.periodosGuardados = guardado;
+
       if (existente.rowCount > 0) {
         // Ya había fila en actualizaciondatos — el respaldo ya no se guarda
         // ahí (vive en respaldo_frontera, tabla aparte), así que cualquier
@@ -561,15 +679,17 @@ export const calcularRespaldoSinGuardar = async (
           esRespaldo: false,
           periodosCalculados,
           coberturaBaja,
+          ...extraAjuste,
         });
       } else {
         diasRespaldo++;
         dias.push({
           fecha: fechaISO,
-          periodos: periodosCalculados,
+          periodos: periodosRespaldo,
           esRespaldo: true,
           periodosCalculados,
           coberturaBaja,
+          ...extraAjuste,
         });
       }
     }
@@ -581,6 +701,7 @@ export const calcularRespaldoSinGuardar = async (
       dias,
       factorCorreccion,
       diasUsadosCorreccion,
+      ajusteError: { activo: ajuste.activo, dias: ajuste.dias },
     };
   } catch (err) {
     Logger.error(colors.red("Error calcularRespaldoSinGuardar"), err);
@@ -643,6 +764,7 @@ export const guardarSoloRespaldo = async (
   session,
   fechaInicio,
   fechaFin,
+  ajusteOpts,
 ) => {
   try {
     const calculo = await calcularYGuardar(
@@ -650,6 +772,7 @@ export const guardarSoloRespaldo = async (
       session,
       fechaInicio,
       fechaFin,
+      ajusteOpts,
     );
     return { success: true, calculo };
   } catch (error) {

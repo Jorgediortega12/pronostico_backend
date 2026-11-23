@@ -44,39 +44,57 @@ export default class ConvocatoriaService {
     return meta;
   };
 
-  #rutaArchivo = (carpeta, id, nombreArchivo) =>
-    path.join(BASE_PATH, carpeta, `${id}_${nombreArchivo}`);
+  // Los archivos se guardan por empresa (BASE_PATH/<base de datos>/<carpeta>/...): los id se repiten entre bases y, en una
+  // carpeta compartida, un archivo de una empresa pisaría el de otra.
+  #dirBase = (session) => {
+    const bd = String(session?.basededatos ?? "").replace(/[^A-Za-z0-9_-]/g, "");
+    if (!bd) throw new ServiceError("Sesión sin base de datos del mercado. Vuelve a iniciar sesión.", 401);
+    return path.join(BASE_PATH, bd);
+  };
+
+  #rutaArchivo = (carpeta, id, nombreArchivo, session) =>
+    path.join(this.#dirBase(session), carpeta, `${id}_${nombreArchivo}`);
+
+  // Antes todo se guardaba en una carpeta plana (BASE_PATH/<carpeta>/...), que solo pertenece a la base por defecto del
+  // servidor (POSTGRES_DB): únicamente para esa base se siguen reconociendo esos archivos.
+  #rutaExistente = (carpeta, id, nombreArchivo, session) => {
+    const nueva = this.#rutaArchivo(carpeta, id, nombreArchivo, session);
+    if (fs.existsSync(nueva)) return nueva;
+    if (session?.basededatos && session.basededatos === process.env.POSTGRES_DB) {
+      const legada = path.join(BASE_PATH, carpeta, `${id}_${nombreArchivo}`);
+      if (fs.existsSync(legada)) return legada;
+    }
+    return null;
+  };
 
   // ─── Convocatorias ─────────────────────────────────────────────────────────
 
-  getConvocatorias = async () => {
-    return this.#model.getConvocatorias();
+  getConvocatorias = async (session) => {
+    return this.#model.getConvocatorias(session);
   };
 
-  crearConvocatoria = async ({ nombre, mercado, fecha_audiencia }) => {
-    return this.#model.insertConvocatoria(nombre, mercado, fecha_audiencia);
+  crearConvocatoria = async ({ nombre, mercado, fecha_audiencia }, session) => {
+    return this.#model.insertConvocatoria(session, nombre, mercado, fecha_audiencia);
   };
 
   // ─── Contratos ──────────────────────────────────────────────────────────────
 
-  getContratos = async (convocatoriaId) => {
-    return this.#model.getContratosByConvocatoria(convocatoriaId);
+  getContratos = async (convocatoriaId, session) => {
+    return this.#model.getContratosByConvocatoria(session, convocatoriaId);
   };
 
-  crearContrato = async (datos) => {
+  crearContrato = async (datos, session) => {
     // El origen usa campos en MAYÚSCULA (CONVOCATORIA_ID, DESCRIPCION, ...)
     // y el codigo se autogenera (SERIAL), ignorando el CODIGO enviado.
-    return this.#model.insertContrato(
-      datos.CONVOCATORIA_ID,
+    return this.#model.insertContrato(session, datos.CONVOCATORIA_ID,
       datos.DESCRIPCION ?? null,
       datos.FECHA_INICIO,
-      datos.FECHA_FIN
-    );
+      datos.FECHA_FIN);
   };
 
-  actualizarAgente = async (datos) => {
+  actualizarAgente = async (datos, session) => {
     const codigo = datos.CODIGO;
-    const contrato = await this.#model.getContratoActivoByCodigo(codigo);
+    const contrato = await this.#model.getContratoActivoByCodigo(session, codigo);
     if (!contrato) throw new ServiceError("ContratoConvocatoria no encontrado", 400);
 
     const setObj = {};
@@ -85,42 +103,42 @@ export default class ConvocatoriaService {
         setObj[col] = datos[form];
       }
     }
-    return this.#model.updateAgente(codigo, setObj);
+    return this.#model.updateAgente(session, codigo, setObj);
   };
 
-  getAgente = async (codigo) => {
-    const agente = await this.#model.getAgenteByCodigo(codigo);
+  getAgente = async (codigo, session) => {
+    const agente = await this.#model.getAgenteByCodigo(session, codigo);
     if (!agente) throw new ServiceError("ContratoConvocatoria no encontrado", 400);
     return agente;
   };
 
-  getContrato = async (codigo) => {
-    const contrato = await this.#model.getContratoByCodigo(codigo);
+  getContrato = async (codigo, session) => {
+    const contrato = await this.#model.getContratoByCodigo(session, codigo);
     if (!contrato) throw new ServiceError("Contrato no encontrado", 404);
     return contrato;
   };
 
   // ─── Archivos ─────────────────────────────────────────────────────────────────
 
-  listarArchivos = async (contratoCodigo, carpeta) => {
+  listarArchivos = async (contratoCodigo, carpeta, session) => {
     const meta = this.#getCarpeta(carpeta);
-    return this.#model.getArchivosByContrato(meta.tabla, contratoCodigo);
+    return this.#model.getArchivosByContrato(session, meta.tabla, contratoCodigo);
   };
 
   // Devuelve { ruta, nombre } para que el controller haga res.download
-  descargarArchivo = async (carpeta, id) => {
+  descargarArchivo = async (carpeta, id, session) => {
     const meta = this.#getCarpeta(carpeta);
-    const archivo = await this.#model.getArchivoById(meta.tabla, id);
+    const archivo = await this.#model.getArchivoById(session, meta.tabla, id);
     if (!archivo) throw new ServiceError("Archivo no encontrado", 404);
 
-    const ruta = this.#rutaArchivo(carpeta, archivo.id, archivo.nombre_archivo);
-    if (!fs.existsSync(ruta)) {
+    const ruta = this.#rutaExistente(carpeta, archivo.id, archivo.nombre_archivo, session);
+    if (!ruta) {
       throw new ServiceError("Archivo no encontrado en el servidor", 404);
     }
     return { ruta, nombre: archivo.nombre_archivo };
   };
 
-  subirArchivo = async (datos, file) => {
+  subirArchivo = async (datos, file, session) => {
     const carpeta = datos.CARPETA;
     const meta = this.#getCarpeta(carpeta);
     if (!file) throw new ServiceError("No se proporcionó ningún archivo (ARCHIVO)", 422);
@@ -135,13 +153,13 @@ export default class ConvocatoriaService {
       if (valor !== null) valuesObj[campo.col] = valor;
     }
 
-    const registro = await this.#model.insertArchivo(meta.tabla, valuesObj);
+    const registro = await this.#model.insertArchivo(session, meta.tabla, valuesObj);
 
     // Escribir el archivo físico: {base}/{carpeta}/{id}_{nombre_archivo}
     try {
-      const dir = path.join(BASE_PATH, carpeta);
+      const dir = path.join(this.#dirBase(session), carpeta);
       fs.mkdirSync(dir, { recursive: true });
-      const ruta = this.#rutaArchivo(carpeta, registro.id, registro.nombre_archivo);
+      const ruta = this.#rutaArchivo(carpeta, registro.id, registro.nombre_archivo, session);
       fs.writeFileSync(ruta, file.buffer);
     } catch (err) {
       Logger.error(`Error al guardar archivo de ${carpeta}: ${err.message}`);
@@ -151,7 +169,7 @@ export default class ConvocatoriaService {
     return registro;
   };
 
-  actualizarArchivo = async (datos, file) => {
+  actualizarArchivo = async (datos, file, session) => {
     const carpeta = datos.CARPETA;
     const columnasPermitidas = CARPETAS_ACTUALIZABLES[carpeta];
     if (!columnasPermitidas) throw new ServiceError("Carpeta no válida", 400);
@@ -159,10 +177,10 @@ export default class ConvocatoriaService {
     if (!file) throw new ServiceError("No se proporcionó ningún archivo (ARCHIVO)", 422);
 
     const id = parseInt(datos.ID, 10);
-    const archivo = await this.#model.getArchivoById(meta.tabla, id);
+    const archivo = await this.#model.getArchivoById(session, meta.tabla, id);
     if (!archivo) throw new ServiceError("Archivo no encontrado", 404);
 
-    const pathAntiguo = this.#rutaArchivo(carpeta, archivo.id, archivo.nombre_archivo);
+    const pathAntiguo = this.#rutaExistente(carpeta, archivo.id, archivo.nombre_archivo, session);
 
     // Construir SET con los campos permitidos provistos (mapeo form UPPER -> col lower)
     const setObj = { fecha_carga: new Date() };
@@ -182,14 +200,14 @@ export default class ConvocatoriaService {
       setObj.version = (parseInt(archivo.version, 10) || 0) + 1;
     }
 
-    const actualizado = await this.#model.updateArchivo(meta.tabla, id, setObj);
+    const actualizado = await this.#model.updateArchivo(session, meta.tabla, id, setObj);
 
     // Reemplazar el archivo físico
     try {
-      const dir = path.join(BASE_PATH, carpeta);
+      const dir = path.join(this.#dirBase(session), carpeta);
       fs.mkdirSync(dir, { recursive: true });
-      if (fs.existsSync(pathAntiguo)) fs.unlinkSync(pathAntiguo);
-      const pathNuevo = this.#rutaArchivo(carpeta, actualizado.id, actualizado.nombre_archivo);
+      if (pathAntiguo && fs.existsSync(pathAntiguo)) fs.unlinkSync(pathAntiguo);
+      const pathNuevo = this.#rutaArchivo(carpeta, actualizado.id, actualizado.nombre_archivo, session);
       fs.writeFileSync(pathNuevo, file.buffer);
     } catch (err) {
       Logger.error(`Error al reemplazar archivo de ${carpeta}: ${err.message}`);

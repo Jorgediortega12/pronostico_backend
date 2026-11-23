@@ -539,3 +539,53 @@ ON CONFLICT (mc, barra) DO UPDATE SET minimo = EXCLUDED.minimo, actualizado_en =
 export const eliminarFpMinimo = `
 DELETE FROM factores_fp_minimo WHERE mc = $1 AND barra = $2
 `;
+
+// Cómo se corrigen los periodos de FP que quedan por debajo del mínimo (uno por mercado):
+//   piso    -> se sube al mínimo (comportamiento original)
+//   vecinos -> promedio de los 2 periodos conformes más cercanos del mismo día
+//   copiar  -> se copia de otro tipo de día de la misma barra donde ese periodo sí está conforme
+//              (si no hay, vecinos)
+export const asegurarTablaFpMetodo = `
+CREATE TABLE IF NOT EXISTS factores_fp_metodo (
+  mc VARCHAR(100) PRIMARY KEY,
+  metodo VARCHAR(20) NOT NULL DEFAULT 'piso',
+  ajustar_curvas BOOLEAN NOT NULL DEFAULT FALSE,
+  pasos JSONB,
+  actualizado_en TIMESTAMP NOT NULL DEFAULT NOW()
+)
+`;
+
+// Tablas creadas antes del ajuste automático de curvas y de la escalera de pasos: se agregan las columnas
+// (una sola vez por proceso).
+export const asegurarColumnaAjusteCurvas = `
+ALTER TABLE factores_fp_metodo
+  ADD COLUMN IF NOT EXISTS ajustar_curvas BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS pasos JSONB
+`;
+
+export const consultarFpMetodo = `
+SELECT metodo, ajustar_curvas, pasos FROM factores_fp_metodo WHERE mc = $1
+`;
+
+// Escalera de pasos para acercar el FP al mínimo, en este orden (cada uno se activa por separado):
+//   factores (sugerir factores en barras que comparten generador) -> curvas (ajustar curvas típicas) ->
+//   vecinos (promedio de periodos vecinos) -> otroDia (promedio de periodos conformes de otros tipos de día) ->
+//   vecinosFinal (vecinos otra vez con los periodos ya corregidos). Ningún paso fuerza el valor.
+export const upsertFpPasos = `
+INSERT INTO factores_fp_metodo (mc, pasos, actualizado_en)
+VALUES ($1, $2::jsonb, NOW())
+ON CONFLICT (mc) DO UPDATE SET pasos = EXCLUDED.pasos, actualizado_en = NOW()
+`;
+
+// Ajuste automático de curvas típicas para acercar el FP al mínimo (solo con el método 'piso').
+export const upsertFpAjusteCurvas = `
+INSERT INTO factores_fp_metodo (mc, ajustar_curvas, actualizado_en)
+VALUES ($1, $2, NOW())
+ON CONFLICT (mc) DO UPDATE SET ajustar_curvas = EXCLUDED.ajustar_curvas, actualizado_en = NOW()
+`;
+
+export const upsertFpMetodo = `
+INSERT INTO factores_fp_metodo (mc, metodo, actualizado_en)
+VALUES ($1, $2, NOW())
+ON CONFLICT (mc) DO UPDATE SET metodo = EXCLUDED.metodo, actualizado_en = NOW()
+`;

@@ -1,3 +1,5 @@
+import { redactSecrets } from "./redactSecrets.js";
+
 export const AuthFailureError = (res, message = "Authentication failed") => {
   return res.status(401).json({
     success: false,
@@ -37,7 +39,8 @@ export const SuccessResponse = (res, data, message = "Success") => {
 export const responseError = (code, type, statusCode, res) => {
   return res.status(statusCode).json({
     statusCode: code,
-    message: type,
+    // Defensa en profundidad: nunca devolver credenciales que vengan dentro de un mensaje de error.
+    message: typeof type === "string" ? redactSecrets(type) : type,
     success: false,
   });
 };

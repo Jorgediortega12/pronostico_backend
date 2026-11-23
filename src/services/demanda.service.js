@@ -1,5 +1,6 @@
 import DemandaModel from "../models/demanda.model.js";
 import Logger from "../helpers/logger.js";
+import { redactSecrets } from "../helpers/redactSecrets.js";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -77,7 +78,7 @@ export default class DemandaService {
         clearTimeout(timer);
         if (!res.ok) {
           const text = await res.text();
-          return { success: false, message: text, statusCode: res.status };
+          return { success: false, message: redactSecrets(text), statusCode: res.status };
         }
         const data = await res.json();
         return { success: true, data };
@@ -154,7 +155,7 @@ export default class DemandaService {
         if (!res.ok)
           return {
             success: false,
-            message: await res.text(),
+            message: redactSecrets(await res.text()),
             statusCode: res.status,
           };
         const buffer = await res.arrayBuffer();
@@ -206,7 +207,7 @@ export default class DemandaService {
         if (!res.ok)
           return {
             success: false,
-            message: await res.text(),
+            message: redactSecrets(await res.text()),
             statusCode: res.status,
           };
         const buffer = await res.arrayBuffer();

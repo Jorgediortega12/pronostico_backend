@@ -1,4 +1,4 @@
-import pool from "../config/database.js";
+import { createConectionPG } from "../helpers/connections.js";
 import * as q from "../querys/convocatoria.query.js";
 
 const TABLAS_PERMITIDAS = new Set(
@@ -20,25 +20,25 @@ export default class ConvocatoriaModel {
     return ConvocatoriaModel.instance;
   }
 
-  getConvocatorias = async () => {
-    const { rows } = await pool.query(q.getConvocatorias);
+  getConvocatorias = async (session) => {
+    const { rows } = await createConectionPG(session).query(q.getConvocatorias);
     return rows;
   };
 
-  insertConvocatoria = async (nombre, mercado, fechaAudiencia) => {
-    const { rows } = await pool.query(q.insertConvocatoria, [nombre, mercado, fechaAudiencia]);
+  insertConvocatoria = async (session, nombre, mercado, fechaAudiencia) => {
+    const { rows } = await createConectionPG(session).query(q.insertConvocatoria, [nombre, mercado, fechaAudiencia]);
     return rows[0];
   };
 
   // ─── Contratos ────────────────────────────────────────────────────────────
 
-  getContratosByConvocatoria = async (convocatoriaId) => {
-    const { rows } = await pool.query(q.getContratosByConvocatoria, [convocatoriaId]);
+  getContratosByConvocatoria = async (session, convocatoriaId) => {
+    const { rows } = await createConectionPG(session).query(q.getContratosByConvocatoria, [convocatoriaId]);
     return rows;
   };
 
-  insertContrato = async (convocatoriaId, descripcion, fechaInicio, fechaFin) => {
-    const { rows } = await pool.query(q.insertContrato, [
+  insertContrato = async (session, convocatoriaId, descripcion, fechaInicio, fechaFin) => {
+    const { rows } = await createConectionPG(session).query(q.insertContrato, [
       convocatoriaId,
       descripcion ?? null,
       fechaInicio,
@@ -47,22 +47,22 @@ export default class ConvocatoriaModel {
     return rows[0];
   };
 
-  getContratoByCodigo = async (codigo) => {
-    const { rows } = await pool.query(q.getContratoByCodigo, [codigo]);
+  getContratoByCodigo = async (session, codigo) => {
+    const { rows } = await createConectionPG(session).query(q.getContratoByCodigo, [codigo]);
     return rows[0] || null;
   };
 
-  getContratoActivoByCodigo = async (codigo) => {
-    const { rows } = await pool.query(q.getContratoActivoByCodigo, [codigo]);
+  getContratoActivoByCodigo = async (session, codigo) => {
+    const { rows } = await createConectionPG(session).query(q.getContratoActivoByCodigo, [codigo]);
     return rows[0] || null;
   };
 
-  getAgenteByCodigo = async (codigo) => {
-    const { rows } = await pool.query(q.getAgenteByCodigo, [codigo]);
+  getAgenteByCodigo = async (session, codigo) => {
+    const { rows } = await createConectionPG(session).query(q.getAgenteByCodigo, [codigo]);
     return rows[0] || null;
   };
 
-  updateAgente = async (codigo, setObj) => {
+  updateAgente = async (session, codigo, setObj) => {
     const cols = Object.keys(setObj);
     if (!cols.length) return this.getContratoActivoByCodigo(codigo);
     const setClause = cols.map((c, i) => `${c} = $${i + 1}`).join(", ");
@@ -75,13 +75,13 @@ export default class ConvocatoriaModel {
       RETURNING codigo, convocatoria_id, descripcion, fecha_inicio, fecha_fin, fecha_creacion,
                 sic, agente, razon_s, nit, direccion, ciudad, telefono, codigo_tercero, estado
     `;
-    const { rows } = await pool.query(sql, values);
+    const { rows } = await createConectionPG(session).query(sql, values);
     return rows[0] || null;
   };
 
   // ─── Archivos (dinámico por tabla de la lista blanca) ───────────────────────
 
-  insertArchivo = async (tabla, valuesObj) => {
+  insertArchivo = async (session, tabla, valuesObj) => {
     assertTabla(tabla);
     const cols = Object.keys(valuesObj);
     const placeholders = cols.map((_, i) => `$${i + 1}`).join(", ");
@@ -91,26 +91,26 @@ export default class ConvocatoriaModel {
       VALUES (${placeholders})
       RETURNING *
     `;
-    const { rows } = await pool.query(sql, values);
+    const { rows } = await createConectionPG(session).query(sql, values);
     return rows[0];
   };
 
-  getArchivoById = async (tabla, id) => {
+  getArchivoById = async (session, tabla, id) => {
     assertTabla(tabla);
-    const { rows } = await pool.query(`SELECT * FROM "${tabla}" WHERE id = $1`, [id]);
+    const { rows } = await createConectionPG(session).query(`SELECT * FROM "${tabla}" WHERE id = $1`, [id]);
     return rows[0] || null;
   };
 
-  getArchivosByContrato = async (tabla, contratoCodigo) => {
+  getArchivosByContrato = async (session, tabla, contratoCodigo) => {
     assertTabla(tabla);
-    const { rows } = await pool.query(
+    const { rows } = await createConectionPG(session).query(
       `SELECT * FROM "${tabla}" WHERE contrato_codigo = $1 ORDER BY fecha_carga`,
       [contratoCodigo]
     );
     return rows;
   };
 
-  updateArchivo = async (tabla, id, setObj) => {
+  updateArchivo = async (session, tabla, id, setObj) => {
     assertTabla(tabla);
     const cols = Object.keys(setObj);
     if (!cols.length) return this.getArchivoById(tabla, id);
@@ -123,7 +123,7 @@ export default class ConvocatoriaModel {
       WHERE id = $${values.length}
       RETURNING *
     `;
-    const { rows } = await pool.query(sql, values);
+    const { rows } = await createConectionPG(session).query(sql, values);
     return rows[0] || null;
   };
 }

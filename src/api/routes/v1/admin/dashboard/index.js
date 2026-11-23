@@ -20,6 +20,7 @@ import climaMapaRoutes from "./clima_mapa/index.js";
 import clima360Routes from "./clima360/index.js";
 import medidasFactoresRoutes from "./medidas_factores/index.js";
 import dnaIdoConfigRoutes from "./dna_ido_config/index.js";
+import demandSplitConfigRoutes from "./demand_split_config/index.js";
 import noticiasIdeamRoutes from "./noticias_ideam/index.js";
 import noticiasUngrdRoutes from "./noticias_ungrd/index.js";
 import configCiudadesClimaRoutes from "./config_ciudades_clima/index.js";
@@ -27,6 +28,7 @@ import circuitosGeoRoutes from "./circuitos_geo/index.js";
 import ecuacionFronteraRoutes from "./ecuacion_frontera/index.js";
 import alertasRoutes from "./alertas/index.js";
 import pronosticoDiarioRoutes from "./pronostico_diario/index.js";
+import configuracionGeneralRoutes from "./configuracion_general/index.js";
 
 const router = Router();
 
@@ -52,6 +54,7 @@ export default function () {
   router.use("/clima360", clima360Routes());
   router.use("/medidas_factores", medidasFactoresRoutes());
   router.use("/dna_ido_config", dnaIdoConfigRoutes());
+  router.use("/demand_split_config", demandSplitConfigRoutes());
   router.use("/noticias_ideam", noticiasIdeamRoutes());
   router.use("/noticias_ungrd", noticiasUngrdRoutes());
   router.use("/config_ciudades_clima", configCiudadesClimaRoutes());
@@ -59,6 +62,7 @@ export default function () {
   router.use("/ecuacion_frontera", ecuacionFronteraRoutes());
   router.use("/alertas", alertasRoutes());
   router.use("/pronostico_diario", pronosticoDiarioRoutes());
+  router.use("/configuracion_general", configuracionGeneralRoutes());
 
   return router;
 }

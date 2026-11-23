@@ -13,7 +13,8 @@ export const cargarAdemZip = async (req, res) => {
       return responseError(400, "No se recibió ningún archivo ZIP.", 400, res);
     }
 
-    const result = await service.cargarAdemZip(req.file.path, req.file.originalname);
+    const { session } = req.user;
+    const result = await service.cargarAdemZip(req.file.path, req.file.originalname, session);
 
     if (!result.success) {
       return responseError(200, result.message, 500, res);
