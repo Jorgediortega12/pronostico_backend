@@ -1,3 +1,4 @@
+import { festivosColombia } from "../utils/festivosColombia.js";
 import fs from "fs";
 import path from "path";
 import os from "os";
@@ -75,7 +76,7 @@ function groupAndSelectFiles(files) {
   return Object.values(byDate).map(selectByPriority);
 }
 
-function parseTipofecha(dateStr, holidays) {
+export function parseTipofecha(dateStr, holidays) {
   const d = new Date(dateStr);
   const dow = d.getUTCDay(); // 0=Dom, 6=Sab
   if (holidays.has(dateStr) || dow === 0) return "2";
@@ -83,19 +84,28 @@ function parseTipofecha(dateStr, holidays) {
   return "0";
 }
 
-function colombianHolidays(year) {
-  const holidays = new Set();
-  const fixed = [
-    `${year}-01-01`, `${year}-05-01`, `${year}-07-20`,
-    `${year}-08-07`, `${year}-12-08`, `${year}-12-25`,
-  ];
-  fixed.forEach((d) => holidays.add(d));
-  return holidays;
+// Festivos de Colombia con la Ley Emiliani, como `holidays_co` en el GMR original (ver utils/festivosColombia.js).
+const colombianHolidays = festivosColombia;
+
+/**
+ * Demanda de un agente en un día, igual que el GMR original: demanda regulada + pérdidas reguladas (DMRE + PRRE).
+ * DMNR es la demanda NO regulada (alrededor del 9 % de la del agente CMMC): solo se usa si el agente no trae DMRE.
+ * Un DMRE sin su PRRE es un archivo incompleto: se avisa en vez de cambiar de magnitud sin decirlo.
+ * `filas` son las filas del agente (de un solo día). Devuelve { hora_1..hora_24, total } o null si no hay datos que usar.
+ */
+export function demandaDelAgente(filas, agente, archivo, construir) {
+  const por = (codigo) => filas.find((r) => r["CODIGO"]?.trim() === codigo);
+  const dmre = por("DMRE");
+  const prre = por("PRRE");
+  if (dmre && prre) return construir(dmre, prre);
+  if (dmre) throw new Error(`${archivo}: el agente ${agente} trae DMRE pero no PRRE; el archivo está incompleto`);
+  const dmnr = por("DMNR");
+  return dmnr ? construir(dmnr) : null;
 }
 
 // Retorna un array de { hora_1..hora_24, total, fecha? }
 // Para archivos diarios → 1 elemento. Para archivos mensuales unidos → N elementos (uno por día).
-function parseAdemFile(filePath) {
+export function parseAdemFile(filePath) {
   const raw = fs.readFileSync(filePath, { encoding: "latin1" });
   const rows = parse(raw, {
     delimiter: ";",
@@ -169,26 +179,20 @@ function parseAdemFile(filePath) {
       const fechaNorm = normalizeFecha(fecha);
       if (!fechaNorm) { Logger.warn(colors.yellow(`[ADEM] Fecha no reconocida "${fecha}" — saltando`)); continue; }
       const dayRows = rowsAgente.filter((r) => r[fechaCol]?.trim() === fecha);
-      const dmnr = dayRows.find((r) => r["CODIGO"]?.trim() === "DMNR");
-      if (dmnr) { records.push({ ...buildRecord(dmnr), _fecha: fechaNorm }); continue; }
-      const dmre = dayRows.find((r) => r["CODIGO"]?.trim() === "DMRE");
-      const prre = dayRows.find((r) => r["CODIGO"]?.trim() === "PRRE");
-      if (dmre && prre) { records.push({ ...buildRecord(dmre, prre), _fecha: fechaNorm }); continue; }
-      Logger.warn(colors.yellow(`[ADEM] Sin DMNR/DMRE+PRRE para agente ${agente} en fecha ${fecha}`));
+      const registro = demandaDelAgente(dayRows, agente, path.basename(filePath), buildRecord);
+      if (registro) { records.push({ ...registro, _fecha: fechaNorm }); continue; }
+      Logger.warn(colors.yellow(`[ADEM] Sin DMRE+PRRE ni DMNR para agente ${agente} en fecha ${fecha}`));
     }
     if (!records.length) throw new Error(`${path.basename(filePath)}: no se pudo extraer ningún día`);
     return records;
   }
 
   // Archivo diario
-  const dmnr = rowsAgente.find((r) => r["CODIGO"]?.trim() === "DMNR");
-  if (dmnr) return [buildRecord(dmnr)];
-  const dmre = rowsAgente.find((r) => r["CODIGO"]?.trim() === "DMRE");
-  const prre = rowsAgente.find((r) => r["CODIGO"]?.trim() === "PRRE");
-  if (dmre && prre) return [buildRecord(dmre, prre)];
+  const registro = demandaDelAgente(rowsAgente, agente, path.basename(filePath), buildRecord);
+  if (registro) return [registro];
 
   throw new Error(
-    `${path.basename(filePath)}: agente ${agente} no tiene DMNR ni DMRE+PRRE — códigos disponibles: ${[...new Set(rowsAgente.map(r => r["CODIGO"]?.trim()))].join(",")}`
+    `${path.basename(filePath)}: agente ${agente} no tiene DMRE+PRRE ni DMNR — códigos disponibles: ${[...new Set(rowsAgente.map(r => r["CODIGO"]?.trim()))].join(",")}`
   );
 }
 
