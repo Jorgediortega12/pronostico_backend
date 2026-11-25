@@ -66,11 +66,22 @@ const numeroOnull = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 
+export const lunesDe = (iso) => {
+  const dow = new Date(`${iso}T00:00:00Z`).getUTCDay(); // 0 = domingo
+  return sumarDias(iso, -((dow + 6) % 7));
+};
+
+// Hoy en Colombia (UTC-5, sin DST) como YYYY-MM-DD.
+export const hoyBogota = () => new Date(Date.now() - 5 * 3_600_000).toISOString().slice(0, 10);
+
+const curvaCompleta = (curva) => curva.every((v) => v !== null && v >= 0);
+
 const curvaDeFila = (fila) =>
   Array.from({ length: N_PERIODOS }, (_, i) => numeroOnull(fila[`p${i + 1}`]));
 
 export function crearServicioAjustes(deps = {}) {
   const env = deps.env ?? process.env;
+  const hoy = deps.hoy ?? hoyBogota;
   const fetchImpl = deps.fetch ?? ((...args) => globalThis.fetch(...args));
   const model = deps.model ?? AjustesModel.getInstance();
   const conectar = deps.conectar ?? createConectionPG;
@@ -219,6 +230,49 @@ export function crearServicioAjustes(deps = {}) {
 
   const acumuladoAnual = (q) => llamarEpm("acumuladoAnual", { query: { ...q, ucp: verificarUcp(q.ucp) } });
 
+  /**
+   * P1 "Lo que aprendió": arma emisiones ex-ante y reales y los envía a EPM. Solo lectura; no modifica nada.
+   * Regla ex-ante (ver querys.emisionesRetro): solo tipo 'P', por FECHA, sesión de menor codigo guardada >= 3 días antes.
+   * Ventana anclada al último día real completo (el real llega con rezago): desde = lunes(último real) - 7*semanas.
+   * Si no hay real o emisión se envía vacío (EPM responde sin_datos) y no se mandan reales sin emisión.
+   */
+  async function aprendizajeError({ ucp, semanas }, user) {
+    const u = verificarUcp(ucp);
+    const ultimoReal = await model.ultimoRealHasta(u, sumarDias(hoy(), 1), conectar(user.session));
+    const vacio = () => llamarEpm("aprendizajeError", { body: { ucp: u, semanas, emisiones: [], reales: {} } });
+    if (!ultimoReal) return vacio();
+    const desde = sumarDias(lunesDe(ultimoReal), -7 * semanas);
+    const [filas, filasReales] = await Promise.all([
+      model.emisionesRetro(u, desde, ultimoReal, conectar(user.session)),
+      model.realesRetro(u, desde, ultimoReal, conectar(user.session)),
+    ]);
+
+    // Las filas llegan ordenadas por fecha (SQL). Se agrupan por lunes; solo días con los 24 periodos presentes y >= 0.
+    const semanasMap = new Map(); // lunes -> {version (mínima), curvas}
+    for (const fila of filas) {
+      const curva = curvaDeFila(fila);
+      if (!curvaCompleta(curva)) continue;
+      const lunes = lunesDe(fila.fecha);
+      const version = numeroOnull(fila.version);
+      const sem = semanasMap.get(lunes) ?? { version, curvas: {} };
+      if (version !== null && (sem.version === null || version < sem.version)) sem.version = version;
+      sem.curvas[fila.fecha] = curva;
+      semanasMap.set(lunes, sem);
+    }
+    const emisiones = [...semanasMap].map(([semana_inicio, { version, curvas }]) => ({ semana_inicio, version, curvas }));
+    if (!emisiones.length) return vacio();
+
+    // Reales: la última fila por fecha gana (orden fecha, codigo); si esa fila está incompleta el día se descarta.
+    const ultimaPorFecha = new Map();
+    for (const fila of filasReales) ultimaPorFecha.set(fila.fecha, curvaDeFila(fila));
+    const conEmision = new Set(emisiones.flatMap((e) => Object.keys(e.curvas)));
+    const realesData = {};
+    for (const [fecha, curva] of ultimaPorFecha) {
+      if (conEmision.has(fecha) && curvaCompleta(curva)) realesData[fecha] = curva;
+    }
+    return llamarEpm("aprendizajeError", { body: { ucp: u, semanas, emisiones, reales: realesData } });
+  }
+
   // --- Datos de Sphere (BD, solo lectura) ----------------------------------------
   async function reales({ ucp, desde, hasta }, user) {
     const u = verificarUcp(ucp);
@@ -295,6 +349,7 @@ export function crearServicioAjustes(deps = {}) {
     aprobar,
     analogos,
     acumuladoAnual,
+    aprendizajeError,
   };
 }
 

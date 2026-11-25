@@ -46,3 +46,4 @@ export const patchPaso = manejar((s, req) => s.patchPaso(req.ajustes.params, req
 export const aprobar = manejar((s, req) => s.aprobar(req.ajustes.params, req.ajustes.body, req.user));
 export const analogos = manejar((s, req) => s.analogos(req.ajustes.body));
 export const acumuladoAnual = manejar((s, req) => s.acumuladoAnual(req.ajustes.query));
+export const aprendizajeError = manejar((s, req) => s.aprendizajeError(req.ajustes.query, req.user));

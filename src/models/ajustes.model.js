@@ -38,6 +38,12 @@ export default class AjustesModel {
   reales = (ucp, desde, hasta, client) =>
     this.#consultar("reales", client, querys.reales, [ucp, desde, hasta]);
 
+  emisionesRetro = (ucp, desde, hasta, client) =>
+    this.#consultar("emisionesRetro", client, querys.emisionesRetro, [ucp, desde, hasta]);
+
+  realesRetro = (ucp, desde, hasta, client) =>
+    this.#consultar("realesRetro", client, querys.realesRetro, [ucp, desde, hasta]);
+
   nombreUsuario = async (userId, client) => {
     const fila = (await this.#consultar("nombreUsuario", client, querys.nombreUsuario, [userId]))[0];
     return fila ? fila.nombre || fila.usuario || null : null;

@@ -127,3 +127,23 @@ test("sin ningún EPM falso accesible: no se hace llamada para entradas inválid
     await ctx.cerrar();
   }
 });
+
+// P1 aprendizaje-error
+rechaza("/aprendizaje-error", "GET", undefined, "aprendizaje-error sin ucp");
+rechaza("/aprendizaje-error?ucp=Bogota", "GET", undefined, "aprendizaje-error con ucp no habilitada");
+rechaza("/aprendizaje-error?ucp=Antioquia&semanas=3", "GET", undefined, "aprendizaje-error semanas < 4");
+rechaza("/aprendizaje-error?ucp=Antioquia&semanas=27", "GET", undefined, "aprendizaje-error semanas > 26");
+rechaza("/aprendizaje-error?ucp=Antioquia&semanas=8.5", "GET", undefined, "aprendizaje-error semanas no entero");
+rechaza("/aprendizaje-error?ucp=Antioquia&semanas=abc", "GET", undefined, "aprendizaje-error semanas no numérica");
+rechaza("/aprendizaje-error?ucp=Antioquia&hasta=2026-11-23", "GET", undefined, "aprendizaje-error con query desconocida");
+rechaza("/aprendizaje-error?ucp=../etc", "GET", undefined, "aprendizaje-error ucp con patrón inválido");
+
+test("aprendizaje-error: semanas por defecto 12 y límites 4 y 26 pasan", () =>
+  con(async ({ url, llamadas }) => {
+    for (const q of ["ucp=Antioquia", "ucp=antioquia&semanas=4", "ucp=Antioquia&semanas=26"]) {
+      const r = await pedir(url, "GET", `/aprendizaje-error?${q}`);
+      assert.equal(r.status, 200, JSON.stringify(r.json));
+    }
+    assert.deepEqual(llamadas.map((l) => l.body.semanas), [12, 4, 26]);
+    assert.equal(llamadas[1].body.ucp, "Antioquia"); // nombre canónico EPM
+  }));

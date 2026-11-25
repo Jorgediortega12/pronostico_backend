@@ -30,15 +30,18 @@ export const modeloFalso = (extra = {}) => ({
   ultimoRealHasta: async () => null,
   periodosSesion: async () => [],
   reales: async () => [],
+  emisionesRetro: async () => [],
+  realesRetro: async () => [],
   ...extra,
 });
 
 /** Levanta la app con un servicio inyectado. Devuelve { url, cerrar, llamadas }. */
-export async function levantar({ epm = epmFalso(), model = modeloFalso(), env = {}, user } = {}) {
+export async function levantar({ epm = epmFalso(), model = modeloFalso(), env = {}, user, hoy } = {}) {
   const servicio = crearServicioAjustes({
     fetch: epm.fetch,
     model,
     conectar: () => ({}),
+    hoy,
     env: { EPM_AJUSTES_URL: "http://epm.test:8001", AJUSTES_SERVICE_TOKEN: "tok-servicio", ...env },
   });
   fijarServicioAjustes(servicio);

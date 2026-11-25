@@ -4,6 +4,7 @@ import {
   PERFILES,
   UCP_PATTERN,
   MAX_DIAS_REALES,
+  SEMANAS_RETRO,
 } from "../../../../../../../services/ajustes.whitelist.js";
 
 // Whitelist estricta (defensa en profundidad antes de EPM): Joi rechaza toda clave no listada
@@ -199,6 +200,11 @@ export default {
     fecha: fecha().required(),
     fecha_corte: fecha().allow(null),
     filtros: filtrosAnalogos.allow(null),
+  }),
+  // P1: ucp habilitada (la verifica el servicio) y semanas 4..26 (default 12).
+  aprendizajeError: Joi.object({
+    ucp: ucp().required(),
+    semanas: entero(SEMANAS_RETRO.min, SEMANAS_RETRO.max).default(SEMANAS_RETRO.defecto),
   }),
   // EPM: anio obligatorio; banda_pct/cupo/hasta opcionales (apagados por defecto).
   acumuladoAnual: Joi.object({

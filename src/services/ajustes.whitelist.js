@@ -48,6 +48,13 @@ export const RUTAS_EPM = Object.freeze({
     timeout: TIMEOUT_CORTO,
     exito: 200,
   },
+  // P1 "Lo que aprendió": informativo, no modifica curvas ni corridas.
+  aprendizajeError: {
+    metodo: "POST",
+    epm: "/adjustments/aprendizaje/error",
+    timeout: TIMEOUT_CORTO,
+    exito: 200,
+  },
 });
 
 // UCP habilitadas por defecto; se puede sobrescribir con AJUSTES_UCPS (JSON: [{ucp,nombre}]).
@@ -57,3 +64,5 @@ export const UCPS_DEFAULT = Object.freeze([
 ]);
 
 export const MAX_DIAS_REALES = 120;
+
+export const SEMANAS_RETRO = Object.freeze({ min: 4, max: 26, defecto: 12 });

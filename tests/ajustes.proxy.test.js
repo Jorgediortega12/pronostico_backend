@@ -281,3 +281,47 @@ test("mensajeDeDetail", () => {
   assert.equal(mensajeDeDetail([{ msg: "a" }, { msg: "b" }]), "a; b");
   assert.equal(mensajeDeDetail(null), "Error en la API de ajustes");
 });
+
+test("aprendizaje-error: POST fijo a EPM con token, solo ucp/semanas/emisiones/reales, respuesta {success,data}", () =>
+  con(
+    async ({ url, llamadas }) => {
+      const r = await pedir(url, "GET", "/aprendizaje-error?ucp=Antioquia&semanas=8");
+      assert.equal(r.status, 200);
+      assert.deepEqual(r.json, { success: true, data: { estado: "sin_datos", ucp: "Antioquia", motivo: "x" } });
+      assert.equal(llamadas.length, 1);
+      assert.equal(llamadas[0].url, "http://epm.test:8001/adjustments/aprendizaje/error");
+      assert.equal(llamadas[0].init.method, "POST");
+      assert.equal(llamadas[0].init.headers["X-Ajustes-Token"], "tok-servicio");
+      assert.deepEqual(Object.keys(llamadas[0].body).sort(), ["emisiones", "reales", "semanas", "ucp"]);
+    },
+    { epm: epmFalso(() => ({ status: 200, json: { estado: "sin_datos", ucp: "Antioquia", motivo: "x" } })) },
+  ));
+
+test("aprendizaje-error: errores de EPM con su status y saneados; EPM caído -> 502; 5xx sin trazas", async () => {
+  await con(
+    async ({ url }) => {
+      const r = await pedir(url, "GET", "/aprendizaje-error?ucp=Antioquia");
+      assert.equal(r.status, 422);
+      assert.equal(r.json.success, false);
+      assert.match(r.json.message, /fechas inválidas/);
+    },
+    { epm: epmFalso(() => ({ status: 422, json: { detail: "fechas inválidas" } })) },
+  );
+  await con(
+    async ({ url }) => {
+      const r = await pedir(url, "GET", "/aprendizaje-error?ucp=Antioquia");
+      assert.equal(r.status, 500);
+      assert.equal(r.json.message, "Error en la API de ajustes");
+      assert.ok(!JSON.stringify(r.json).includes("Traceback"));
+    },
+    { epm: epmFalso(() => ({ status: 500, texto: "Traceback (most recent call last) ..." })) },
+  );
+  await con(
+    async ({ url }) => {
+      const r = await pedir(url, "GET", "/aprendizaje-error?ucp=Antioquia");
+      assert.equal(r.status, 502);
+      assert.equal(r.json.message, "La API de ajustes no respondió");
+    },
+    { epm: epmFalso(() => new Error("ECONNREFUSED")) },
+  );
+});

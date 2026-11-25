@@ -18,6 +18,7 @@ export function crearRouterAjustes() {
   router.post("/run", validar(schema.run), controllers.run);
   router.get("/aprobada", validar(schema.aprobada, Q), controllers.aprobada);
   router.get("/acumulado-anual", validar(schema.acumuladoAnual, Q), controllers.acumuladoAnual);
+  router.get("/aprendizaje-error", validar(schema.aprendizajeError, Q), controllers.aprendizajeError);
   router.post("/analogos", validar(schema.analogos), controllers.analogos);
 
   router.get("/corridas/:id", validar(schema.corridaParams, P), controllers.corrida);
