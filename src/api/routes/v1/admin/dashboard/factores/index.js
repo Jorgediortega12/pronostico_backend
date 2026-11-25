@@ -247,5 +247,32 @@ export default function () {
     controllers.guardarFpMinimo,
   );
 
+  // Curvas típicas cargadas: barras nuevas (o traslados de carga) sin historial de medidas, con su curva típica por tipo de día.
+  router.get(
+    "/curvasCargadas/detalle/:id",
+    validator(schema.curvasCargadasPorId, ValidationSource.PARAM),
+    controllers.curvasCargadasDetalle,
+  );
+  router.get(
+    "/curvasCargadas/:mc",
+    validator(schema.curvasCargadasPorMc, ValidationSource.PARAM),
+    controllers.curvasCargadasListar,
+  );
+  router.post("/curvasCargadas/fpDeBarra", validator(schema.curvasCargadasCuerpo), controllers.curvasCargadasFpDeBarra);
+  router.post("/curvasCargadas/previsualizar", validator(schema.curvasCargadasCuerpo), controllers.curvasCargadasPrevisualizar);
+  router.post("/curvasCargadas/guardar", validator(schema.curvasCargadasCuerpo), controllers.curvasCargadasGuardar);
+  router.post("/curvasCargadas/sincronizar", validator(schema.curvasCargadasSincronizar), controllers.curvasCargadasSincronizar);
+  router.put(
+    "/curvasCargadas/:id/habilitar",
+    validator(schema.curvasCargadasPorId, ValidationSource.PARAM),
+    validator(schema.curvasCargadasHabilitar),
+    controllers.curvasCargadasHabilitar,
+  );
+  router.delete(
+    "/curvasCargadas/:id",
+    validator(schema.curvasCargadasPorId, ValidationSource.PARAM),
+    controllers.curvasCargadasEliminar,
+  );
+
   return router;
 }

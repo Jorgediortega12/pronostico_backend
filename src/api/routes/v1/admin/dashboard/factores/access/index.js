@@ -1,5 +1,6 @@
 import FactoresService from "../../../../../../../services/factores.service.js";
 import FactDnaService from "../../../../../../../services/fact_dna.service.js";
+import FactoresCurvasService from "../../../../../../../services/factores_curvas.service.js";
 import Logger from "../../../../../../../helpers/logger.js";
 import { aplicarConfigAgrupacion } from "../../../../../../../helpers/agrupacionCalculo.js";
 import {
@@ -1218,3 +1219,26 @@ export const guardarFpMinimo = async (req, res) => {
     return InternalError(res);
   }
 };
+
+// ── Curvas típicas cargadas (barras nuevas o traslados de carga sin historial de medidas) ─────────────────────────────────
+const curvasCargadas = FactoresCurvasService.getInstance();
+
+// Los errores de validación del servicio llevan su código HTTP (400, 404, 409) y un mensaje que la pantalla muestra tal cual.
+const curvas = (nombre, mensaje, fn) => async (req, res) => {
+  try {
+    return SuccessResponse(res, await fn(req.user.session, req), mensaje);
+  } catch (err) {
+    Logger.error(`[factores.curvas.${nombre}] ${err.message}`);
+    if (err.statusCode) return responseError(200, err.message, err.statusCode, res);
+    return InternalError(res);
+  }
+};
+
+export const curvasCargadasListar = curvas("listar", "Curvas cargadas", (s, r) => curvasCargadas.listar(r.params.mc, s));
+export const curvasCargadasDetalle = curvas("detalle", "Detalle de las curvas cargadas", (s, r) => curvasCargadas.detalle(r.params.id, s));
+export const curvasCargadasFpDeBarra = curvas("fpDeBarra", "Factor de potencia de la barra", (s, r) => curvasCargadas.fpDeBarra(r.body, s));
+export const curvasCargadasPrevisualizar = curvas("previsualizar", "Vista previa de las curvas", (s, r) => curvasCargadas.previsualizar(r.body, s));
+export const curvasCargadasGuardar = curvas("guardar", "Curvas guardadas", (s, r) => curvasCargadas.guardar(r.body, s));
+export const curvasCargadasHabilitar = curvas("habilitar", "Curvas actualizadas", (s, r) => curvasCargadas.habilitar(r.params.id, r.body.habilitar, s));
+export const curvasCargadasEliminar = curvas("eliminar", "Curvas eliminadas", (s, r) => curvasCargadas.eliminar(r.params.id, s));
+export const curvasCargadasSincronizar = curvas("sincronizar", "Curvas sincronizadas", (s, r) => curvasCargadas.sincronizar(r.body, s));

@@ -394,4 +394,17 @@ export default {
       vecinosFinal: Joi.boolean(),
     }),
   }),
+
+  // ── Curvas típicas cargadas ──────────────────────────────────────────────────────────────────────────────────────────
+  // El detalle de lo que se carga (curvas, factores de potencia, barras) lo valida el servicio y responde con un mensaje claro.
+  curvasCargadasPorMc: Joi.object({ mc: Joi.string().required() }),
+  curvasCargadasPorId: Joi.object({ id: Joi.number().integer().min(1).required() }),
+  curvasCargadasCuerpo: Joi.object({ mc: Joi.string().required() }).unknown(true),
+  curvasCargadasHabilitar: Joi.object({ habilitar: Joi.boolean().required() }),
+  curvasCargadasSincronizar: Joi.object({
+    mc: Joi.string().required(),
+    fecha_inicial: Joi.string().isoDate().allow(null, ""),
+    fecha_final: Joi.string().isoDate().allow(null, ""),
+    forzar: Joi.boolean(),
+  }),
 };
