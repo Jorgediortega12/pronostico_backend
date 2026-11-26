@@ -21,6 +21,7 @@ import clima360Routes from "./clima360/index.js";
 import medidasFactoresRoutes from "./medidas_factores/index.js";
 import dnaIdoConfigRoutes from "./dna_ido_config/index.js";
 import demandSplitConfigRoutes from "./demand_split_config/index.js";
+import ademAgenteConfigRoutes from "./adem_agente_config/index.js";
 import noticiasIdeamRoutes from "./noticias_ideam/index.js";
 import noticiasUngrdRoutes from "./noticias_ungrd/index.js";
 import configCiudadesClimaRoutes from "./config_ciudades_clima/index.js";
@@ -55,6 +56,7 @@ export default function () {
   router.use("/medidas_factores", medidasFactoresRoutes());
   router.use("/dna_ido_config", dnaIdoConfigRoutes());
   router.use("/demand_split_config", demandSplitConfigRoutes());
+  router.use("/adem_agente_config", ademAgenteConfigRoutes());
   router.use("/noticias_ideam", noticiasIdeamRoutes());
   router.use("/noticias_ungrd", noticiasUngrdRoutes());
   router.use("/config_ciudades_clima", configCiudadesClimaRoutes());
