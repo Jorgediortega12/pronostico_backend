@@ -14,6 +14,10 @@
 -- Las fechas nuevas de medidas que lleguen después las completa solo el backend (no hace falta repetirlo).
 -- ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════
 
+-- Todo el script va en UNA transacción: si algo falla no queda nada a medias, y al final se confirma solo (COMMIT).
+-- Si tu cliente trabaja en modo manual y el script se corta con un error, ejecuta ROLLBACK; antes de volver a intentarlo.
+BEGIN;
+
 -- 1) Tablas del módulo (las mismas que crea el backend la primera vez que se abre «Curvas cargadas»).
 CREATE TABLE IF NOT EXISTS factores_curvas_grupos (
   id SERIAL PRIMARY KEY,
@@ -292,6 +296,8 @@ SELECT
   round(sum(CASE WHEN me.codigo_rpm LIKE 'CT-%-D' THEN me.p14 ELSE 0 END)::numeric, 3) AS destino_p14,
   round(sum(CASE WHEN me.codigo_rpm LIKE 'CT-%-O' THEN me.p14 ELSE 0 END)::numeric, 3) AS origenes_p14
 FROM medidas me WHERE me.codigo_rpm LIKE 'CT-%' AND me.flujo = 'AE';
+
+COMMIT;
 
 -- ── Para deshacerlo (quita el grupo, sus medidas CT- y sus agrupaciones; deja la barra INDUSTR1): ───────────────
 -- DO $$ DECLARE v int[]; BEGIN
