@@ -476,9 +476,12 @@ export default class AdemService {
         updated,
         errors,
         skipped,
+        // Archivos que no se pudieron leer (p. ej. el agente configurado no está en ese archivo): antes solo quedaban en el log.
+        files_failed: fileErrors.length,
+        file_errors: fileErrors.slice(0, 10),
         base_de_datos: session.basededatos, // para poder comprobar en qué base se guardó
         agente: agenteFijo ?? "automático",
-        message: `Año ${year} (agente ${agenteFijo ?? "automático"}): ${inserted} insertados, ${updated} actualizados${skipped ? `, ${skipped} omitidos (ya había un archivo de mayor prioridad)` : ""}, ${errors} errores.`,
+        message: `Año ${year} (agente ${agenteFijo ?? "automático"}): ${inserted} insertados, ${updated} actualizados${skipped ? `, ${skipped} omitidos (ya había un archivo de mayor prioridad)` : ""}, ${errors} errores${fileErrors.length ? `, ${fileErrors.length} archivos sin leer` : ""}.`,
       };
     } finally {
       // Limpiar archivos temporales
