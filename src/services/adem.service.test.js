@@ -80,3 +80,20 @@ test("archivo real del 1 de junio de 2026 = lo que tiene el GMR original", { ski
   assert.equal(Math.round(r.total * 10) / 10, 28582925.7);
   assert.equal(Math.round(r.hora_1 * 10) / 10, 1291633.2);
 });
+
+test("con un agente configurado usa SOLO ese agente, aunque el archivo traiga CMMC", () => {
+  const f = escribir("adem1101.Tx2", [CABECERA, fila("DMRE", "CMMC", 1000), fila("PRRE", "CMMC", 10), fila("DMRE", "ATEC", 300), fila("PRRE", "ATEC", 3)]);
+  assert.equal(parseAdemFile(f, "ATEC")[0].total, totalDe(300) + totalDe(3));
+  assert.equal(parseAdemFile(f, "atec")[0].total, totalDe(300) + totalDe(3), "no distingue mayúsculas");
+  assert.equal(parseAdemFile(f)[0].total, totalDe(1000) + totalDe(10), "sin configurar sigue siendo CMMC");
+});
+
+test("si el agente configurado no está en el archivo, avisa y no cambia de agente", () => {
+  const f = escribir("adem1102.Tx2", [CABECERA, fila("DMRE", "CMMC", 1000), fila("PRRE", "CMMC", 10)]);
+  assert.throws(() => parseAdemFile(f, "ATEC"), /agente ATEC \(configurado\) no tiene demanda en el archivo — agentes con demanda: CMMC/);
+});
+
+test("el agente configurado usa DMNR solo si no trae DMRE", () => {
+  const f = escribir("adem1103.Tx2", [CABECERA, fila("DMNR", "ATEC", 50)]);
+  assert.equal(parseAdemFile(f, "ATEC")[0].total, totalDe(50));
+});

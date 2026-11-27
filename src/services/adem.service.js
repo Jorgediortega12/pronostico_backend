@@ -11,6 +11,7 @@ import dotenv from "dotenv";
 import Logger from "../helpers/logger.js";
 import { createConectionPG } from "../helpers/connections.js";
 import colors from "colors";
+import AdemAgenteConfigService from "./adem_agente_config.service.js";
 
 dotenv.config();
 
@@ -105,7 +106,9 @@ export function demandaDelAgente(filas, agente, archivo, construir) {
 
 // Retorna un array de { hora_1..hora_24, total, fecha? }
 // Para archivos diarios → 1 elemento. Para archivos mensuales unidos → N elementos (uno por día).
-export function parseAdemFile(filePath) {
+// agenteFijo: código del agente configurado (ej. "ATEC"). Si se indica, se usa SOLO ese agente: si el archivo no lo trae
+// se avisa en vez de cambiar de agente (otro agente es otra magnitud). Sin agenteFijo: automático (CMMC, CMC, CMEC o el primero con demanda).
+export function parseAdemFile(filePath, agenteFijo = null) {
   const raw = fs.readFileSync(filePath, { encoding: "latin1" });
   const rows = parse(raw, {
     delimiter: ";",
@@ -155,7 +158,15 @@ export function parseAdemFile(filePath) {
 
   // Seleccionar agente: preferido primero, si no hay usar el primero disponible con DMRE/DMNR
   const agentesEnArchivo = [...new Set(rows.map((r) => r["AGENTE"]?.trim()).filter(Boolean))];
-  const agente = AGENTES_PREFERIDOS.find((a) => agentesEnArchivo.includes(a))
+  const fijo = agenteFijo ? String(agenteFijo).trim().toUpperCase() : null;
+  const conDemanda = [...new Set(rows.filter((r) => ["DMRE", "DMNR"].includes(r["CODIGO"]?.trim())).map((r) => r["AGENTE"]?.trim()))].filter(Boolean);
+  if (fijo && !conDemanda.includes(fijo)) {
+    throw new Error(
+      `${path.basename(filePath)}: el agente ${fijo} (configurado) no tiene demanda en el archivo — agentes con demanda: ${conDemanda.slice(0, 12).join(",")}${conDemanda.length > 12 ? "…" : ""}`
+    );
+  }
+  const agente = fijo
+    ?? AGENTES_PREFERIDOS.find((a) => agentesEnArchivo.includes(a))
     ?? agentesEnArchivo.find((a) =>
         rows.some((r) => r["AGENTE"]?.trim() === a &&
           ["DMRE","DMNR"].includes(r["CODIGO"]?.trim()))
@@ -416,9 +427,14 @@ export default class AdemService {
       const records = [];
       const fileErrors = [];
 
+      // Agente configurado para esta base (null = automático). Si no se puede leer, se detiene la carga: no se debe
+      // cargar con otro agente sin que nadie lo sepa.
+      const agenteFijo = await AdemAgenteConfigService.getInstance().agenteParaCarga(session);
+      Logger.info(colors.cyan(`[ADEM] Agente: ${agenteFijo ?? "automático (CMMC, CMC o CMEC)"}`));
+
       for (const { filePath, mmdd, fileType, mm: monthMM } of files) {
         try {
-          const parsed = parseAdemFile(filePath);
+          const parsed = parseAdemFile(filePath, agenteFijo);
 
           for (const horasRec of parsed) {
             let fecha;
@@ -460,8 +476,12 @@ export default class AdemService {
         updated,
         errors,
         skipped,
+        // Archivos que no se pudieron leer (p. ej. el agente configurado no está en ese archivo): antes solo quedaban en el log.
+        files_failed: fileErrors.length,
+        file_errors: fileErrors.slice(0, 10),
         base_de_datos: session.basededatos, // para poder comprobar en qué base se guardó
-        message: `Año ${year}: ${inserted} insertados, ${updated} actualizados${skipped ? `, ${skipped} omitidos (ya había un archivo de mayor prioridad)` : ""}, ${errors} errores.`,
+        agente: agenteFijo ?? "automático",
+        message: `Año ${year} (agente ${agenteFijo ?? "automático"}): ${inserted} insertados, ${updated} actualizados${skipped ? `, ${skipped} omitidos (ya había un archivo de mayor prioridad)` : ""}, ${errors} errores${fileErrors.length ? `, ${fileErrors.length} archivos sin leer` : ""}.`,
       };
     } finally {
       // Limpiar archivos temporales
