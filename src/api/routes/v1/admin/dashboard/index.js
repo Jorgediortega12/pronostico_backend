@@ -30,6 +30,7 @@ import ecuacionFronteraRoutes from "./ecuacion_frontera/index.js";
 import alertasRoutes from "./alertas/index.js";
 import pronosticoDiarioRoutes from "./pronostico_diario/index.js";
 import configuracionGeneralRoutes from "./configuracion_general/index.js";
+import ajustesRoutes from "./ajustes/index.js";
 
 const router = Router();
 
@@ -65,6 +66,7 @@ export default function () {
   router.use("/alertas", alertasRoutes());
   router.use("/pronostico_diario", pronosticoDiarioRoutes());
   router.use("/configuracion_general", configuracionGeneralRoutes());
+  router.use("/ajustes", ajustesRoutes());
 
   return router;
 }

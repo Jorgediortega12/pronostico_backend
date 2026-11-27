@@ -217,3 +217,7 @@ export const convertDateImportExcel = (numeroDeDias, esExcel = false) => {
   // 86400 es el número de segundos en un día, luego multiplicamos por 1000 para obtener milisegundos.
   return new Date((numeroDeDias - diasDesde1900) * 86400 * 1000);
 };
+
+/** Suma `n` días a una fecha ISO (YYYY-MM-DD) en UTC y devuelve YYYY-MM-DD. */
+export const sumarDiasISO = (iso, n) =>
+  new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
