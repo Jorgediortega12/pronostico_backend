@@ -30,7 +30,7 @@ SET barra = $1,
     observaciones = $4,
     habilitar = $5,
     mc = $6,
-    idbarra = $8
+    idbarra = CASE WHEN $9::boolean THEN $8 ELSE idbarra END -- sin el campo en la petición, el código no se toca
 WHERE id = $7
 `;
 

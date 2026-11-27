@@ -89,6 +89,7 @@ export default class FactoresModel {
         data.mc,
         id,
         data.idbarra || null,
+        Object.prototype.hasOwnProperty.call(data, "idbarra"),
       ]);
       return true;
     } catch (error) {

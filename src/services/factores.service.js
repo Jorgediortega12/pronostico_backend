@@ -96,7 +96,9 @@ export default class FactoresService {
       const repetido = await this.#idBarraRepetido(data, Number(id), session);
       if (repetido) return { success: false, message: repetido };
       const client = createConectionPG(session);
-      await model.actualizarBarra(id, { ...data, idbarra: data.idbarra?.trim?.() || null }, client);
+      // Si la petición no trae idbarra (por ejemplo, solo habilitar o deshabilitar) el código que ya tenía la barra se conserva.
+      const cuerpo = "idbarra" in data ? { ...data, idbarra: data.idbarra?.trim?.() || null } : data;
+      await model.actualizarBarra(id, cuerpo, client);
       return {
         success: true,
         message: "Barra actualizada correctamente",
