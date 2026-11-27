@@ -16,9 +16,31 @@ export default class FactoresModel {
     return FactoresModel.instance;
   }
 
+  // Crea la columna barras.idbarra si esta empresa todavía no la tiene (solo mira el catálogo cuando ya existe).
+  asegurarColumnaIdBarra = async (client) => {
+    const { rowCount } = await client.query(querys.existeColumnaIdBarra);
+    if (rowCount === 0) await client.query(querys.asegurarColumnaIdBarra);
+  };
+
+  /** Otra barra activa del mercado con ese idbarra (o null). idActual: la barra que se está editando (0 si es nueva). */
+  barraConIdBarra = async (mc, idbarra, idActual, client) => {
+    try {
+      await client.connect();
+      await this.asegurarColumnaIdBarra(client);
+      const { rows } = await client.query(querys.barraConIdBarra, [mc, idbarra, idActual ?? 0]);
+      return rows[0] ?? null;
+    } catch (error) {
+      Logger.error(colors.red("Error FactoresModel barraConIdBarra"), error);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  };
+
   guardarBarra = async (data, client) => {
     try {
       await client.connect();
+      await this.asegurarColumnaIdBarra(client);
       const result = await client.query(querys.guardarBarra, [
         data.barra,
         data.descripcion,
@@ -26,6 +48,7 @@ export default class FactoresModel {
         data.observaciones,
         data.habilitar,
         data.mc,
+        data.idbarra || null,
       ]);
       return result.rows[0];
     } catch (error) {
@@ -39,6 +62,7 @@ export default class FactoresModel {
   consultarBarrasIndex_xMC = async (mc, client) => {
     try {
       await client.connect();
+      await this.asegurarColumnaIdBarra(client);
       const result = await client.query(querys.consultarBarrasIndex_xMC, [mc]);
       return result.rows.length > 0 ? result.rows : null;
     } catch (error) {
@@ -55,6 +79,7 @@ export default class FactoresModel {
   actualizarBarra = async (id, data, client) => {
     try {
       await client.connect();
+      await this.asegurarColumnaIdBarra(client);
       await client.query(querys.actualizarBarra, [
         data.barra,
         data.descripcion,
@@ -63,6 +88,7 @@ export default class FactoresModel {
         data.habilitar,
         data.mc,
         id,
+        data.idbarra || null,
       ]);
       return true;
     } catch (error) {

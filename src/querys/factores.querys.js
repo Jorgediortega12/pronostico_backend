@@ -1,11 +1,26 @@
+// idbarra: código de la barra en el sistema de EPM (ej. CrgAma11). Sale en la columna IDBARRA del reporte de factores. barras vive en la BD de
+// cada empresa (no hay migración central), así que la columna se asegura perezosamente (ver FactoresModel.asegurarColumnaIdBarra).
+export const existeColumnaIdBarra = `
+SELECT 1 FROM information_schema.columns
+WHERE table_schema = current_schema() AND table_name = 'barras' AND column_name = 'idbarra'
+`;
+export const asegurarColumnaIdBarra = `ALTER TABLE barras ADD COLUMN IF NOT EXISTS idbarra VARCHAR(30)`;
+
+/** ¿Otra barra activa del mismo mercado ya usa ese idbarra? ($1 mc, $2 idbarra, $3 id de esta barra o 0 si es nueva) */
+export const barraConIdBarra = `
+SELECT id, barra FROM barras
+WHERE mc = $1 AND estado = 1 AND idbarra = $2 AND id <> $3
+LIMIT 1
+`;
+
 export const guardarBarra = `
 INSERT INTO barras
-(barra, descripcion, nivel_tension, observaciones, habilitar, estado, mc)
-VALUES ($1, $2, $3, $4, $5, 1, $6)
+(barra, descripcion, nivel_tension, observaciones, habilitar, estado, mc, idbarra)
+VALUES ($1, $2, $3, $4, $5, 1, $6, $7)
 RETURNING *
 `;
 
-export const consultarBarrasIndex_xMC = `SELECT id, barra, descripcion, nivel_tension, observaciones, habilitar, estado, mc FROM barras WHERE mc = $1 AND estado = 1 ORDER BY id`;
+export const consultarBarrasIndex_xMC = `SELECT id, barra, descripcion, nivel_tension, observaciones, habilitar, estado, mc, idbarra FROM barras WHERE mc = $1 AND estado = 1 ORDER BY id`;
 
 export const actualizarBarra = `
 UPDATE barras
@@ -14,7 +29,8 @@ SET barra = $1,
     nivel_tension = $3,
     observaciones = $4,
     habilitar = $5,
-    mc = $6
+    mc = $6,
+    idbarra = $8
 WHERE id = $7
 `;
 

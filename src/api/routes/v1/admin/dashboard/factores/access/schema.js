@@ -41,6 +41,8 @@ export default {
     observaciones: Joi.string().allow("", null),
     habilitar: Joi.number().required(),
     mc: Joi.string().required(),
+    // Código de la barra en EPM (ej. CrgAma11); sale en la columna IDBARRA del reporte. Vacío = sin código.
+    idbarra: Joi.string().trim().max(30).allow("", null),
   }),
 
   consultarBarrasIndex_xMC: Joi.object().keys({
@@ -55,6 +57,7 @@ export default {
     observaciones: Joi.string().allow("", null),
     habilitar: Joi.number().required(),
     mc: Joi.string().required(),
+    idbarra: Joi.string().trim().max(30).allow("", null),
   }),
 
   guardarAgrupacion: Joi.object({

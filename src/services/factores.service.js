@@ -31,10 +31,20 @@ export default class FactoresService {
     }
     return FactoresService.instance;
   }
+  /** El código de EPM de la barra (idbarra) no se puede repetir entre las barras activas del mismo mercado. Devuelve el mensaje o null. */
+  #idBarraRepetido = async (data, idActual, session) => {
+    const idbarra = typeof data.idbarra === "string" ? data.idbarra.trim() : "";
+    if (!idbarra) return null;
+    const otra = await model.barraConIdBarra(data.mc, idbarra, idActual, createConectionPG(session));
+    return otra ? `El ID de barra «${idbarra}» ya lo tiene la barra «${otra.barra}» de este mercado.` : null;
+  };
+
   guardarBarra = async (data, session) => {
     try {
+      const repetido = await this.#idBarraRepetido(data, 0, session);
+      if (repetido) return { success: false, data: null, message: repetido };
       const client = createConectionPG(session);
-      const res = await model.guardarBarra(data, client);
+      const res = await model.guardarBarra({ ...data, idbarra: data.idbarra?.trim?.() || null }, client);
       return {
         success: true,
         data: res,
@@ -83,8 +93,10 @@ export default class FactoresService {
 
   actualizarBarra = async (id, data, session) => {
     try {
+      const repetido = await this.#idBarraRepetido(data, Number(id), session);
+      if (repetido) return { success: false, message: repetido };
       const client = createConectionPG(session);
-      await model.actualizarBarra(id, data, client);
+      await model.actualizarBarra(id, { ...data, idbarra: data.idbarra?.trim?.() || null }, client);
       return {
         success: true,
         message: "Barra actualizada correctamente",
