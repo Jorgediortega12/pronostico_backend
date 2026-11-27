@@ -8,8 +8,19 @@ import { createConectionPG } from "../helpers/connections.js";
 import { findOrCreateFolder } from "../utils/folders.js";
 import { insertFileRecord } from "../utils/reportGenerator.js";
 import { generateXlsxFactores } from "../utils/generateXlsxFactores.js";
+import FactoresCurvasService from "./factores_curvas.service.js";
+import { esCodigoCurva } from "../utils/factoresCurvas.js";
 
 const model = FactoresModel.getInstance();
+// Curvas típicas cargadas: se materializan como medidas con códigos reservados (CT-); aquí se protegen de la edición manual y se completan
+// las fechas nuevas antes de calcular (ver factores_curvas.service.js).
+const curvas = FactoresCurvasService.getInstance();
+
+/** Mensaje si alguno de los códigos es de una curva cargada (no se editan a mano); null si no. */
+const mensajeSiEsCurva = (codigos, accion) => {
+  const c = (codigos ?? []).find((x) => esCodigoCurva(x));
+  return c ? `«${c}» es un código reservado de las curvas cargadas: no se puede ${accion}. Se administra desde «Curvas cargadas».` : null;
+};
 
 export default class FactoresService {
   static instance;
@@ -88,6 +99,8 @@ export default class FactoresService {
   };
 
   guardarAgrupacion = async (data, session) => {
+    const bloqueo = mensajeSiEsCurva([data?.codigo_rpm], "crear una agrupación con ese código");
+    if (bloqueo) return { success: false, data: null, message: bloqueo };
     try {
       const client = createConectionPG(session);
       const res = await model.guardarAgrupacion(data, client);
@@ -141,6 +154,13 @@ export default class FactoresService {
   };
 
   actualizarAgrupacion = async (id, data, session) => {
+    const bloqueo = mensajeSiEsCurva([data?.codigo_rpm], "usar ese código en una agrupación");
+    if (bloqueo) return { success: false, message: bloqueo };
+    try {
+      await curvas.exigirAgrupacionNoCurva(id, session, "modificar");
+    } catch (err) {
+      if (err.statusCode) return { success: false, message: err.message };
+    }
     try {
       const client = createConectionPG(session);
       await model.actualizarAgrupacion(id, data, client);
@@ -159,6 +179,11 @@ export default class FactoresService {
 
   eliminarBarraConAgrupaciones = async (id, session) => {
     try {
+      await curvas.exigirBarraSinCurvas(id, session);
+    } catch (err) {
+      if (err.statusCode) return { success: false, message: err.message };
+    }
+    try {
       const client = createConectionPG(session);
       await model.eliminarBarraConAgrupaciones(id, client);
       return {
@@ -175,6 +200,11 @@ export default class FactoresService {
   };
 
   eliminarAgrupacion = async (id, session) => {
+    try {
+      await curvas.exigirAgrupacionNoCurva(id, session, "eliminar");
+    } catch (err) {
+      if (err.statusCode) return { success: false, message: err.message };
+    }
     try {
       const client = createConectionPG(session);
       await model.eliminarAgrupacion(id, client);
@@ -197,6 +227,8 @@ export default class FactoresService {
   };
 
   eliminarRapido = async (data, session) => {
+    const bloqueo = mensajeSiEsCurva((data ?? []).map((m) => m.codigo_rpm), "eliminar sus medidas");
+    if (bloqueo) return { success: false, message: bloqueo };
     try {
       const client = createConectionPG(session);
       await model.eliminarMedidasRapido(data, client);
@@ -207,6 +239,8 @@ export default class FactoresService {
   };
 
   actualizarRapido = async (data, session) => {
+    const bloqueo = mensajeSiEsCurva((data ?? []).map((m) => m.codigo_rpm), "editar sus medidas");
+    if (bloqueo) return { success: false, message: bloqueo };
     try {
       const client = createConectionPG(session);
       await model.actualizarMedidasRapido(data, client);
@@ -217,6 +251,8 @@ export default class FactoresService {
   };
 
   insertarRapido = async (data, session) => {
+    const bloqueo = mensajeSiEsCurva((data ?? []).map((m) => m.codigo_rpm), "cargar medidas con ese código");
+    if (bloqueo) return { success: false, message: bloqueo };
     try {
       const client = createConectionPG(session);
       await model.insertarMedidasRapido(data, client);
@@ -329,6 +365,7 @@ export default class FactoresService {
 
   consultarMedidasCalcularCompleto = async (params, session) => {
     try {
+      await curvas.completarSiHaceFalta(params?.mc, params?.fecha_inicial, params?.fecha_final, session);
       const client = createConectionPG(session);
       const data = await model.consultarMedidasCalcularCompleto(params, client);
 
@@ -358,6 +395,7 @@ export default class FactoresService {
     session,
     ignorar_negativos = false,
   ) {
+    await curvas.completarSiHaceFalta(ucp, inicioIso, finIso, session);
     // Helper: genera db_url desde session
     const generateDbUrl = (session) => {
       try {
@@ -555,6 +593,7 @@ export default class FactoresService {
     session,
     ignorar_negativos = false,
   ) {
+    await curvas.completarSiHaceFalta(ucp, inicioIso, finIso, session);
     const generateDbUrl = (session) => {
       const { host, usuario, contrasenia, puerto, basededatos } = session;
       if (!host || !usuario || !puerto || !basededatos) {
@@ -656,6 +695,7 @@ export default class FactoresService {
     session,
     ignorar_negativos = false,
   ) {
+    await curvas.completarSiHaceFalta(ucp, inicioIso, finIso, session);
     const generateDbUrl = (session) => {
       const { host, usuario, contrasenia, puerto, basededatos } = session;
       if (!host || !usuario || !puerto || !basededatos) {
@@ -763,6 +803,7 @@ export default class FactoresService {
     timeoutMs = 600000,
     session,
   ) {
+    await curvas.completarSiHaceFalta(ucp, inicioIso, finIso, session);
     const generateDbUrl = (session) => {
       const { host, usuario, contrasenia, puerto, basededatos } = session;
       if (!host || !usuario || !puerto || !basededatos) {
@@ -962,6 +1003,9 @@ export default class FactoresService {
       n_max,
       ignorar_negativos = false,
     } = params;
+
+    // Curvas típicas cargadas: si llegaron fechas de medidas después de cargarlas, se completan antes de leer.
+    await curvas.completarSiHaceFalta(mc, fecha_inicial, fecha_final, session);
 
     try {
       const client = createConectionPG(session);
