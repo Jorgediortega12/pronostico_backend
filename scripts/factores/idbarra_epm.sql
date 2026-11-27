@@ -10,6 +10,10 @@
 -- basta con volver a ejecutar este archivo.
 -- ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════
 
+-- Todo el script va en UNA transacción: si algo falla no queda nada a medias, y al final se confirma solo (COMMIT).
+-- Si tu cliente trabaja en modo manual y el script se corta con un error, ejecuta ROLLBACK; antes de volver a intentarlo.
+BEGIN;
+
 -- 1) Columna
 ALTER TABLE barras ADD COLUMN IF NOT EXISTS idbarra VARCHAR(30);
 
@@ -108,3 +112,5 @@ GROUP BY idbarra HAVING count(*) > 1;
 
 -- 3c) Resumen:
 SELECT count(*) AS barras_activas, count(idbarra) AS con_idbarra FROM barras WHERE mc = 'Antioquia' AND estado = 1;
+
+COMMIT;
